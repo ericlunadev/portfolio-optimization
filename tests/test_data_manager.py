@@ -22,20 +22,40 @@ from src.data_manager import DataManager
 from src.data_manager import Updater
 import src.data_manager
 
+DATA_DIR = Path("tests/data")
+EXPECTED_NAMES = [
+    "SEB Hybrid",
+    "T-Bills",
+    "Corps",
+    "High Yield",
+    "Equity",
+    "Climate Focus",
+    "Asset Selection",
+]
+EXPECTED_YAHOO = [
+    "0P0001QM99.F",
+    "0P0000XBX1.F",
+    "0P00005Z2A.F",
+    "0P0001CDNC.F",
+    "0P000157DY.F",
+    "0P0000ZW1Z.F",
+    "0P0001CBFM.F",
+]
+
 
 # Fixture to create a DataManager instance
 @pytest.fixture
 def dm():
     dm = DataManager(
-        fund_tbl=Path("tests/data/t_fund.csv"),
-        price_tbl=Path("tests/data/t_price.parquet"),
-        exp_tbl=Path("tests/data/t_exp.parquet"),
+        fund_tbl=DATA_DIR / "t_fund.csv",
+        price_tbl=DATA_DIR / "t_price.parquet",
+        exp_tbl=DATA_DIR / "t_exp.parquet",
     )
     return dm
 
 
 def test__init__(dm: DataManager):
-    assert dm.price_tbl == Path("tests/data/t_price.parquet")
+    assert dm.price_tbl == DATA_DIR / "t_price.parquet"
     assert dm.t_fund.shape == (7, 6)
     assert dm.t_fund.columns == [
         "id",
@@ -47,15 +67,7 @@ def test__init__(dm: DataManager):
     ]
     assert dm.t_price.shape == (1881, 3)
     assert dm.corr.shape == (7, 8)
-    assert dm.corr["name"].to_list() == [
-        "SEB Hybrid",
-        "T-Bills",
-        "Corps",
-        "High Yield",
-        "Equity",
-        "Climate Focus",
-        "Asset Selection",
-    ]
+    assert dm.corr["name"].to_list() == EXPECTED_NAMES
     assert dm.ret_vol.shape == (7, 4)
     assert isinstance(dm.t_exp, pl.DataFrame)
     assert dm.t_exp.shape == (139, 6)
@@ -210,38 +222,14 @@ def test_get_min_max_ret(dm: DataManager):
 
 
 def test_names(dm: DataManager):
-    assert dm.names() == [
-        "SEB Hybrid",
-        "T-Bills",
-        "Corps",
-        "High Yield",
-        "Equity",
-        "Climate Focus",
-        "Asset Selection",
-    ]
+    assert dm.names() == EXPECTED_NAMES
 
 
 def test_last_update(dm: DataManager):
     assert dm.last_update().to_dict(as_series=False) == {
         "id": [1, 2, 3, 4, 5, 6, 7],
-        "name": [
-            "SEB Hybrid",
-            "T-Bills",
-            "Corps",
-            "High Yield",
-            "Equity",
-            "Climate Focus",
-            "Asset Selection",
-        ],
-        "yahoo": [
-            "0P0001QM99.F",
-            "0P0000XBX1.F",
-            "0P00005Z2A.F",
-            "0P0001CDNC.F",
-            "0P000157DY.F",
-            "0P0000ZW1Z.F",
-            "0P0001CBFM.F",
-        ],
+        "name": EXPECTED_NAMES,
+        "yahoo": EXPECTED_YAHOO,
         "min_date": [
             datetime.date(2023, 3, 30),
             datetime.date(2023, 1, 2),

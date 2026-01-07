@@ -2,14 +2,16 @@
 Unit test on charts module
 """
 
-import polars as pl
 import altair as alt
+import polars as pl
+import pytest
+
 import src.charts
 
 
-def test_create_scatter_chart():
-    # Mock data to test the function
-    g_data = pl.DataFrame(
+@pytest.fixture
+def g_data():
+    return pl.DataFrame(
         {
             "name": ["A", "B"],
             "vols": [0.1, 0.2],
@@ -18,6 +20,8 @@ def test_create_scatter_chart():
         }
     )
 
+
+def test_create_scatter_chart(g_data):
     # Generate the chart
     chart = src.charts.create_scatter_chart(g_data)
 
@@ -32,28 +36,18 @@ def test_create_scatter_chart():
     assert "rets" in chart.layer[0].encoding.y.shorthand
 
 
-def test_create_portf_weights_chart():
-    g_data = pl.DataFrame(
-        {
-            "name": ["A", "B"],
-            "vols": [0.1, 0.2],
-            "rets": [0.1, 0.2],
-            "w_opt": [0.5, 0.5],
-        }
-    )
+def test_create_portf_weights_chart(g_data):
     chart = src.charts.create_portf_weights_chart(g_data)
-    # Generate the chart
-    chart = src.charts.create_scatter_chart(g_data)
 
     # Check if the output is an Altair Chart
     assert isinstance(chart, alt.LayerChart)
 
     # Check the chart title
-    assert chart.layer[0].title == "Risk vs Return Profile"
+    assert chart.layer[0].title == "Optimal Portfolio"
 
     # Check if x and y encodings are correctly set
-    assert "vols" in chart.layer[0].encoding.x.shorthand
-    assert "rets" in chart.layer[0].encoding.y.shorthand
+    assert "w_opt" in chart.layer[0].encoding.x.shorthand
+    assert "name" in chart.layer[0].encoding.y.shorthand
 
 
 def test_create_exp_ret_chart():
