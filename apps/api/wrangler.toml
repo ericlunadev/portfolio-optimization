@@ -1,0 +1,7 @@
+# Cloudflare Workers configuration
+name = "portfolio-api"
+main = "src/worker.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+FRONTEND_URL = "https://portfolio-optimization-omega.vercel.app"
