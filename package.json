@@ -14,7 +14,8 @@
     "build:web": "turbo run build --filter=web"
   },
   "devDependencies": {
-    "turbo": "^2.3.0"
+    "turbo": "^2.3.0",
+    "next": "^14.2.0"
   },
   "packageManager": "pnpm@9.15.0",
   "engines": {
