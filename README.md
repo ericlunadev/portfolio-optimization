@@ -1,31 +1,170 @@
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://markowitz.streamlit.app)
-[![Python application](https://github.com/MarekOzana/streamlit_markowitz/actions/workflows/python-app.yml/badge.svg)](https://github.com/MarekOzana/streamlit_markowitz/actions/workflows/python-app.yml)
+# Portfolio Optimization
 
-# Markowitz Portfolio Optimization Streamlit app
-This Streamlit app calculates an optimal investment portfolio based on a user-defined minimum required return and selection of funds. The app uses historical returns since 2023 to calculate correlations and volatilities, then employs Markowitz portfolio optimization to calculate and display the optimal portfolio composition.  
+A Markowitz portfolio optimization application with a FastAPI backend and Next.js frontend.
 
-The app provides visual insights through charts that showcase the risk-return profile, asset weights, historical performance, and projected expected returns and probabilities of negative returns for several horizons.  
+## Architecture
 
-Users can change underlying assumptions about expected returns, volatilities, and correlations between different funds in the "Data" tab.
+This is a Turborepo monorepo with two main applications:
+
+- **`apps/api`** - FastAPI REST API backend
+- **`apps/web`** - Next.js React frontend
 
 ## Features
 
-- **User Input for Minimum Return**: Users can specify their desired minimum return.
-- **Fund Selection**: Users can select from a pre-defined list of funds to include in the optimization process.
-- **Visualization**: The app provides a risk-return scatter chart for all components and for the optimal portfolio. It shows portfolio composition, historical returns and projected expected return including probabilities of negative return for each time horizon.
-- **Results**: The app displays the optimal allocation among the selected funds to achieve the desired return with minimum risk.
+- **Markowitz Optimization**: Calculate optimal portfolio weights using mean-variance optimization
+- **Efficient Frontier**: Visualize the risk-return tradeoff
+- **Fund Analysis**: View cumulative returns, drawdowns, and monthly performance
+- **Micro Finance**: Analyze micro finance portfolios with quarterly data
+- **Historical Analysis**: Explore historical risk/return across portfolio combinations
+- **OAuth Authentication**: Sign in with Google, GitHub, or Microsoft
+- **Real-time Updates**: Yahoo Finance data updates with WebSocket progress
 
-## How to run
-[https://markowitz.streamlit.app/](https://markowitz.streamlit.app/)
+## Prerequisites
 
-or locally:
+- Node.js 18+
+- Python 3.11+
+- pnpm 9+
+
+## Quick Start
+
+### 1. Install dependencies
+
 ```bash
->>> streamlit run app.py
+# Install Node.js dependencies
+pnpm install
+
+# Install Python dependencies
+cd apps/api
+pip install -e ".[dev]"
+cd ../..
 ```
 
-## How to Use
-1. Navigate to the app's URL.
-2. Input your desired minimum return.
-3. Select the funds you wish to include in your portfolio.
-4. Explore the visualizations to understand your optimal portfolio's risk-return profile.
-5. Play with expected return / volatility and correlation coefficients to see how they affect the results
+### 2. Migrate data
+
+```bash
+# Migrate existing data from parquet/CSV to SQLite
+python scripts/migrate-data.py
+```
+
+### 3. Configure environment
+
+```bash
+# Copy and edit environment variables
+cp apps/api/.env.example apps/api/.env
+```
+
+Edit `apps/api/.env` with your OAuth credentials if you want authentication.
+
+### 4. Start development servers
+
+```bash
+# Start both API and web servers
+pnpm dev
+
+# Or start individually:
+pnpm dev:api  # FastAPI on http://localhost:8000
+pnpm dev:web  # Next.js on http://localhost:3000
+```
+
+## Project Structure
+
+```
+portfolio-optimization/
+├── apps/
+│   ├── api/                    # FastAPI backend
+│   │   ├── src/
+│   │   │   ├── auth/          # OAuth/JWT authentication
+│   │   │   ├── funds/         # Fund management endpoints
+│   │   │   ├── optimization/  # Portfolio optimization
+│   │   │   ├── historical/    # Historical analysis
+│   │   │   ├── microfin/      # Micro finance
+│   │   │   └── tasks/         # Background tasks
+│   │   ├── tests/
+│   │   └── pyproject.toml
+│   │
+│   └── web/                    # Next.js frontend
+│       ├── src/
+│       │   ├── app/           # Pages (App Router)
+│       │   ├── components/    # React components
+│       │   ├── hooks/         # Custom hooks
+│       │   └── lib/           # Utilities
+│       └── package.json
+│
+├── data/                       # Original data files
+├── scripts/                    # Migration scripts
+├── docker-compose.yml
+├── turbo.json
+└── pnpm-workspace.yaml
+```
+
+## API Documentation
+
+Once the API is running, view the interactive documentation at:
+
+- Swagger UI: http://localhost:8000/api/docs
+- ReDoc: http://localhost:8000/api/redoc
+
+### Key Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/funds/` | GET | List all funds |
+| `/api/funds/{id}/prices` | GET | Get price history |
+| `/api/optimization/min-variance` | POST | Calculate optimal portfolio |
+| `/api/optimization/efficient-frontier` | POST | Get efficient frontier points |
+| `/api/historical/portfolio-metrics` | POST | Calculate historical metrics |
+| `/api/tasks/yahoo-update` | POST | Start data update |
+
+## Running Tests
+
+```bash
+# Run all tests
+pnpm test
+
+# Run API tests only
+cd apps/api && pytest tests/ -v
+
+# Run web tests only
+cd apps/web && pnpm test
+```
+
+## Docker Deployment
+
+```bash
+# Build and run with Docker Compose
+docker-compose up --build
+
+# Run in background
+docker-compose up -d
+```
+
+The API will be available at http://localhost:8000 and the web app at http://localhost:3000.
+
+## Development
+
+### Adding a new fund
+
+1. Add the fund to `data/t_fund.csv`
+2. Run the migration script: `python scripts/migrate-data.py`
+3. Update prices: POST to `/api/tasks/yahoo-update`
+
+### Modifying optimization parameters
+
+The core optimization logic is in `apps/api/src/optimization/service.py`. The `find_min_var_portfolio` function implements the Markowitz mean-variance optimization.
+
+## Original Streamlit App
+
+The original Streamlit application is still available in the `scripts/` directory:
+- `scripts/Markowitz.py` - Main optimization page
+- `scripts/Micro_Finance_Analyzer.py` - Micro finance analysis
+- `scripts/Historical_Risk_Return.py` - Historical analysis
+
+To run the original Streamlit app:
+```bash
+pip install streamlit
+streamlit run app.py
+```
+
+## License
+
+MIT
