@@ -89,3 +89,16 @@ function erf(x: number): number {
 export function normalCDF(x: number): number {
   return 0.5 * (1 + erf(x / Math.sqrt(2)));
 }
+
+/**
+ * Calculate rolling standard deviation
+ */
+export function rollingStdDev(arr: number[], window: number): number[] {
+  if (arr.length < window || window < 2) return [];
+  const result: number[] = [];
+  for (let i = window - 1; i < arr.length; i++) {
+    const windowData = arr.slice(i - window + 1, i + 1);
+    result.push(stdDev(windowData));
+  }
+  return result;
+}

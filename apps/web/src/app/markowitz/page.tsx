@@ -6,14 +6,18 @@ import {
   useOptimizationTickers,
   useEfficientFrontierTickers,
   usePortfolioCumulativeReturnsTickers,
+  useRollingVolatilityTickers,
 } from "@/hooks/useOptimization";
 import { DateRangePicker, DateRange } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
 import { ReturnSlider } from "@/components/forms/ReturnSlider";
+import { ConstraintsPanel } from "@/components/forms/ConstraintsPanel";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
 import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsChart";
 import { ProbNegReturnChart } from "@/components/charts/ProbNegReturnChart";
+import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
+import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
 import { formatPercent } from "@/lib/utils";
 import * as Tabs from "@radix-ui/react-tabs";
 import { cn } from "@/lib/utils";
@@ -36,6 +40,11 @@ export default function MarkowitzPage() {
   const [showFrontier, setShowFrontier] = useState(true);
   const [assetConstraints, setAssetConstraints] = useState(false);
   const [wMax, setWMax] = useState(0.4);
+  // Constraint toggles
+  const [enforceFullInvestment, setEnforceFullInvestment] = useState(true);
+  const [allowShortSelling, setAllowShortSelling] = useState(false);
+  const [useVolatilityConstraint, setUseVolatilityConstraint] = useState(false);
+  const [volMax, setVolMax] = useState(0.15);
   const [dateRange, setDateRange] = useState<DateRange>({
     startMonth: 1,
     startYear: currentYear - 5,
@@ -92,13 +101,18 @@ export default function MarkowitzPage() {
     requiredReturn,
     assetConstraints ? wMax : 1,
     startDate,
-    endDate
+    endDate,
+    enforceFullInvestment,
+    allowShortSelling,
+    useVolatilityConstraint ? volMax : undefined
   );
 
   const { data: frontierData } = useEfficientFrontierTickers(
     step === 2 && showFrontier ? selectedTickers : [],
     startDate,
-    endDate
+    endDate,
+    enforceFullInvestment,
+    allowShortSelling
   );
 
   const weights = useMemo(() => {
@@ -116,6 +130,13 @@ export default function MarkowitzPage() {
     optimizationResult?.expected_return || 0,
     optimizationResult?.volatility || 0,
     36
+  );
+
+  const { data: rollingVolData } = useRollingVolatilityTickers(
+    step === 2 ? selectedTickers : [],
+    12,
+    startDate,
+    endDate
   );
 
   // User portfolio cumulative returns (when they have allocations)
@@ -232,6 +253,41 @@ export default function MarkowitzPage() {
     return { data, series: seriesNames };
   }, [cumulativeData, userCumulativeData]);
 
+  // Prepare asset volatility chart data
+  const assetVolatilityData = useMemo(() => {
+    if (!optimizationResult) return [];
+    return optimizationResult.weights.map((w) => ({
+      name: w.fund_name,
+      volatility: w.volatility,
+    }));
+  }, [optimizationResult]);
+
+  // Prepare rolling volatility chart data
+  const rollingVolChartData = useMemo(() => {
+    if (!rollingVolData?.series || rollingVolData.series.length === 0) {
+      return { data: [] as { date: string; [key: string]: string | number }[], series: [] as string[] };
+    }
+
+    const allDates = new Set<string>();
+    rollingVolData.series.forEach((s) => {
+      s.data.forEach((d) => allDates.add(d.date));
+    });
+
+    const sortedDates = Array.from(allDates).sort();
+    const seriesNames = rollingVolData.series.map((s) => s.name);
+
+    const data = sortedDates.map((date) => {
+      const point: { date: string; [key: string]: string | number } = { date };
+      rollingVolData.series.forEach((s) => {
+        const dp = s.data.find((d) => d.date === date);
+        if (dp) point[s.name] = dp.volatility;
+      });
+      return point;
+    });
+
+    return { data, series: seriesNames };
+  }, [rollingVolData]);
+
   const canProceed = selectedTickers.length >= 2 && isAllocationValid;
 
   // Step 1: Configuration form
@@ -307,6 +363,21 @@ export default function MarkowitzPage() {
               </label>
             </div>
           </div>
+        </div>
+
+        {/* Portfolio Constraints */}
+        <div className="rounded-lg border border-border p-6">
+          <h2 className="mb-4 text-lg font-semibold">Restricciones del Portafolio</h2>
+          <ConstraintsPanel
+            enforceFullInvestment={enforceFullInvestment}
+            onEnforceFullInvestmentChange={setEnforceFullInvestment}
+            allowShortSelling={allowShortSelling}
+            onAllowShortSellingChange={setAllowShortSelling}
+            useVolatilityConstraint={useVolatilityConstraint}
+            onUseVolatilityConstraintChange={setUseVolatilityConstraint}
+            volMax={volMax}
+            onVolMaxChange={setVolMax}
+          />
         </div>
 
         {/* Asset Allocation */}
@@ -598,6 +669,23 @@ export default function MarkowitzPage() {
               </p>
             )}
           </div>
+
+          {/* Asset Volatility Bar Chart */}
+          {assetVolatilityData.length > 0 && (
+            <div className="rounded-lg border border-border p-4">
+              <AssetVolatilityChart data={assetVolatilityData} />
+            </div>
+          )}
+
+          {/* Rolling Volatility Line Chart */}
+          {rollingVolChartData.data.length > 0 && (
+            <div className="rounded-lg border border-border p-4">
+              <RollingVolatilityChart
+                data={rollingVolChartData.data}
+                series={rollingVolChartData.series}
+              />
+            </div>
+          )}
         </Tabs.Content>
       </Tabs.Root>
     </div>

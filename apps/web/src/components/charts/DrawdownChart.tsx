@@ -36,7 +36,7 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
           dataKey="date"
           tickFormatter={(date) => {
             const d = new Date(date);
-            return `${d.getMonth() + 1}/${d.getFullYear().toString().slice(2)}`;
+            return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
           }}
         />
         <YAxis
@@ -54,7 +54,10 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
             formatPercent(value),
             name,
           ]}
-          labelFormatter={(label) => new Date(label).toLocaleDateString()}
+          labelFormatter={(label) => {
+            const d = new Date(label);
+            return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+          }}
         />
         <Legend />
         <Line

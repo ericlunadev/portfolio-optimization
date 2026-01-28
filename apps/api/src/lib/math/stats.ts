@@ -103,3 +103,17 @@ export function pctChange(prices: number[]): number[] {
   }
   return returns;
 }
+
+/**
+ * Calculate rolling standard deviation
+ * Returns array of rolling std devs starting from index (window-1)
+ */
+export function rollingStdDev(arr: number[], window: number): number[] {
+  if (arr.length < window || window < 2) return [];
+  const result: number[] = [];
+  for (let i = window - 1; i < arr.length; i++) {
+    const windowData = arr.slice(i - window + 1, i + 1);
+    result.push(stdDev(windowData));
+  }
+  return result;
+}

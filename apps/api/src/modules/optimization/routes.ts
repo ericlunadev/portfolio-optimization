@@ -4,7 +4,7 @@ import { z } from "zod";
 import YahooFinance from "yahoo-finance2";
 import { findMinVariancePortfolio, calculateEfficientFrontier } from "../../lib/math/optimizer.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
-import { correlationMatrix, normalCDF, stdDev, mean } from "../../lib/math/stats.js";
+import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 
 const yahooFinance = new YahooFinance();
 
@@ -21,10 +21,23 @@ optimization.post(
       w_max: z.number().min(0).max(1).default(1.0),
       start_date: z.string().optional(),
       end_date: z.string().optional(),
+      // Constraint toggles
+      enforce_full_investment: z.boolean().default(true),
+      allow_short_selling: z.boolean().default(false),
+      vol_max: z.number().min(0).max(1).optional(),
     })
   ),
   async (c) => {
-    const { tickers, r_min, w_max, start_date, end_date } = c.req.valid("json");
+    const {
+      tickers,
+      r_min,
+      w_max,
+      start_date,
+      end_date,
+      enforce_full_investment,
+      allow_short_selling,
+      vol_max,
+    } = c.req.valid("json");
 
     const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
     const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
@@ -32,6 +45,9 @@ optimization.post(
     const result = findMinVariancePortfolio(expectedReturns, covMatrix, {
       rMin: r_min,
       wMax: w_max,
+      enforceFullInvestment: enforce_full_investment,
+      allowShortSelling: allow_short_selling,
+      volMax: vol_max,
     });
 
     const weights = tickers.map((ticker, i) => ({
@@ -75,15 +91,21 @@ optimization.post(
       tickers: z.array(z.string()),
       start_date: z.string().optional(),
       end_date: z.string().optional(),
+      // Constraint toggles (for consistent frontier calculation)
+      enforce_full_investment: z.boolean().default(true),
+      allow_short_selling: z.boolean().default(false),
     })
   ),
   async (c) => {
-    const { tickers, start_date, end_date } = c.req.valid("json");
+    const { tickers, start_date, end_date, enforce_full_investment, allow_short_selling } = c.req.valid("json");
 
     const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
     const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
 
-    const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 9);
+    const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 9, 1.0, {
+      enforceFullInvestment: enforce_full_investment,
+      allowShortSelling: allow_short_selling,
+    });
 
     return c.json({
       points: frontier.returns.map((ret, i) => ({
@@ -229,6 +251,80 @@ optimization.post(
       months: Array.from({ length: months }, (_, i) => i + 1),
       probabilities,
     });
+  }
+);
+
+// POST /api/optimization/rolling-volatility-tickers - Calculate rolling volatility for tickers
+optimization.post(
+  "/rolling-volatility-tickers",
+  zValidator(
+    "json",
+    z.object({
+      tickers: z.array(z.string()),
+      window: z.number().min(2).max(36).default(12),
+      start_date: z.string().optional(),
+      end_date: z.string().optional(),
+    })
+  ),
+  async (c) => {
+    const { tickers, window, start_date, end_date } = c.req.valid("json");
+
+    const pricesByTicker = new Map<string, { date: string; close: number }[]>();
+
+    const period1 = start_date || new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const period2 = end_date || new Date().toISOString().split("T")[0];
+
+    // Fetch monthly data for each ticker
+    for (const ticker of tickers) {
+      try {
+        const data = await yahooFinance.chart(ticker, {
+          period1,
+          period2,
+          interval: "1mo",
+        });
+
+        if (data.quotes) {
+          pricesByTicker.set(
+            ticker,
+            data.quotes
+              .filter((q) => q.close !== null)
+              .map((q) => ({
+                date: new Date(q.date).toISOString().split("T")[0],
+                close: q.close!,
+              }))
+          );
+        }
+      } catch (error) {
+        console.error(`Error fetching ${ticker}:`, error);
+      }
+    }
+
+    // Calculate rolling volatility for each ticker
+    const series = tickers.map((ticker) => {
+      const prices = pricesByTicker.get(ticker) ?? [];
+
+      // Calculate monthly returns
+      const returns: number[] = [];
+      for (let i = 1; i < prices.length; i++) {
+        returns.push((prices[i].close - prices[i - 1].close) / prices[i - 1].close);
+      }
+
+      // Calculate rolling standard deviation (annualized)
+      const rollingVols = rollingStdDev(returns, window).map((vol) => vol * Math.sqrt(12));
+
+      // Get dates starting from window position (since we need window returns for first calc)
+      const dates = prices.slice(window).map((p) => p.date);
+
+      return {
+        name: ticker,
+        data: dates.map((date, i) => ({
+          date,
+          volatility: rollingVols[i] ?? 0,
+        })),
+      };
+    });
+
+    return c.json({ series });
   }
 );
 

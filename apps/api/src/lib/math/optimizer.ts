@@ -12,6 +12,10 @@ export interface OptimizationOptions {
   wMax: number; // Maximum weight per asset (default 1.0)
   tolerance?: number;
   maxIterations?: number;
+  // Constraint toggles
+  enforceFullInvestment?: boolean; // If false, sum(w) <= 1 instead of sum(w) = 1
+  allowShortSelling?: boolean; // If true, weights can be negative
+  volMax?: number; // Maximum portfolio volatility (optional)
 }
 
 /**
@@ -29,7 +33,17 @@ export function findMinVariancePortfolio(
   options: OptimizationOptions
 ): OptimizationResult {
   const n = expectedReturns.length;
-  const { rMin, wMax = 1.0, tolerance = 1e-8, maxIterations = 1000 } = options;
+  const {
+    rMin,
+    wMax = 1.0,
+    tolerance = 1e-8,
+    maxIterations = 1000,
+    enforceFullInvestment = true,
+    allowShortSelling = false,
+    volMax,
+  } = options;
+
+  const wMin = allowShortSelling ? -wMax : 0;
 
   // Initial weights: equal weight
   let weights = Array(n).fill(1 / n);
@@ -45,7 +59,13 @@ export function findMinVariancePortfolio(
     const newWeights = weights.map((w, i) => w - learningRate * gradient[i]);
 
     // Project onto constraints
-    const projected = projectOntoConstraints(newWeights, expectedReturns, rMin, wMax);
+    const projected = projectOntoConstraints(newWeights, expectedReturns, covMatrix, {
+      rMin,
+      wMax,
+      wMin,
+      enforceFullInvestment,
+      volMax,
+    });
 
     // Check convergence
     const diff = Math.sqrt(projected.reduce((sum, w, i) => sum + Math.pow(w - weights[i], 2), 0));
@@ -89,46 +109,166 @@ function computeVarianceGradient(weights: number[], covMatrix: number[][]): numb
   return gradient;
 }
 
+interface ProjectionOptions {
+  rMin: number;
+  wMax: number;
+  wMin: number;
+  enforceFullInvestment: boolean;
+  volMax?: number;
+}
+
+/**
+ * Project onto box constraints: wMin <= w[i] <= wMax
+ */
+function projectOntoBoxConstraints(weights: number[], wMin: number, wMax: number): number[] {
+  return weights.map((w) => Math.max(wMin, Math.min(wMax, w)));
+}
+
+/**
+ * Project onto sum constraint using iterative scaling
+ * If enforceEquality = true: sum(w) = 1
+ * If enforceEquality = false: sum(w) <= 1
+ */
+function projectOntoSumConstraint(
+  weights: number[],
+  target: number,
+  enforceEquality: boolean,
+  wMin: number,
+  wMax: number
+): number[] {
+  const currentSum = sum(weights);
+
+  // If not enforcing equality and already within constraint, return as-is
+  if (!enforceEquality && currentSum <= target + 1e-10) {
+    return weights;
+  }
+
+  // Handle degenerate case
+  if (Math.abs(currentSum) < 1e-12) {
+    const equalWeight = target / weights.length;
+    return weights.map(() => Math.max(wMin, Math.min(wMax, equalWeight)));
+  }
+
+  // Scale proportionally
+  const scale = target / currentSum;
+  let scaled = weights.map((w) => w * scale);
+
+  // Iteratively apply bounds and redistribute
+  for (let iter = 0; iter < 50; iter++) {
+    scaled = scaled.map((w) => Math.max(wMin, Math.min(wMax, w)));
+    const newSum = sum(scaled);
+
+    if (Math.abs(newSum - target) < 1e-10 || (!enforceEquality && newSum <= target + 1e-10)) {
+      break;
+    }
+
+    // Redistribute excess/deficit
+    const diff = target - newSum;
+    const adjustableIndices = scaled
+      .map((w, i) => ({ w, i }))
+      .filter(({ w }) => (diff > 0 && w < wMax - 1e-10) || (diff < 0 && w > wMin + 1e-10));
+
+    if (adjustableIndices.length > 0) {
+      const adjustment = diff / adjustableIndices.length;
+      for (const { i } of adjustableIndices) {
+        scaled[i] = Math.max(wMin, Math.min(wMax, scaled[i] + adjustment));
+      }
+    } else {
+      break; // Cannot adjust further
+    }
+  }
+
+  return scaled;
+}
+
+/**
+ * Adjust weights to satisfy maximum volatility constraint
+ * Moves toward minimum variance direction
+ */
+function adjustForVolatilityConstraint(
+  weights: number[],
+  covMatrix: number[][],
+  volMax: number,
+  wMin: number,
+  wMax: number
+): number[] {
+  const targetVariance = volMax * volMax;
+  let adjusted = [...weights];
+
+  for (let iter = 0; iter < 100; iter++) {
+    const currentVariance = portfolioVariance(adjusted, covMatrix);
+    if (currentVariance <= targetVariance + 1e-10) {
+      break;
+    }
+
+    // Compute gradient of variance: 2 * COV * w
+    const gradient = computeVarianceGradient(adjusted, covMatrix);
+
+    // Move in negative gradient direction (toward lower variance)
+    const stepSize = 0.05;
+    for (let i = 0; i < adjusted.length; i++) {
+      adjusted[i] = adjusted[i] - stepSize * gradient[i];
+      adjusted[i] = Math.max(wMin, Math.min(wMax, adjusted[i]));
+    }
+
+    // Re-normalize to maintain sum constraint
+    const total = sum(adjusted);
+    if (Math.abs(total) > 1e-12) {
+      adjusted = adjusted.map((w) => w / total);
+    }
+  }
+
+  return adjusted;
+}
+
 /**
  * Project weights onto the feasible set:
- * - Sum to 1
- * - w >= 0
- * - w <= wMax
+ * - Sum to 1 (or <= 1 if not enforceFullInvestment)
+ * - wMin <= w <= wMax
  * - Expected return >= rMin
+ * - Volatility <= volMax (if specified)
  */
 function projectOntoConstraints(
   weights: number[],
   expectedReturns: number[],
-  rMin: number,
-  wMax: number
+  covMatrix: number[][],
+  options: ProjectionOptions
 ): number[] {
-  const n = weights.length;
+  const { rMin, wMax, wMin, enforceFullInvestment, volMax } = options;
+
   let projected = [...weights];
 
-  // Apply bounds: 0 <= w <= wMax
-  for (let i = 0; i < n; i++) {
-    projected[i] = Math.max(0, Math.min(wMax, projected[i]));
+  // Step 1: Apply box constraints
+  projected = projectOntoBoxConstraints(projected, wMin, wMax);
+
+  // Step 2: Project onto sum constraint
+  if (wMin >= 0) {
+    // No short selling - use simplex projection for efficiency
+    projected = projectOntoSimplex(projected);
+    // Re-apply upper bound after simplex projection
+    projected = projected.map((w) => Math.min(wMax, w));
+    // Renormalize if needed
+    const total = sum(projected);
+    if (total > 0 && Math.abs(total - 1) > 1e-10) {
+      projected = projected.map((w) => w / total);
+    }
+  } else {
+    // Short selling allowed - use general sum constraint projection
+    projected = projectOntoSumConstraint(projected, 1.0, enforceFullInvestment, wMin, wMax);
   }
 
-  // Project onto simplex (sum = 1) using Duchi's algorithm
-  projected = projectOntoSimplex(projected);
-
-  // Re-apply upper bound after simplex projection
-  for (let i = 0; i < n; i++) {
-    projected[i] = Math.min(wMax, projected[i]);
-  }
-
-  // Renormalize if needed
-  const total = sum(projected);
-  if (total > 0 && Math.abs(total - 1) > 1e-10) {
-    projected = projected.map((w) => w / total);
-  }
-
-  // Check return constraint and adjust if needed
+  // Step 3: Check return constraint and adjust if needed
   const currentReturn = portfolioReturn(projected, expectedReturns);
   if (currentReturn < rMin - 1e-10) {
-    // Try to increase allocation to higher return assets
-    projected = adjustForReturnConstraint(projected, expectedReturns, rMin, wMax);
+    projected = adjustForReturnConstraint(projected, expectedReturns, rMin, wMax, wMin);
+  }
+
+  // Step 4: Check volatility constraint and adjust if needed
+  if (volMax !== undefined) {
+    const currentVol = Math.sqrt(portfolioVariance(projected, covMatrix));
+    if (currentVol > volMax + 1e-10) {
+      projected = adjustForVolatilityConstraint(projected, covMatrix, volMax, wMin, wMax);
+    }
   }
 
   return projected;
@@ -164,7 +304,8 @@ function adjustForReturnConstraint(
   weights: number[],
   expectedReturns: number[],
   rMin: number,
-  wMax: number
+  wMax: number,
+  wMin: number = 0
 ): number[] {
   const n = weights.length;
   const adjusted = [...weights];
@@ -182,11 +323,11 @@ function adjustForReturnConstraint(
     let increased = false;
     for (const i of indices) {
       if (adjusted[i] < wMax - 1e-10) {
-        // Find asset with room to decrease
+        // Find asset with room to decrease (can go to wMin, which may be negative)
         for (let j = n - 1; j >= 0; j--) {
           const jIdx = indices[j];
-          if (jIdx !== i && adjusted[jIdx] > 1e-10) {
-            const delta = Math.min(0.01, wMax - adjusted[i], adjusted[jIdx]);
+          if (jIdx !== i && adjusted[jIdx] > wMin + 1e-10) {
+            const delta = Math.min(0.01, wMax - adjusted[i], adjusted[jIdx] - wMin);
             adjusted[i] += delta;
             adjusted[jIdx] -= delta;
             increased = true;
@@ -201,7 +342,7 @@ function adjustForReturnConstraint(
 
   // Renormalize
   const total = sum(adjusted);
-  if (total > 0) {
+  if (Math.abs(total) > 1e-12) {
     return adjusted.map((w) => w / total);
   }
   return adjusted;
@@ -214,7 +355,8 @@ export function calculateEfficientFrontier(
   expectedReturns: number[],
   covMatrix: number[][],
   numPoints: number = 9,
-  wMax: number = 1.0
+  wMax: number = 1.0,
+  options?: Partial<OptimizationOptions>
 ): { returns: number[]; volatilities: number[]; weights: number[][] } {
   const minReturn = Math.min(...expectedReturns);
   const maxReturn = Math.max(...expectedReturns);
@@ -229,6 +371,9 @@ export function calculateEfficientFrontier(
     const result = findMinVariancePortfolio(expectedReturns, covMatrix, {
       rMin: targetReturn,
       wMax,
+      enforceFullInvestment: options?.enforceFullInvestment,
+      allowShortSelling: options?.allowShortSelling,
+      // Note: volMax is not used for efficient frontier calculation
     });
 
     returns.push(result.return);

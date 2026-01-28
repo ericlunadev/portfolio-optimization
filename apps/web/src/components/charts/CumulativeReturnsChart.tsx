@@ -47,13 +47,16 @@ export function CumulativeReturnsChart({
           dataKey="date"
           tickFormatter={(date) => {
             const d = new Date(date);
-            return `${d.getMonth() + 1}/${d.getFullYear().toString().slice(2)}`;
+            return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
           }}
         />
         <YAxis tickFormatter={(v) => formatPercent(v, 0)} />
         <Tooltip
           formatter={(value: number) => formatPercent(value)}
-          labelFormatter={(label) => new Date(label).toLocaleDateString()}
+          labelFormatter={(label) => {
+            const d = new Date(label);
+            return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
+          }}
         />
         <Legend />
         {series.map((name, index) => (

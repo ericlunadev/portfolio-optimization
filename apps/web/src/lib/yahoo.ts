@@ -101,7 +101,8 @@ export async function getTickerAssumptions(
  */
 export async function getHistoricalPrices(
   tickers: string[],
-  startDate?: string
+  startDate?: string,
+  endDate?: string
 ): Promise<Map<string, { date: string; close: number }[]>> {
   const pricesByTicker = new Map<string, { date: string; close: number }[]>();
 
@@ -109,7 +110,7 @@ export async function getHistoricalPrices(
     try {
       const data = (await yahooFinance.chart(ticker, {
         period1: startDate || new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-        period2: new Date().toISOString().split("T")[0],
+        period2: endDate || new Date().toISOString().split("T")[0],
         interval: "1mo",
       })) as unknown as ChartResult;
 

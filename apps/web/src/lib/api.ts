@@ -25,21 +25,45 @@ export const api = {
     rMin: number,
     wMax: number = 1,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    enforceFullInvestment: boolean = true,
+    allowShortSelling: boolean = false,
+    volMax?: number
   ) {
     const res = await fetch(`${API_BASE}/optimization/min-variance-tickers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tickers, r_min: rMin, w_max: wMax, start_date: startDate, end_date: endDate }),
+      body: JSON.stringify({
+        tickers,
+        r_min: rMin,
+        w_max: wMax,
+        start_date: startDate,
+        end_date: endDate,
+        enforce_full_investment: enforceFullInvestment,
+        allow_short_selling: allowShortSelling,
+        vol_max: volMax,
+      }),
     });
     return handleResponse<OptimizationResult>(res);
   },
 
-  async getEfficientFrontierTickers(tickers: string[], startDate?: string, endDate?: string) {
+  async getEfficientFrontierTickers(
+    tickers: string[],
+    startDate?: string,
+    endDate?: string,
+    enforceFullInvestment: boolean = true,
+    allowShortSelling: boolean = false
+  ) {
     const res = await fetch(`${API_BASE}/optimization/efficient-frontier-tickers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tickers, start_date: startDate, end_date: endDate }),
+      body: JSON.stringify({
+        tickers,
+        start_date: startDate,
+        end_date: endDate,
+        enforce_full_investment: enforceFullInvestment,
+        allow_short_selling: allowShortSelling,
+      }),
     });
     return handleResponse<EfficientFrontierResponse>(res);
   },
@@ -60,6 +84,25 @@ export const api = {
       body: JSON.stringify({ r_ann: rAnn, vol_ann: volAnn, months }),
     });
     return handleResponse<NegReturnProbResponse>(res);
+  },
+
+  async getRollingVolatilityTickers(
+    tickers: string[],
+    window: number = 12,
+    startDate?: string,
+    endDate?: string
+  ) {
+    const res = await fetch(`${API_BASE}/optimization/rolling-volatility-tickers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tickers,
+        window,
+        start_date: startDate,
+        end_date: endDate,
+      }),
+    });
+    return handleResponse<RollingVolatilityResponse>(res);
   },
 
   // Tasks
@@ -111,6 +154,10 @@ export interface CumulativeReturnsSeries {
 
 export interface NegReturnProbResponse {
   points: { months: number; probability: number }[];
+}
+
+export interface RollingVolatilityResponse {
+  series: { name: string; data: { date: string; volatility: number }[] }[];
 }
 
 export interface TaskStatus {
