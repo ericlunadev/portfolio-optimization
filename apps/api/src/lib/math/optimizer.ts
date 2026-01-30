@@ -383,3 +383,61 @@ export function calculateEfficientFrontier(
 
   return { returns, volatilities, weights: allWeights };
 }
+
+/**
+ * Find the maximum Sharpe ratio portfolio
+ * Sharpe ratio = (return - riskFreeRate) / volatility
+ */
+export function findMaxSharpePortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  options: {
+    wMax?: number;
+    riskFreeRate?: number;
+    numFrontierPoints?: number;
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+  } = {}
+): OptimizationResult {
+  const {
+    wMax = 1.0,
+    riskFreeRate = 0,
+    numFrontierPoints = 50,
+    enforceFullInvestment = true,
+    allowShortSelling = false,
+  } = options;
+
+  // Calculate efficient frontier with more points for better precision
+  const frontier = calculateEfficientFrontier(
+    expectedReturns,
+    covMatrix,
+    numFrontierPoints,
+    wMax,
+    { enforceFullInvestment, allowShortSelling }
+  );
+
+  // Find the portfolio with maximum Sharpe ratio
+  let maxSharpe = -Infinity;
+  let bestIndex = 0;
+
+  for (let i = 0; i < frontier.returns.length; i++) {
+    const ret = frontier.returns[i];
+    const vol = frontier.volatilities[i];
+
+    // Avoid division by zero
+    if (vol > 1e-10) {
+      const sharpe = (ret - riskFreeRate) / vol;
+      if (sharpe > maxSharpe) {
+        maxSharpe = sharpe;
+        bestIndex = i;
+      }
+    }
+  }
+
+  return {
+    weights: frontier.weights[bestIndex],
+    return: frontier.returns[bestIndex],
+    volatility: frontier.volatilities[bestIndex],
+    success: true,
+  };
+}

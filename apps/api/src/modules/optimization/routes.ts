@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import YahooFinance from "yahoo-finance2";
-import { findMinVariancePortfolio, calculateEfficientFrontier } from "../../lib/math/optimizer.js";
+import { findMinVariancePortfolio, calculateEfficientFrontier, findMaxSharpePortfolio } from "../../lib/math/optimizer.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 
@@ -70,6 +70,79 @@ optimization.post(
       weights,
       expected_return: result.return,
       volatility: result.volatility,
+      stats: {
+        ci_95_low: result.return - 1.96 * result.volatility,
+        ci_95_high: result.return + 1.96 * result.volatility,
+        prob_neg_1m: calcProbNeg(1),
+        prob_neg_3m: calcProbNeg(3),
+        prob_neg_1y: calcProbNeg(12),
+        prob_neg_2y: calcProbNeg(24),
+      },
+    });
+  }
+);
+
+// POST /api/optimization/max-sharpe-tickers - Calculate maximum Sharpe ratio portfolio using tickers
+optimization.post(
+  "/max-sharpe-tickers",
+  zValidator(
+    "json",
+    z.object({
+      tickers: z.array(z.string()),
+      w_max: z.number().min(0).max(1).default(1.0),
+      risk_free_rate: z.number().min(0).max(0.2).default(0),
+      start_date: z.string().optional(),
+      end_date: z.string().optional(),
+      enforce_full_investment: z.boolean().default(true),
+      allow_short_selling: z.boolean().default(false),
+    })
+  ),
+  async (c) => {
+    const {
+      tickers,
+      w_max,
+      risk_free_rate,
+      start_date,
+      end_date,
+      enforce_full_investment,
+      allow_short_selling,
+    } = c.req.valid("json");
+
+    const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
+    const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
+
+    const result = findMaxSharpePortfolio(expectedReturns, covMatrix, {
+      wMax: w_max,
+      riskFreeRate: risk_free_rate,
+      numFrontierPoints: 50,
+      enforceFullInvestment: enforce_full_investment,
+      allowShortSelling: allow_short_selling,
+    });
+
+    const weights = tickers.map((ticker, i) => ({
+      fund_id: i,
+      fund_name: ticker,
+      weight: result.weights[i],
+      exp_ret: expectedReturns[i],
+      volatility: volatilities[i],
+    }));
+
+    const calcProbNeg = (months: number) => {
+      const timeInYears = months / 12;
+      const meanT = result.return * timeInYears;
+      const volT = result.volatility * Math.sqrt(timeInYears);
+      const zScore = -meanT / volT;
+      return normalCDF(zScore);
+    };
+
+    // Calculate Sharpe ratio
+    const sharpeRatio = result.volatility > 0 ? (result.return - risk_free_rate) / result.volatility : 0;
+
+    return c.json({
+      weights,
+      expected_return: result.return,
+      volatility: result.volatility,
+      sharpe_ratio: sharpeRatio,
       stats: {
         ci_95_low: result.return - 1.96 * result.volatility,
         ci_95_high: result.return + 1.96 * result.volatility,

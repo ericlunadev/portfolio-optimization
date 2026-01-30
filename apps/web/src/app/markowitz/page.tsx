@@ -3,14 +3,13 @@
 import { useState, useMemo } from "react";
 import {
   useNegReturnProbability,
-  useOptimizationTickers,
+  useMaxSharpeOptimization,
   useEfficientFrontierTickers,
   usePortfolioCumulativeReturnsTickers,
   useRollingVolatilityTickers,
 } from "@/hooks/useOptimization";
 import { DateRangePicker, DateRange } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
-import { ReturnSlider } from "@/components/forms/ReturnSlider";
 import { ConstraintsPanel } from "@/components/forms/ConstraintsPanel";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
@@ -36,7 +35,6 @@ const INITIAL_ASSETS: AssetRow[] = Array.from({ length: 2 }, () => ({
 
 export default function MarkowitzPage() {
   const [step, setStep] = useState<1 | 2>(1);
-  const [requiredReturn, setRequiredReturn] = useState(0.06);
   const [showFrontier, setShowFrontier] = useState(true);
   const [assetConstraints, setAssetConstraints] = useState(false);
   const [wMax, setWMax] = useState(0.4);
@@ -92,19 +90,18 @@ export default function MarkowitzPage() {
     return `${dateRange.endYear}-${month}-${String(lastDay).padStart(2, "0")}`;
   }, [dateRange.endMonth, dateRange.endYear]);
 
-  // Ticker-based optimization (only runs when on step 2)
+  // Ticker-based optimization - Maximum Sharpe Ratio (only runs when on step 2)
   const {
     data: optimizationResult,
     isLoading: loadingOptimization,
-  } = useOptimizationTickers(
+  } = useMaxSharpeOptimization(
     step === 2 ? selectedTickers : [],
-    requiredReturn,
     assetConstraints ? wMax : 1,
+    0, // risk-free rate
     startDate,
     endDate,
     enforceFullInvestment,
-    allowShortSelling,
-    useVolatilityConstraint ? volMax : undefined
+    allowShortSelling
   );
 
   const { data: frontierData } = useEfficientFrontierTickers(
@@ -306,16 +303,6 @@ export default function MarkowitzPage() {
                 Rango de Fechas
               </label>
               <DateRangePicker value={dateRange} onChange={setDateRange} />
-            </div>
-
-            {/* Required Return */}
-            <div>
-              <ReturnSlider
-                min={0.02}
-                max={0.08}
-                value={requiredReturn}
-                onChange={setRequiredReturn}
-              />
             </div>
 
             {/* Asset Constraints */}

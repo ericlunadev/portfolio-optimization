@@ -40,6 +40,40 @@ export function useOptimizationTickers(
   });
 }
 
+export function useMaxSharpeOptimization(
+  tickers: string[],
+  wMax: number = 1,
+  riskFreeRate: number = 0,
+  startDate?: string,
+  endDate?: string,
+  enforceFullInvestment: boolean = true,
+  allowShortSelling: boolean = false
+) {
+  return useQuery({
+    queryKey: [
+      "max-sharpe-tickers",
+      tickers,
+      wMax,
+      riskFreeRate,
+      startDate,
+      endDate,
+      enforceFullInvestment,
+      allowShortSelling,
+    ],
+    queryFn: () =>
+      api.getMaxSharpePortfolioTickers(
+        tickers,
+        wMax,
+        riskFreeRate,
+        startDate,
+        endDate,
+        enforceFullInvestment,
+        allowShortSelling
+      ),
+    enabled: tickers.length >= 2,
+  });
+}
+
 export function useEfficientFrontierTickers(
   tickers: string[],
   startDate?: string,

@@ -19,7 +19,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export const api = {
-  // Ticker-based optimization
+  // Ticker-based optimization - minimum variance
   async optimizePortfolioTickers(
     tickers: string[],
     rMin: number,
@@ -45,6 +45,32 @@ export const api = {
       }),
     });
     return handleResponse<OptimizationResult>(res);
+  },
+
+  // Ticker-based optimization - maximum Sharpe ratio
+  async getMaxSharpePortfolioTickers(
+    tickers: string[],
+    wMax: number = 1,
+    riskFreeRate: number = 0,
+    startDate?: string,
+    endDate?: string,
+    enforceFullInvestment: boolean = true,
+    allowShortSelling: boolean = false
+  ) {
+    const res = await fetch(`${API_BASE}/optimization/max-sharpe-tickers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tickers,
+        w_max: wMax,
+        risk_free_rate: riskFreeRate,
+        start_date: startDate,
+        end_date: endDate,
+        enforce_full_investment: enforceFullInvestment,
+        allow_short_selling: allowShortSelling,
+      }),
+    });
+    return handleResponse<MaxSharpeResult>(res);
   },
 
   async getEfficientFrontierTickers(
@@ -134,6 +160,27 @@ export interface OptimizationResult {
   }[];
   expected_return: number;
   volatility: number;
+  stats: {
+    ci_95_low: number;
+    ci_95_high: number;
+    prob_neg_1m: number;
+    prob_neg_3m: number;
+    prob_neg_1y: number;
+    prob_neg_2y: number;
+  };
+}
+
+export interface MaxSharpeResult {
+  weights: {
+    fund_id: number;
+    fund_name: string;
+    weight: number;
+    exp_ret: number;
+    volatility: number;
+  }[];
+  expected_return: number;
+  volatility: number;
+  sharpe_ratio: number;
   stats: {
     ci_95_low: number;
     ci_95_high: number;
