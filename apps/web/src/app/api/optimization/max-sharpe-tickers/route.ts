@@ -27,7 +27,9 @@ export async function POST(request: NextRequest) {
     const result = findMaxSharpePortfolio(expectedReturns, covMatrix, {
       wMax: w_max,
       riskFreeRate: risk_free_rate,
-      numFrontierPoints: 50,
+      numFrontierPoints: 9, // Match the displayed frontier
+      enforceFullInvestment: enforce_full_investment,
+      allowShortSelling: allow_short_selling,
     });
 
     const weights = tickers.map((ticker: string, i: number) => ({

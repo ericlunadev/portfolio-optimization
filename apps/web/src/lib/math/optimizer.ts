@@ -12,6 +12,8 @@ export interface OptimizationOptions {
   wMax: number;
   tolerance?: number;
   maxIterations?: number;
+  enforceFullInvestment?: boolean;
+  allowShortSelling?: boolean;
 }
 
 /**
@@ -166,7 +168,8 @@ export function calculateEfficientFrontier(
   expectedReturns: number[],
   covMatrix: number[][],
   numPoints: number = 9,
-  wMax: number = 1.0
+  wMax: number = 1.0,
+  options?: { enforceFullInvestment?: boolean; allowShortSelling?: boolean }
 ): { returns: number[]; volatilities: number[]; weights: number[][] } {
   const minReturn = Math.min(...expectedReturns);
   const maxReturn = Math.max(...expectedReturns);
@@ -181,6 +184,8 @@ export function calculateEfficientFrontier(
     const result = findMinVariancePortfolio(expectedReturns, covMatrix, {
       rMin: targetReturn,
       wMax,
+      enforceFullInvestment: options?.enforceFullInvestment,
+      allowShortSelling: options?.allowShortSelling,
     });
 
     returns.push(result.return);
@@ -202,20 +207,26 @@ export function findMaxSharpePortfolio(
     wMax?: number;
     riskFreeRate?: number;
     numFrontierPoints?: number;
-  } = {}
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+  } = {},
+  frontierData?: { returns: number[]; volatilities: number[]; weights: number[][] }
 ): OptimizationResult {
   const {
     wMax = 1.0,
     riskFreeRate = 0,
-    numFrontierPoints = 50,
+    numFrontierPoints = 9,
+    enforceFullInvestment = true,
+    allowShortSelling = false,
   } = options;
 
-  // Calculate efficient frontier with more points for better precision
-  const frontier = calculateEfficientFrontier(
+  // Use provided frontier or calculate new one
+  const frontier = frontierData || calculateEfficientFrontier(
     expectedReturns,
     covMatrix,
     numFrontierPoints,
-    wMax
+    wMax,
+    { enforceFullInvestment, allowShortSelling }
   );
 
   // Find the portfolio with maximum Sharpe ratio

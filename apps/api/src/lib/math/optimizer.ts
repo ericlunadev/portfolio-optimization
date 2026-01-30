@@ -402,7 +402,7 @@ export function findMaxSharpePortfolio(
   const {
     wMax = 1.0,
     riskFreeRate = 0,
-    numFrontierPoints = 50,
+    numFrontierPoints = 9, // Match displayed frontier
     enforceFullInvestment = true,
     allowShortSelling = false,
   } = options;
