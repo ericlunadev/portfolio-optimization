@@ -197,8 +197,8 @@ export function calculateEfficientFrontier(
 }
 
 /**
- * Find the maximum Sharpe ratio portfolio
- * Sharpe ratio = (return - riskFreeRate) / volatility
+ * Find the optimal portfolio using maximum curvature (knee point)
+ * This finds the point on the efficient frontier with the best risk-return trade-off
  */
 export function findMaxSharpePortfolio(
   expectedReturns: number[],
@@ -214,7 +214,6 @@ export function findMaxSharpePortfolio(
 ): OptimizationResult {
   const {
     wMax = 1.0,
-    riskFreeRate = 0,
     numFrontierPoints = 9,
     enforceFullInvestment = true,
     allowShortSelling = false,
@@ -229,21 +228,39 @@ export function findMaxSharpePortfolio(
     { enforceFullInvestment, allowShortSelling }
   );
 
-  // Find the portfolio with maximum Sharpe ratio
-  let maxSharpe = -Infinity;
+  // Find the optimal portfolio using the "knee" method
+  // This finds the point furthest from the line connecting the first and last frontier points
+  const n = frontier.returns.length;
+  if (n < 3) {
+    return {
+      weights: frontier.weights[0],
+      return: frontier.returns[0],
+      volatility: frontier.volatilities[0],
+      success: true,
+    };
+  }
+
+  // Line from first point to last point
+  const x1 = frontier.volatilities[0];
+  const y1 = frontier.returns[0];
+  const x2 = frontier.volatilities[n - 1];
+  const y2 = frontier.returns[n - 1];
+
+  // Find point with maximum perpendicular distance to the line
+  let maxDist = -Infinity;
   let bestIndex = 0;
 
-  for (let i = 0; i < frontier.returns.length; i++) {
-    const ret = frontier.returns[i];
-    const vol = frontier.volatilities[i];
+  for (let i = 0; i < n; i++) {
+    const x0 = frontier.volatilities[i];
+    const y0 = frontier.returns[i];
 
-    // Avoid division by zero
-    if (vol > 1e-10) {
-      const sharpe = (ret - riskFreeRate) / vol;
-      if (sharpe > maxSharpe) {
-        maxSharpe = sharpe;
-        bestIndex = i;
-      }
+    // Perpendicular distance from point (x0, y0) to line through (x1,y1) and (x2,y2)
+    const dist = Math.abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) /
+      Math.sqrt(Math.pow(y2 - y1, 2) + Math.pow(x2 - x1, 2));
+
+    if (dist > maxDist) {
+      maxDist = dist;
+      bestIndex = i;
     }
   }
 
