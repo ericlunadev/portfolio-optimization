@@ -1,7 +1,40 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, OptimizationStrategy } from "@/lib/api";
+
+export function useOptimization(
+  tickers: string[],
+  strategy: OptimizationStrategy,
+  options: {
+    wMax?: number;
+    riskFreeRate?: number;
+    targetReturn?: number;
+    targetRisk?: number;
+    startDate?: string;
+    endDate?: string;
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+  } = {}
+) {
+  return useQuery({
+    queryKey: [
+      "optimization",
+      tickers,
+      strategy,
+      options.wMax,
+      options.riskFreeRate,
+      options.targetReturn,
+      options.targetRisk,
+      options.startDate,
+      options.endDate,
+      options.enforceFullInvestment,
+      options.allowShortSelling,
+    ],
+    queryFn: () => api.optimizePortfolio(tickers, strategy, options),
+    enabled: tickers.length >= 2,
+  });
+}
 
 export function useOptimizationTickers(
   tickers: string[],

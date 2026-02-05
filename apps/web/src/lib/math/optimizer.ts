@@ -162,7 +162,65 @@ function adjustForReturnConstraint(
 }
 
 /**
+ * Find the global minimum variance portfolio (no return constraint)
+ */
+export function findGlobalMinVariancePortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  options: {
+    wMax?: number;
+    tolerance?: number;
+    maxIterations?: number;
+  } = {}
+): OptimizationResult {
+  const n = expectedReturns.length;
+  const { wMax = 1.0, tolerance = 1e-8, maxIterations = 1000 } = options;
+
+  let weights = Array(n).fill(1 / n);
+  let learningRate = 0.1;
+
+  for (let iter = 0; iter < maxIterations; iter++) {
+    const gradient = computeVarianceGradient(weights, covMatrix);
+    const newWeights = weights.map((w, i) => w - learningRate * gradient[i]);
+
+    // Project onto simplex with weight constraints (no return constraint)
+    let projected = [...newWeights];
+    for (let i = 0; i < n; i++) {
+      projected[i] = Math.max(0, Math.min(wMax, projected[i]));
+    }
+    projected = projectOntoSimplex(projected);
+    for (let i = 0; i < n; i++) {
+      projected[i] = Math.min(wMax, projected[i]);
+    }
+    const total = sum(projected);
+    if (total > 0 && Math.abs(total - 1) > 1e-10) {
+      projected = projected.map((w) => w / total);
+    }
+
+    const diff = Math.sqrt(projected.reduce((s, w, i) => s + Math.pow(w - weights[i], 2), 0));
+    weights = projected;
+
+    if (diff < tolerance) break;
+
+    if (iter > 0 && iter % 100 === 0) {
+      learningRate *= 0.9;
+    }
+  }
+
+  const variance = portfolioVariance(weights, covMatrix);
+  const ret = portfolioReturn(weights, expectedReturns);
+
+  return {
+    weights,
+    return: ret,
+    volatility: Math.sqrt(variance),
+    success: true,
+  };
+}
+
+/**
  * Calculate efficient frontier points
+ * Starts from the global minimum variance portfolio and goes up to max return
  */
 export function calculateEfficientFrontier(
   expectedReturns: number[],
@@ -171,15 +229,23 @@ export function calculateEfficientFrontier(
   wMax: number = 1.0,
   options?: { enforceFullInvestment?: boolean; allowShortSelling?: boolean }
 ): { returns: number[]; volatilities: number[]; weights: number[][] } {
-  const minReturn = Math.min(...expectedReturns);
+  // First find the global minimum variance portfolio
+  const minVarPortfolio = findGlobalMinVariancePortfolio(expectedReturns, covMatrix, { wMax });
+  const minVarReturn = minVarPortfolio.return;
   const maxReturn = Math.max(...expectedReturns);
 
   const returns: number[] = [];
   const volatilities: number[] = [];
   const allWeights: number[][] = [];
 
-  for (let i = 0; i < numPoints; i++) {
-    const targetReturn = minReturn + (i / (numPoints - 1)) * (maxReturn - minReturn);
+  // Add the minimum variance portfolio as the first point
+  returns.push(minVarPortfolio.return);
+  volatilities.push(minVarPortfolio.volatility);
+  allWeights.push(minVarPortfolio.weights);
+
+  // Generate remaining points from min variance return to max return
+  for (let i = 1; i < numPoints; i++) {
+    const targetReturn = minVarReturn + (i / (numPoints - 1)) * (maxReturn - minVarReturn);
 
     const result = findMinVariancePortfolio(expectedReturns, covMatrix, {
       rMin: targetReturn,
@@ -197,8 +263,8 @@ export function calculateEfficientFrontier(
 }
 
 /**
- * Find the optimal portfolio using maximum curvature (knee point)
- * This finds the point on the efficient frontier with the best risk-return trade-off
+ * Find the portfolio with maximum Sharpe ratio
+ * Sharpe = (return - riskFreeRate) / volatility
  */
 export function findMaxSharpePortfolio(
   expectedReturns: number[],
@@ -211,10 +277,217 @@ export function findMaxSharpePortfolio(
     allowShortSelling?: boolean;
   } = {},
   frontierData?: { returns: number[]; volatilities: number[]; weights: number[][] }
+): OptimizationResult & { sharpeRatio: number } {
+  const {
+    wMax = 1.0,
+    riskFreeRate = 0,
+    numFrontierPoints = 50,
+    enforceFullInvestment = true,
+    allowShortSelling = false,
+  } = options;
+
+  // Use provided frontier or calculate new one with more points for accuracy
+  const frontier = frontierData || calculateEfficientFrontier(
+    expectedReturns,
+    covMatrix,
+    numFrontierPoints,
+    wMax,
+    { enforceFullInvestment, allowShortSelling }
+  );
+
+  // Find portfolio with maximum Sharpe ratio
+  let maxSharpe = -Infinity;
+  let bestIndex = 0;
+
+  for (let i = 0; i < frontier.returns.length; i++) {
+    const ret = frontier.returns[i];
+    const vol = frontier.volatilities[i];
+
+    if (vol > 0) {
+      const sharpe = (ret - riskFreeRate) / vol;
+      if (sharpe > maxSharpe) {
+        maxSharpe = sharpe;
+        bestIndex = i;
+      }
+    }
+  }
+
+  return {
+    weights: frontier.weights[bestIndex],
+    return: frontier.returns[bestIndex],
+    volatility: frontier.volatilities[bestIndex],
+    sharpeRatio: maxSharpe,
+    success: true,
+  };
+}
+
+/**
+ * Find the portfolio with maximum return (100% in highest return asset)
+ */
+export function findMaxReturnPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  options: {
+    wMax?: number;
+  } = {}
+): OptimizationResult {
+  const { wMax = 1.0 } = options;
+  const n = expectedReturns.length;
+
+  if (wMax >= 1.0) {
+    // Find the asset with highest return
+    let maxIdx = 0;
+    let maxRet = expectedReturns[0];
+    for (let i = 1; i < n; i++) {
+      if (expectedReturns[i] > maxRet) {
+        maxRet = expectedReturns[i];
+        maxIdx = i;
+      }
+    }
+
+    const weights = Array(n).fill(0);
+    weights[maxIdx] = 1;
+
+    const vol = Math.sqrt(covMatrix[maxIdx][maxIdx]);
+
+    return {
+      weights,
+      return: maxRet,
+      volatility: vol,
+      success: true,
+    };
+  }
+
+  // With weight constraint, distribute among highest return assets
+  const indices = Array.from({ length: n }, (_, i) => i);
+  indices.sort((a, b) => expectedReturns[b] - expectedReturns[a]);
+
+  const weights = Array(n).fill(0);
+  let remaining = 1.0;
+
+  for (const idx of indices) {
+    const allocation = Math.min(wMax, remaining);
+    weights[idx] = allocation;
+    remaining -= allocation;
+    if (remaining <= 1e-10) break;
+  }
+
+  const ret = portfolioReturn(weights, expectedReturns);
+  const vol = Math.sqrt(portfolioVariance(weights, covMatrix));
+
+  return {
+    weights,
+    return: ret,
+    volatility: vol,
+    success: true,
+  };
+}
+
+/**
+ * Find minimum variance portfolio for a target return
+ */
+export function findTargetReturnPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  targetReturn: number,
+  options: {
+    wMax?: number;
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+  } = {}
+): OptimizationResult {
+  const { wMax = 1.0 } = options;
+
+  return findMinVariancePortfolio(expectedReturns, covMatrix, {
+    rMin: targetReturn,
+    wMax,
+    enforceFullInvestment: options.enforceFullInvestment,
+    allowShortSelling: options.allowShortSelling,
+  });
+}
+
+/**
+ * Find maximum return portfolio for a target risk (volatility)
+ */
+export function findTargetRiskPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  targetVolatility: number,
+  options: {
+    wMax?: number;
+    numFrontierPoints?: number;
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+  } = {}
 ): OptimizationResult {
   const {
     wMax = 1.0,
-    numFrontierPoints = 9,
+    numFrontierPoints = 50,
+    enforceFullInvestment = true,
+    allowShortSelling = false,
+  } = options;
+
+  // Calculate efficient frontier
+  const frontier = calculateEfficientFrontier(
+    expectedReturns,
+    covMatrix,
+    numFrontierPoints,
+    wMax,
+    { enforceFullInvestment, allowShortSelling }
+  );
+
+  // Find portfolio with volatility closest to (but not exceeding) target
+  let bestIndex = 0;
+  let bestReturn = -Infinity;
+
+  for (let i = 0; i < frontier.volatilities.length; i++) {
+    if (frontier.volatilities[i] <= targetVolatility + 1e-6) {
+      if (frontier.returns[i] > bestReturn) {
+        bestReturn = frontier.returns[i];
+        bestIndex = i;
+      }
+    }
+  }
+
+  // If no portfolio meets the constraint, use minimum risk portfolio
+  if (bestReturn === -Infinity) {
+    let minVolIdx = 0;
+    let minVol = frontier.volatilities[0];
+    for (let i = 1; i < frontier.volatilities.length; i++) {
+      if (frontier.volatilities[i] < minVol) {
+        minVol = frontier.volatilities[i];
+        minVolIdx = i;
+      }
+    }
+    bestIndex = minVolIdx;
+  }
+
+  return {
+    weights: frontier.weights[bestIndex],
+    return: frontier.returns[bestIndex],
+    volatility: frontier.volatilities[bestIndex],
+    success: true,
+  };
+}
+
+/**
+ * Find the optimal portfolio using maximum curvature (knee point)
+ * This finds the point on the efficient frontier with the best risk-return trade-off
+ */
+export function findKneePointPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  options: {
+    wMax?: number;
+    numFrontierPoints?: number;
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+  } = {},
+  frontierData?: { returns: number[]; volatilities: number[]; weights: number[][] }
+): OptimizationResult {
+  const {
+    wMax = 1.0,
+    numFrontierPoints = 50,
     enforceFullInvestment = true,
     allowShortSelling = false,
   } = options;

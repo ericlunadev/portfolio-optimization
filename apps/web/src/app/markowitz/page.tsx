@@ -3,11 +3,12 @@
 import { useState, useMemo } from "react";
 import {
   useNegReturnProbability,
-  useMaxSharpeOptimization,
+  useOptimization,
   useEfficientFrontierTickers,
   usePortfolioCumulativeReturnsTickers,
   useRollingVolatilityTickers,
 } from "@/hooks/useOptimization";
+import { OptimizationStrategy, OPTIMIZATION_STRATEGIES } from "@/lib/api";
 import { DateRangePicker, DateRange } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
 import { ConstraintsPanel } from "@/components/forms/ConstraintsPanel";
@@ -43,6 +44,11 @@ export default function MarkowitzPage() {
   const [allowShortSelling, setAllowShortSelling] = useState(false);
   const [useVolatilityConstraint, setUseVolatilityConstraint] = useState(false);
   const [volMax, setVolMax] = useState(0.15);
+  // Optimization strategy
+  const [strategy, setStrategy] = useState<OptimizationStrategy>("max-sharpe");
+  const [targetReturn, setTargetReturn] = useState(0.10); // 10% default
+  const [targetRisk, setTargetRisk] = useState(0.15); // 15% default
+  const [riskFreeRate, setRiskFreeRate] = useState(0.05); // 5% default
   const [dateRange, setDateRange] = useState<DateRange>({
     startMonth: 1,
     startYear: currentYear - 5,
@@ -90,18 +96,26 @@ export default function MarkowitzPage() {
     return `${dateRange.endYear}-${month}-${String(lastDay).padStart(2, "0")}`;
   }, [dateRange.endMonth, dateRange.endYear]);
 
-  // Ticker-based optimization - Maximum Sharpe Ratio (only runs when on step 2)
+  // Get the current strategy config
+  const currentStrategy = OPTIMIZATION_STRATEGIES.find((s) => s.value === strategy);
+
+  // Ticker-based optimization (only runs when on step 2)
   const {
     data: optimizationResult,
     isLoading: loadingOptimization,
-  } = useMaxSharpeOptimization(
+  } = useOptimization(
     step === 2 ? selectedTickers : [],
-    assetConstraints ? wMax : 1,
-    0, // risk-free rate
-    startDate,
-    endDate,
-    enforceFullInvestment,
-    allowShortSelling
+    strategy,
+    {
+      wMax: assetConstraints ? wMax : 1,
+      riskFreeRate: strategy === "max-sharpe" ? riskFreeRate : 0,
+      targetReturn: strategy === "target-return" ? targetReturn : undefined,
+      targetRisk: strategy === "target-risk" ? targetRisk : undefined,
+      startDate,
+      endDate,
+      enforceFullInvestment,
+      allowShortSelling,
+    }
   );
 
   const { data: frontierData } = useEfficientFrontierTickers(
@@ -177,12 +191,13 @@ export default function MarkowitzPage() {
   // Optimized portfolio point for scatter chart
   const optimizedPortfolioPoint = useMemo(() => {
     if (!optimizationResult) return null;
+    const strategyLabel = OPTIMIZATION_STRATEGIES.find((s) => s.value === strategy)?.label || "Portafolio Óptimo";
     return {
-      name: "Portafolio Óptimo",
+      name: strategyLabel,
       vol: optimizationResult.volatility,
       ret: optimizationResult.expected_return,
     };
-  }, [optimizationResult]);
+  }, [optimizationResult, strategy]);
 
   // User portfolio point for scatter chart
   const userPortfolioPoint = useMemo(() => {
@@ -305,6 +320,81 @@ export default function MarkowitzPage() {
               <DateRangePicker value={dateRange} onChange={setDateRange} />
             </div>
 
+            {/* Optimization Strategy */}
+            <div>
+              <label className="mb-2 block text-sm font-medium">
+                Estrategia de Optimización
+              </label>
+              <select
+                value={strategy}
+                onChange={(e) => setStrategy(e.target.value as OptimizationStrategy)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                {OPTIMIZATION_STRATEGIES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {currentStrategy?.description}
+              </p>
+
+              {/* Target Return Input */}
+              {strategy === "target-return" && (
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs text-muted-foreground">
+                    Rendimiento objetivo: {(targetReturn * 100).toFixed(1)}%
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={0.5}
+                    step={0.01}
+                    value={targetReturn}
+                    onChange={(e) => setTargetReturn(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              )}
+
+              {/* Target Risk Input */}
+              {strategy === "target-risk" && (
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs text-muted-foreground">
+                    Riesgo objetivo (volatilidad): {(targetRisk * 100).toFixed(1)}%
+                  </label>
+                  <input
+                    type="range"
+                    min={0.01}
+                    max={0.5}
+                    step={0.01}
+                    value={targetRisk}
+                    onChange={(e) => setTargetRisk(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              )}
+
+              {/* Risk-Free Rate Input for Max Sharpe */}
+              {strategy === "max-sharpe" && (
+                <div className="mt-3">
+                  <label className="mb-1 block text-xs text-muted-foreground">
+                    Tasa libre de riesgo: {(riskFreeRate * 100).toFixed(1)}%
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={0.30}
+                    step={0.01}
+                    value={riskFreeRate}
+                    onChange={(e) => setRiskFreeRate(Number(e.target.value))}
+                    className="w-full"
+                  />
+                </div>
+              )}
+            </div>
+
             {/* Asset Constraints */}
             <div>
               <label className="mb-2 block text-sm font-medium">
@@ -423,7 +513,7 @@ export default function MarkowitzPage() {
               "text-muted-foreground hover:text-foreground"
             )}
           >
-            Portafolio Óptimo
+            {currentStrategy?.label || "Portafolio Óptimo"}
           </Tabs.Trigger>
           <Tabs.Trigger
             value="data"
@@ -544,6 +634,12 @@ export default function MarkowitzPage() {
                         <dt className="text-muted-foreground">Volatilidad</dt>
                         <dd className="font-medium">
                           {formatPercent(optimizationResult.volatility)}
+                        </dd>
+                      </div>
+                      <div className="flex justify-between">
+                        <dt className="text-muted-foreground">Ratio de Sharpe</dt>
+                        <dd className="font-medium">
+                          {optimizationResult.sharpe_ratio?.toFixed(2) ?? "N/A"}
                         </dd>
                       </div>
                       <div className="flex justify-between">

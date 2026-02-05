@@ -85,10 +85,25 @@ export function RiskReturnScatterChart({
         />
         <ZAxis range={[60, 60]} />
         <Tooltip
-          formatter={(value: number) => formatPercent(value)}
-          labelFormatter={(_, payload) =>
-            payload?.[0]?.payload?.name || "Punto"
-          }
+          content={({ active, payload }) => {
+            if (active && payload && payload.length) {
+              const data = payload[0].payload;
+              return (
+                <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
+                  {data.name && (
+                    <p className="font-semibold text-gray-900 mb-1">{data.name}</p>
+                  )}
+                  <p className="text-sm text-gray-600">
+                    Volatilidad : {formatPercent(data.vol)}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    Rendimiento : {formatPercent(data.ret)}
+                  </p>
+                </div>
+              );
+            }
+            return null;
+          }}
         />
         <Legend verticalAlign="top" height={36} />
 

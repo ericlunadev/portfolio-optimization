@@ -19,6 +19,40 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export const api = {
+  // Unified optimization endpoint supporting all strategies
+  async optimizePortfolio(
+    tickers: string[],
+    strategy: OptimizationStrategy,
+    options: {
+      wMax?: number;
+      riskFreeRate?: number;
+      targetReturn?: number;
+      targetRisk?: number;
+      startDate?: string;
+      endDate?: string;
+      enforceFullInvestment?: boolean;
+      allowShortSelling?: boolean;
+    } = {}
+  ) {
+    const res = await fetch(`${API_BASE}/optimization/optimize`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tickers,
+        strategy,
+        w_max: options.wMax ?? 1,
+        risk_free_rate: options.riskFreeRate ?? 0,
+        target_return: options.targetReturn,
+        target_risk: options.targetRisk,
+        start_date: options.startDate,
+        end_date: options.endDate,
+        enforce_full_investment: options.enforceFullInvestment ?? true,
+        allow_short_selling: options.allowShortSelling ?? false,
+      }),
+    });
+    return handleResponse<OptimizationResultWithStrategy>(res);
+  },
+
   // Ticker-based optimization - minimum variance
   async optimizePortfolioTickers(
     tickers: string[],
@@ -149,6 +183,55 @@ export const api = {
   },
 };
 
+// Optimization Strategy Types
+export type OptimizationStrategy =
+  | "max-sharpe"
+  | "min-risk"
+  | "max-return"
+  | "target-return"
+  | "target-risk"
+  | "knee-point";
+
+export const OPTIMIZATION_STRATEGIES: {
+  value: OptimizationStrategy;
+  label: string;
+  description: string;
+  requiresTarget?: "return" | "risk";
+}[] = [
+  {
+    value: "max-sharpe",
+    label: "Máximo Sharpe (Óptimo)",
+    description: "Mejor rendimiento ajustado por riesgo",
+  },
+  {
+    value: "min-risk",
+    label: "Mínimo Riesgo",
+    description: "Menor volatilidad posible",
+  },
+  {
+    value: "max-return",
+    label: "Máximo Rendimiento",
+    description: "Mayor rendimiento esperado",
+  },
+  {
+    value: "target-return",
+    label: "Rendimiento Objetivo",
+    description: "Mínimo riesgo para un rendimiento específico",
+    requiresTarget: "return",
+  },
+  {
+    value: "target-risk",
+    label: "Riesgo Objetivo",
+    description: "Máximo rendimiento para un riesgo específico",
+    requiresTarget: "risk",
+  },
+  {
+    value: "knee-point",
+    label: "Punto de Inflexión",
+    description: "Punto de máxima curvatura en la frontera",
+  },
+];
+
 // Types
 export interface OptimizationResult {
   weights: {
@@ -160,6 +243,28 @@ export interface OptimizationResult {
   }[];
   expected_return: number;
   volatility: number;
+  stats: {
+    ci_95_low: number;
+    ci_95_high: number;
+    prob_neg_1m: number;
+    prob_neg_3m: number;
+    prob_neg_1y: number;
+    prob_neg_2y: number;
+  };
+}
+
+export interface OptimizationResultWithStrategy {
+  weights: {
+    fund_id: number;
+    fund_name: string;
+    weight: number;
+    exp_ret: number;
+    volatility: number;
+  }[];
+  expected_return: number;
+  volatility: number;
+  sharpe_ratio: number;
+  strategy: OptimizationStrategy;
   stats: {
     ci_95_low: number;
     ci_95_high: number;
