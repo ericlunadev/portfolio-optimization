@@ -151,7 +151,7 @@ export function useNegReturnProbability(rAnn: number, volAnn: number, months: nu
 
 export function useRollingVolatilityTickers(
   tickers: string[],
-  window: number = 12,
+  window: number = 252,
   startDate?: string,
   endDate?: string
 ) {

@@ -211,7 +211,7 @@ optimization.post(
         const data = await yahooFinance.chart(ticker, {
           period1: new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
           period2: new Date().toISOString().split("T")[0],
-          interval: "1mo",
+          interval: "1d",
         });
 
         if (data.quotes) {
@@ -334,7 +334,7 @@ optimization.post(
     "json",
     z.object({
       tickers: z.array(z.string()),
-      window: z.number().min(2).max(36).default(12),
+      window: z.number().min(2).max(504).default(252),
       start_date: z.string().optional(),
       end_date: z.string().optional(),
     })
@@ -347,13 +347,13 @@ optimization.post(
     const period1 = start_date || new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
     const period2 = end_date || new Date().toISOString().split("T")[0];
 
-    // Fetch monthly data for each ticker
+    // Fetch daily data for each ticker
     for (const ticker of tickers) {
       try {
         const data = await yahooFinance.chart(ticker, {
           period1,
           period2,
-          interval: "1mo",
+          interval: "1d",
         });
 
         if (data.quotes) {
@@ -376,14 +376,14 @@ optimization.post(
     const series = tickers.map((ticker) => {
       const prices = pricesByTicker.get(ticker) ?? [];
 
-      // Calculate monthly returns
+      // Calculate daily log returns
       const returns: number[] = [];
       for (let i = 1; i < prices.length; i++) {
-        returns.push((prices[i].close - prices[i - 1].close) / prices[i - 1].close);
+        returns.push(Math.log(prices[i].close / prices[i - 1].close));
       }
 
       // Calculate rolling standard deviation (annualized)
-      const rollingVols = rollingStdDev(returns, window).map((vol) => vol * Math.sqrt(12));
+      const rollingVols = rollingStdDev(returns, window).map((vol) => vol * Math.sqrt(252));
 
       // Get dates starting from window position (since we need window returns for first calc)
       const dates = prices.slice(window).map((p) => p.date);
@@ -412,13 +412,13 @@ async function getTickerAssumptions(tickers: string[], startDate?: string, endDa
   const period1 = startDate || new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const period2 = endDate || new Date().toISOString().split("T")[0];
 
-  // Fetch monthly data for each ticker within the specified date range
+  // Fetch daily data for each ticker within the specified date range
   for (const ticker of tickers) {
     try {
       const data = await yahooFinance.chart(ticker, {
         period1,
         period2,
-        interval: "1mo",
+        interval: "1d",
       });
 
       if (data.quotes) {
@@ -437,38 +437,38 @@ async function getTickerAssumptions(tickers: string[], startDate?: string, endDa
     }
   }
 
-  // Calculate monthly returns for each ticker
-  const monthlyReturnsByTicker: number[][] = [];
+  // Calculate daily log returns for each ticker
+  const dailyReturnsByTicker: number[][] = [];
 
   for (const ticker of tickers) {
     const prices = pricesByTicker.get(ticker) ?? [];
     const returns: number[] = [];
 
     for (let i = 1; i < prices.length; i++) {
-      returns.push((prices[i].close - prices[i - 1].close) / prices[i - 1].close);
+      returns.push(Math.log(prices[i].close / prices[i - 1].close));
     }
 
-    monthlyReturnsByTicker.push(returns);
+    dailyReturnsByTicker.push(returns);
   }
 
   // Find minimum common length and trim
   let minLen = Infinity;
-  for (const returns of monthlyReturnsByTicker) {
+  for (const returns of dailyReturnsByTicker) {
     minLen = Math.min(minLen, returns.length);
   }
 
-  const trimmedReturns = monthlyReturnsByTicker.map((returns) => returns.slice(-minLen));
+  const trimmedReturns = dailyReturnsByTicker.map((returns) => returns.slice(-minLen));
 
-  // Calculate expected returns and volatilities (annualized from monthly)
+  // Calculate expected returns and volatilities (annualized from daily)
   const expectedReturns: number[] = [];
   const volatilities: number[] = [];
 
   for (const returns of trimmedReturns) {
-    const avgMonthlyReturn = returns.length > 0 ? mean(returns) : 0;
-    const monthlyVol = returns.length > 0 ? stdDev(returns) : 0.05;
+    const avgDailyReturn = returns.length > 0 ? mean(returns) : 0;
+    const dailyVol = returns.length > 0 ? stdDev(returns) : 0.05;
 
-    expectedReturns.push(avgMonthlyReturn * 12);
-    volatilities.push(monthlyVol * Math.sqrt(12));
+    expectedReturns.push(avgDailyReturn * 252);
+    volatilities.push(dailyVol * Math.sqrt(252));
   }
 
   // Calculate correlation matrix

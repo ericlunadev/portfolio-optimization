@@ -18,6 +18,8 @@ import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsCha
 import { ProbNegReturnChart } from "@/components/charts/ProbNegReturnChart";
 import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
+import { MatrixTable } from "@/components/tables/MatrixTable";
+import { CalculationSteps } from "@/components/debug/CalculationSteps";
 import { formatPercent } from "@/lib/utils";
 import * as Tabs from "@radix-ui/react-tabs";
 import { cn } from "@/lib/utils";
@@ -145,7 +147,7 @@ export default function MarkowitzPage() {
 
   const { data: rollingVolData } = useRollingVolatilityTickers(
     step === 2 ? selectedTickers : [],
-    12,
+    252,
     startDate,
     endDate
   );
@@ -766,6 +768,17 @@ export default function MarkowitzPage() {
               <RollingVolatilityChart
                 data={rollingVolChartData.data}
                 series={rollingVolChartData.series}
+              />
+            </div>
+          )}
+
+          {/* Debug: Calculation Steps and Matrices */}
+          {optimizationResult?.debug && (
+            <div className="rounded-lg border border-border p-4">
+              <h3 className="mb-4 font-semibold">Proceso de Cálculo (Debug)</h3>
+              <CalculationSteps
+                debug={optimizationResult.debug}
+                tickers={optimizationResult.weights.map((w) => w.fund_name)}
               />
             </div>
           )}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getTickerAssumptions } from "@/lib/yahoo";
+import { getTickerAssumptionsWithSteps } from "@/lib/yahoo";
 import { buildCovarianceMatrix } from "@/lib/math/matrix";
 import {
   findMinVariancePortfolio,
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Strategy is required" }, { status: 400 });
     }
 
-    const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(
+    const { expectedReturns, volatilities, corrMatrix, steps } = await getTickerAssumptionsWithSteps(
       tickers,
       start_date,
       end_date
@@ -187,6 +187,11 @@ export async function POST(request: NextRequest) {
         prob_neg_3m: calcProbNeg(3),
         prob_neg_1y: calcProbNeg(12),
         prob_neg_2y: calcProbNeg(24),
+      },
+      debug: {
+        covarianceMatrix: covMatrix,
+        correlationMatrix: corrMatrix,
+        calculationSteps: steps,
       },
     });
   } catch (error) {

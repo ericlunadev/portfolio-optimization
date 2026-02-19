@@ -148,7 +148,7 @@ export const api = {
 
   async getRollingVolatilityTickers(
     tickers: string[],
-    window: number = 12,
+    window: number = 252,
     startDate?: string,
     endDate?: string
   ) {
@@ -272,6 +272,26 @@ export interface OptimizationResultWithStrategy {
     prob_neg_3m: number;
     prob_neg_1y: number;
     prob_neg_2y: number;
+  };
+  // Debug matrices and calculation steps
+  debug?: {
+    covarianceMatrix: number[][];
+    correlationMatrix: number[][];
+    calculationSteps: {
+      dailyReturns: { ticker: string; returns: number[] }[];
+      tickerStats: {
+        ticker: string;
+        meanDailyReturn: number;
+        dailyVolatility: number;
+        annualizedReturn: number;
+        annualizedVolatility: number;
+      }[];
+      pairwiseCorrelations: {
+        ticker1: string;
+        ticker2: string;
+        correlation: number;
+      }[];
+    };
   };
 }
 

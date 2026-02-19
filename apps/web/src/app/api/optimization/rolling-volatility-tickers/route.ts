@@ -5,14 +5,14 @@ import { rollingStdDev } from "@/lib/math/stats";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tickers, window = 12, start_date, end_date } = body;
+    const { tickers, window = 252, start_date, end_date } = body;
 
     if (!tickers || !Array.isArray(tickers) || tickers.length === 0) {
       return NextResponse.json({ error: "Tickers array is required" }, { status: 400 });
     }
 
-    if (window < 2 || window > 36) {
-      return NextResponse.json({ error: "Window must be between 2 and 36" }, { status: 400 });
+    if (window < 2 || window > 504) {
+      return NextResponse.json({ error: "Window must be between 2 and 504" }, { status: 400 });
     }
 
     const pricesByTicker = await getHistoricalPrices(tickers, start_date, end_date);
@@ -21,14 +21,14 @@ export async function POST(request: NextRequest) {
     const series = tickers.map((ticker: string) => {
       const prices = pricesByTicker.get(ticker) ?? [];
 
-      // Calculate monthly returns
+      // Calculate daily log returns
       const returns: number[] = [];
       for (let i = 1; i < prices.length; i++) {
-        returns.push((prices[i].close - prices[i - 1].close) / prices[i - 1].close);
+        returns.push(Math.log(prices[i].close / prices[i - 1].close));
       }
 
       // Calculate rolling standard deviation (annualized)
-      const rollingVols = rollingStdDev(returns, window).map((vol) => vol * Math.sqrt(12));
+      const rollingVols = rollingStdDev(returns, window).map((vol) => vol * Math.sqrt(252));
 
       // Get dates starting from window position
       const dates = prices.slice(window).map((p) => p.date);
