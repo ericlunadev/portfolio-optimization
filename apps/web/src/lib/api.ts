@@ -32,6 +32,7 @@ export const api = {
       endDate?: string;
       enforceFullInvestment?: boolean;
       allowShortSelling?: boolean;
+      maxLeverage?: number;
     } = {}
   ) {
     const res = await fetch(`${API_BASE}/optimization/optimize`, {
@@ -48,6 +49,7 @@ export const api = {
         end_date: options.endDate,
         enforce_full_investment: options.enforceFullInvestment ?? true,
         allow_short_selling: options.allowShortSelling ?? false,
+        max_leverage: options.maxLeverage ?? 1.0,
       }),
     });
     return handleResponse<OptimizationResultWithStrategy>(res);
@@ -112,7 +114,8 @@ export const api = {
     startDate?: string,
     endDate?: string,
     enforceFullInvestment: boolean = true,
-    allowShortSelling: boolean = false
+    allowShortSelling: boolean = false,
+    maxLeverage: number = 1.0
   ) {
     const res = await fetch(`${API_BASE}/optimization/efficient-frontier-tickers`, {
       method: "POST",
@@ -123,6 +126,7 @@ export const api = {
         end_date: endDate,
         enforce_full_investment: enforceFullInvestment,
         allow_short_selling: allowShortSelling,
+        max_leverage: maxLeverage,
       }),
     });
     return handleResponse<EfficientFrontierResponse>(res);

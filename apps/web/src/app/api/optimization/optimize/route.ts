@@ -25,6 +25,7 @@ interface OptimizeRequest {
   end_date?: string;
   enforce_full_investment?: boolean;
   allow_short_selling?: boolean;
+  max_leverage?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -41,6 +42,7 @@ export async function POST(request: NextRequest) {
       end_date,
       enforce_full_investment = true,
       allow_short_selling = false,
+      max_leverage = 1.0,
     } = body;
 
     if (!tickers || !Array.isArray(tickers) || tickers.length === 0) {
@@ -68,11 +70,12 @@ export async function POST(request: NextRequest) {
           covMatrix,
           20,
           w_max,
-          { enforceFullInvestment: enforce_full_investment, allowShortSelling: allow_short_selling }
+          { enforceFullInvestment: enforce_full_investment, allowShortSelling: allow_short_selling, maxLeverage: max_leverage }
         );
 
         console.log("\n=== MAX SHARPE DEBUG ===");
         console.log("Risk-free rate:", risk_free_rate);
+        console.log("Max leverage:", max_leverage);
         console.log("\nFrontier points with Sharpe ratios:");
         debugFrontier.returns.forEach((ret, i) => {
           const vol = debugFrontier.volatilities[i];
@@ -87,6 +90,7 @@ export async function POST(request: NextRequest) {
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
         });
 
         console.log("Selected portfolio:", {
@@ -98,10 +102,11 @@ export async function POST(request: NextRequest) {
 
       case "min-risk":
         result = findMinVariancePortfolio(expectedReturns, covMatrix, {
-          rMin: Math.min(...expectedReturns),
+          rMin: Math.min(...expectedReturns) * max_leverage,
           wMax: w_max,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
         });
         break;
 
@@ -122,6 +127,7 @@ export async function POST(request: NextRequest) {
           wMax: w_max,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
         });
         break;
 
@@ -137,6 +143,7 @@ export async function POST(request: NextRequest) {
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
         });
         break;
 
@@ -146,6 +153,7 @@ export async function POST(request: NextRequest) {
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
         });
         break;
 

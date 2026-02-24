@@ -46,6 +46,8 @@ export default function MarkowitzPage() {
   const [allowShortSelling, setAllowShortSelling] = useState(false);
   const [useVolatilityConstraint, setUseVolatilityConstraint] = useState(false);
   const [volMax, setVolMax] = useState(0.15);
+  const [useLeverage, setUseLeverage] = useState(false);
+  const [maxLeverage, setMaxLeverage] = useState(1.5);
   // Optimization strategy
   const [strategy, setStrategy] = useState<OptimizationStrategy>("max-sharpe");
   const [targetReturn, setTargetReturn] = useState(0.10); // 10% default
@@ -117,6 +119,7 @@ export default function MarkowitzPage() {
       endDate,
       enforceFullInvestment,
       allowShortSelling,
+      maxLeverage: useLeverage ? maxLeverage : 1.0,
     }
   );
 
@@ -125,7 +128,8 @@ export default function MarkowitzPage() {
     startDate,
     endDate,
     enforceFullInvestment,
-    allowShortSelling
+    allowShortSelling,
+    useLeverage ? maxLeverage : 1.0
   );
 
   const weights = useMemo(() => {
@@ -456,6 +460,10 @@ export default function MarkowitzPage() {
             onUseVolatilityConstraintChange={setUseVolatilityConstraint}
             volMax={volMax}
             onVolMaxChange={setVolMax}
+            useLeverage={useLeverage}
+            onUseLeverageChange={setUseLeverage}
+            maxLeverage={maxLeverage}
+            onMaxLeverageChange={setMaxLeverage}
           />
         </div>
 

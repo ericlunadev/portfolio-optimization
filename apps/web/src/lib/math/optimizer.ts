@@ -14,6 +14,7 @@ export interface OptimizationOptions {
   maxIterations?: number;
   enforceFullInvestment?: boolean;
   allowShortSelling?: boolean;
+  maxLeverage?: number;
 }
 
 /**
@@ -25,15 +26,15 @@ export function findMinVariancePortfolio(
   options: OptimizationOptions
 ): OptimizationResult {
   const n = expectedReturns.length;
-  const { rMin, wMax = 1.0, tolerance = 1e-8, maxIterations = 1000 } = options;
+  const { rMin, wMax = 1.0, tolerance = 1e-8, maxIterations = 1000, maxLeverage = 1.0 } = options;
 
-  let weights = Array(n).fill(1 / n);
+  let weights = Array(n).fill(maxLeverage / n);
   let learningRate = 0.1;
 
   for (let iter = 0; iter < maxIterations; iter++) {
     const gradient = computeVarianceGradient(weights, covMatrix);
     const newWeights = weights.map((w, i) => w - learningRate * gradient[i]);
-    const projected = projectOntoConstraints(newWeights, expectedReturns, rMin, wMax);
+    const projected = projectOntoConstraints(newWeights, expectedReturns, rMin, wMax, maxLeverage);
 
     const diff = Math.sqrt(projected.reduce((sum, w, i) => sum + Math.pow(w - weights[i], 2), 0));
     weights = projected;
@@ -73,7 +74,8 @@ function projectOntoConstraints(
   weights: number[],
   expectedReturns: number[],
   rMin: number,
-  wMax: number
+  wMax: number,
+  maxLeverage: number = 1.0
 ): number[] {
   const n = weights.length;
   let projected = [...weights];
@@ -82,26 +84,30 @@ function projectOntoConstraints(
     projected[i] = Math.max(0, Math.min(wMax, projected[i]));
   }
 
-  projected = projectOntoSimplex(projected);
+  projected = projectOntoScaledSimplex(projected, maxLeverage);
 
   for (let i = 0; i < n; i++) {
     projected[i] = Math.min(wMax, projected[i]);
   }
 
   const total = sum(projected);
-  if (total > 0 && Math.abs(total - 1) > 1e-10) {
-    projected = projected.map((w) => w / total);
+  if (total > 0 && Math.abs(total - maxLeverage) > 1e-10) {
+    projected = projected.map((w) => (w / total) * maxLeverage);
   }
 
   const currentReturn = portfolioReturn(projected, expectedReturns);
   if (currentReturn < rMin - 1e-10) {
-    projected = adjustForReturnConstraint(projected, expectedReturns, rMin, wMax);
+    projected = adjustForReturnConstraint(projected, expectedReturns, rMin, wMax, maxLeverage);
   }
 
   return projected;
 }
 
 function projectOntoSimplex(v: number[]): number[] {
+  return projectOntoScaledSimplex(v, 1.0);
+}
+
+function projectOntoScaledSimplex(v: number[], target: number): number[] {
   const n = v.length;
   const u = [...v].sort((a, b) => b - a);
 
@@ -110,12 +116,12 @@ function projectOntoSimplex(v: number[]): number[] {
 
   for (let j = 0; j < n; j++) {
     cumSum += u[j];
-    if (u[j] + (1 - cumSum) / (j + 1) > 0) {
+    if (u[j] + (target - cumSum) / (j + 1) > 0) {
       rho = j + 1;
     }
   }
 
-  const theta = (u.slice(0, rho).reduce((a, b) => a + b, 0) - 1) / rho;
+  const theta = (u.slice(0, rho).reduce((a, b) => a + b, 0) - target) / rho;
   return v.map((vi) => Math.max(0, vi - theta));
 }
 
@@ -123,7 +129,8 @@ function adjustForReturnConstraint(
   weights: number[],
   expectedReturns: number[],
   rMin: number,
-  wMax: number
+  wMax: number,
+  maxLeverage: number = 1.0
 ): number[] {
   const n = weights.length;
   const adjusted = [...weights];
@@ -156,7 +163,7 @@ function adjustForReturnConstraint(
 
   const total = sum(adjusted);
   if (total > 0) {
-    return adjusted.map((w) => w / total);
+    return adjusted.map((w) => (w / total) * maxLeverage);
   }
   return adjusted;
 }
@@ -171,30 +178,31 @@ export function findGlobalMinVariancePortfolio(
     wMax?: number;
     tolerance?: number;
     maxIterations?: number;
+    maxLeverage?: number;
   } = {}
 ): OptimizationResult {
   const n = expectedReturns.length;
-  const { wMax = 1.0, tolerance = 1e-8, maxIterations = 1000 } = options;
+  const { wMax = 1.0, tolerance = 1e-8, maxIterations = 1000, maxLeverage = 1.0 } = options;
 
-  let weights = Array(n).fill(1 / n);
+  let weights = Array(n).fill(maxLeverage / n);
   let learningRate = 0.1;
 
   for (let iter = 0; iter < maxIterations; iter++) {
     const gradient = computeVarianceGradient(weights, covMatrix);
     const newWeights = weights.map((w, i) => w - learningRate * gradient[i]);
 
-    // Project onto simplex with weight constraints (no return constraint)
+    // Project onto scaled simplex with weight constraints (no return constraint)
     let projected = [...newWeights];
     for (let i = 0; i < n; i++) {
       projected[i] = Math.max(0, Math.min(wMax, projected[i]));
     }
-    projected = projectOntoSimplex(projected);
+    projected = projectOntoScaledSimplex(projected, maxLeverage);
     for (let i = 0; i < n; i++) {
       projected[i] = Math.min(wMax, projected[i]);
     }
     const total = sum(projected);
-    if (total > 0 && Math.abs(total - 1) > 1e-10) {
-      projected = projected.map((w) => w / total);
+    if (total > 0 && Math.abs(total - maxLeverage) > 1e-10) {
+      projected = projected.map((w) => (w / total) * maxLeverage);
     }
 
     const diff = Math.sqrt(projected.reduce((s, w, i) => s + Math.pow(w - weights[i], 2), 0));
@@ -227,12 +235,14 @@ export function calculateEfficientFrontier(
   covMatrix: number[][],
   numPoints: number = 9,
   wMax: number = 1.0,
-  options?: { enforceFullInvestment?: boolean; allowShortSelling?: boolean }
+  options?: { enforceFullInvestment?: boolean; allowShortSelling?: boolean; maxLeverage?: number }
 ): { returns: number[]; volatilities: number[]; weights: number[][] } {
+  const maxLeverage = options?.maxLeverage ?? 1.0;
+
   // First find the global minimum variance portfolio
-  const minVarPortfolio = findGlobalMinVariancePortfolio(expectedReturns, covMatrix, { wMax });
+  const minVarPortfolio = findGlobalMinVariancePortfolio(expectedReturns, covMatrix, { wMax, maxLeverage });
   const minVarReturn = minVarPortfolio.return;
-  const maxReturn = Math.max(...expectedReturns);
+  const maxReturn = Math.max(...expectedReturns) * maxLeverage;
 
   const returns: number[] = [];
   const volatilities: number[] = [];
@@ -252,6 +262,7 @@ export function calculateEfficientFrontier(
       wMax,
       enforceFullInvestment: options?.enforceFullInvestment,
       allowShortSelling: options?.allowShortSelling,
+      maxLeverage,
     });
 
     returns.push(result.return);
@@ -275,6 +286,7 @@ export function findMaxSharpePortfolio(
     numFrontierPoints?: number;
     enforceFullInvestment?: boolean;
     allowShortSelling?: boolean;
+    maxLeverage?: number;
   } = {},
   frontierData?: { returns: number[]; volatilities: number[]; weights: number[][] }
 ): OptimizationResult & { sharpeRatio: number } {
@@ -284,6 +296,7 @@ export function findMaxSharpePortfolio(
     numFrontierPoints = 50,
     enforceFullInvestment = true,
     allowShortSelling = false,
+    maxLeverage = 1.0,
   } = options;
 
   // Use provided frontier or calculate new one with more points for accuracy
@@ -292,7 +305,7 @@ export function findMaxSharpePortfolio(
     covMatrix,
     numFrontierPoints,
     wMax,
-    { enforceFullInvestment, allowShortSelling }
+    { enforceFullInvestment, allowShortSelling, maxLeverage }
   );
 
   // Find portfolio with maximum Sharpe ratio
@@ -394,15 +407,17 @@ export function findTargetReturnPortfolio(
     wMax?: number;
     enforceFullInvestment?: boolean;
     allowShortSelling?: boolean;
+    maxLeverage?: number;
   } = {}
 ): OptimizationResult {
-  const { wMax = 1.0 } = options;
+  const { wMax = 1.0, maxLeverage = 1.0 } = options;
 
   return findMinVariancePortfolio(expectedReturns, covMatrix, {
     rMin: targetReturn,
     wMax,
     enforceFullInvestment: options.enforceFullInvestment,
     allowShortSelling: options.allowShortSelling,
+    maxLeverage,
   });
 }
 
@@ -418,6 +433,7 @@ export function findTargetRiskPortfolio(
     numFrontierPoints?: number;
     enforceFullInvestment?: boolean;
     allowShortSelling?: boolean;
+    maxLeverage?: number;
   } = {}
 ): OptimizationResult {
   const {
@@ -425,6 +441,7 @@ export function findTargetRiskPortfolio(
     numFrontierPoints = 50,
     enforceFullInvestment = true,
     allowShortSelling = false,
+    maxLeverage = 1.0,
   } = options;
 
   // Calculate efficient frontier
@@ -433,7 +450,7 @@ export function findTargetRiskPortfolio(
     covMatrix,
     numFrontierPoints,
     wMax,
-    { enforceFullInvestment, allowShortSelling }
+    { enforceFullInvestment, allowShortSelling, maxLeverage }
   );
 
   // Find portfolio with volatility closest to (but not exceeding) target
@@ -482,6 +499,7 @@ export function findKneePointPortfolio(
     numFrontierPoints?: number;
     enforceFullInvestment?: boolean;
     allowShortSelling?: boolean;
+    maxLeverage?: number;
   } = {},
   frontierData?: { returns: number[]; volatilities: number[]; weights: number[][] }
 ): OptimizationResult {
@@ -490,6 +508,7 @@ export function findKneePointPortfolio(
     numFrontierPoints = 50,
     enforceFullInvestment = true,
     allowShortSelling = false,
+    maxLeverage = 1.0,
   } = options;
 
   // Use provided frontier or calculate new one
@@ -498,7 +517,7 @@ export function findKneePointPortfolio(
     covMatrix,
     numFrontierPoints,
     wMax,
-    { enforceFullInvestment, allowShortSelling }
+    { enforceFullInvestment, allowShortSelling, maxLeverage }
   );
 
   // Find the optimal portfolio using the "knee" method

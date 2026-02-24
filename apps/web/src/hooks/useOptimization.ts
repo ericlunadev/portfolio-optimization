@@ -15,6 +15,7 @@ export function useOptimization(
     endDate?: string;
     enforceFullInvestment?: boolean;
     allowShortSelling?: boolean;
+    maxLeverage?: number;
   } = {}
 ) {
   return useQuery({
@@ -30,6 +31,7 @@ export function useOptimization(
       options.endDate,
       options.enforceFullInvestment,
       options.allowShortSelling,
+      options.maxLeverage,
     ],
     queryFn: () => api.optimizePortfolio(tickers, strategy, options),
     enabled: tickers.length >= 2,
@@ -112,7 +114,8 @@ export function useEfficientFrontierTickers(
   startDate?: string,
   endDate?: string,
   enforceFullInvestment: boolean = true,
-  allowShortSelling: boolean = false
+  allowShortSelling: boolean = false,
+  maxLeverage: number = 1.0
 ) {
   return useQuery({
     queryKey: [
@@ -122,9 +125,10 @@ export function useEfficientFrontierTickers(
       endDate,
       enforceFullInvestment,
       allowShortSelling,
+      maxLeverage,
     ],
     queryFn: () =>
-      api.getEfficientFrontierTickers(tickers, startDate, endDate, enforceFullInvestment, allowShortSelling),
+      api.getEfficientFrontierTickers(tickers, startDate, endDate, enforceFullInvestment, allowShortSelling, maxLeverage),
     enabled: tickers.length >= 2,
   });
 }
