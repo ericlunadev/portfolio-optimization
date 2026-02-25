@@ -54,8 +54,6 @@ export default function MarkowitzPage() {
   const [dateRange, setDateRange] = useState<DateRange>({
     startMonth: 1,
     startYear: currentYear - 5,
-    endMonth: 12,
-    endYear: currentYear,
   });
   const [assets, setAssets] = useState<AssetRow[]>(INITIAL_ASSETS);
 
@@ -93,10 +91,12 @@ export default function MarkowitzPage() {
   }, [dateRange.startMonth, dateRange.startYear]);
 
   const endDate = useMemo(() => {
-    const month = String(dateRange.endMonth).padStart(2, "0");
-    const lastDay = new Date(dateRange.endYear, dateRange.endMonth, 0).getDate();
-    return `${dateRange.endYear}-${month}-${String(lastDay).padStart(2, "0")}`;
-  }, [dateRange.endMonth, dateRange.endYear]);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }, []);
 
   // Get the current strategy config
   const currentStrategy = OPTIMIZATION_STRATEGIES.find((s) => s.value === strategy);
