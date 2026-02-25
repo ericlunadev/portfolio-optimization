@@ -44,8 +44,6 @@ export default function MarkowitzPage() {
   // Constraint toggles
   const [enforceFullInvestment, setEnforceFullInvestment] = useState(true);
   const [allowShortSelling, setAllowShortSelling] = useState(false);
-  const [useVolatilityConstraint, setUseVolatilityConstraint] = useState(false);
-  const [volMax, setVolMax] = useState(0.15);
   const [useLeverage, setUseLeverage] = useState(false);
   const [maxLeverage, setMaxLeverage] = useState(1.5);
   // Optimization strategy
@@ -456,10 +454,6 @@ export default function MarkowitzPage() {
             onEnforceFullInvestmentChange={setEnforceFullInvestment}
             allowShortSelling={allowShortSelling}
             onAllowShortSellingChange={setAllowShortSelling}
-            useVolatilityConstraint={useVolatilityConstraint}
-            onUseVolatilityConstraintChange={setUseVolatilityConstraint}
-            volMax={volMax}
-            onVolMaxChange={setVolMax}
             useLeverage={useLeverage}
             onUseLeverageChange={setUseLeverage}
             maxLeverage={maxLeverage}

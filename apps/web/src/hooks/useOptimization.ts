@@ -45,8 +45,7 @@ export function useOptimizationTickers(
   startDate?: string,
   endDate?: string,
   enforceFullInvestment: boolean = true,
-  allowShortSelling: boolean = false,
-  volMax?: number
+  allowShortSelling: boolean = false
 ) {
   return useQuery({
     queryKey: [
@@ -58,7 +57,6 @@ export function useOptimizationTickers(
       endDate,
       enforceFullInvestment,
       allowShortSelling,
-      volMax,
     ],
     queryFn: () =>
       api.optimizePortfolioTickers(
@@ -68,8 +66,7 @@ export function useOptimizationTickers(
         startDate,
         endDate,
         enforceFullInvestment,
-        allowShortSelling,
-        volMax
+        allowShortSelling
       ),
     enabled: tickers.length >= 2,
   });

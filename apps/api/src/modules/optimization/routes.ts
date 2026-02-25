@@ -24,7 +24,6 @@ optimization.post(
       // Constraint toggles
       enforce_full_investment: z.boolean().default(true),
       allow_short_selling: z.boolean().default(false),
-      vol_max: z.number().min(0).max(1).optional(),
       max_leverage: z.number().min(1).max(3).default(1.0),
     })
   ),
@@ -37,7 +36,6 @@ optimization.post(
       end_date,
       enforce_full_investment,
       allow_short_selling,
-      vol_max,
       max_leverage,
     } = c.req.valid("json");
 
@@ -49,7 +47,6 @@ optimization.post(
       wMax: w_max,
       enforceFullInvestment: enforce_full_investment,
       allowShortSelling: allow_short_selling,
-      volMax: vol_max,
       maxLeverage: max_leverage,
     });
 

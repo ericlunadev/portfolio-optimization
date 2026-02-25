@@ -63,8 +63,7 @@ export const api = {
     startDate?: string,
     endDate?: string,
     enforceFullInvestment: boolean = true,
-    allowShortSelling: boolean = false,
-    volMax?: number
+    allowShortSelling: boolean = false
   ) {
     const res = await fetch(`${API_BASE}/optimization/min-variance-tickers`, {
       method: "POST",
@@ -77,7 +76,6 @@ export const api = {
         end_date: endDate,
         enforce_full_investment: enforceFullInvestment,
         allow_short_selling: allowShortSelling,
-        vol_max: volMax,
       }),
     });
     return handleResponse<OptimizationResult>(res);

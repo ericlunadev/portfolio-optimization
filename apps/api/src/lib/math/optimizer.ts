@@ -15,7 +15,6 @@ export interface OptimizationOptions {
   // Constraint toggles
   enforceFullInvestment?: boolean; // If false, sum(w) <= 1 instead of sum(w) = 1
   allowShortSelling?: boolean; // If true, weights can be negative
-  volMax?: number; // Maximum portfolio volatility (optional)
   maxLeverage?: number; // Maximum leverage (e.g., 2.0 = 200% = 2x leverage). Default 1.0
 }
 
@@ -41,7 +40,6 @@ export function findMinVariancePortfolio(
     maxIterations = 1000,
     enforceFullInvestment = true,
     allowShortSelling = false,
-    volMax,
     maxLeverage = 1.0,
   } = options;
 
@@ -66,7 +64,6 @@ export function findMinVariancePortfolio(
       wMax,
       wMin,
       enforceFullInvestment,
-      volMax,
       maxLeverage,
     });
 
@@ -117,7 +114,6 @@ interface ProjectionOptions {
   wMax: number;
   wMin: number;
   enforceFullInvestment: boolean;
-  volMax?: number;
   maxLeverage: number;
 }
 
@@ -186,52 +182,10 @@ function projectOntoSumConstraint(
 }
 
 /**
- * Adjust weights to satisfy maximum volatility constraint
- * Moves toward minimum variance direction
- */
-function adjustForVolatilityConstraint(
-  weights: number[],
-  covMatrix: number[][],
-  volMax: number,
-  wMin: number,
-  wMax: number,
-  maxLeverage: number = 1.0
-): number[] {
-  const targetVariance = volMax * volMax;
-  let adjusted = [...weights];
-
-  for (let iter = 0; iter < 100; iter++) {
-    const currentVariance = portfolioVariance(adjusted, covMatrix);
-    if (currentVariance <= targetVariance + 1e-10) {
-      break;
-    }
-
-    // Compute gradient of variance: 2 * COV * w
-    const gradient = computeVarianceGradient(adjusted, covMatrix);
-
-    // Move in negative gradient direction (toward lower variance)
-    const stepSize = 0.05;
-    for (let i = 0; i < adjusted.length; i++) {
-      adjusted[i] = adjusted[i] - stepSize * gradient[i];
-      adjusted[i] = Math.max(wMin, Math.min(wMax, adjusted[i]));
-    }
-
-    // Re-normalize to maintain sum constraint (using maxLeverage)
-    const total = sum(adjusted);
-    if (Math.abs(total) > 1e-12) {
-      adjusted = adjusted.map((w) => (w / total) * maxLeverage);
-    }
-  }
-
-  return adjusted;
-}
-
-/**
  * Project weights onto the feasible set:
  * - Sum to maxLeverage (or <= maxLeverage if not enforceFullInvestment)
  * - wMin <= w <= wMax
  * - Expected return >= rMin
- * - Volatility <= volMax (if specified)
  */
 function projectOntoConstraints(
   weights: number[],
@@ -239,7 +193,7 @@ function projectOntoConstraints(
   covMatrix: number[][],
   options: ProjectionOptions
 ): number[] {
-  const { rMin, wMax, wMin, enforceFullInvestment, volMax, maxLeverage } = options;
+  const { rMin, wMax, wMin, enforceFullInvestment, maxLeverage } = options;
 
   let projected = [...weights];
 
@@ -266,14 +220,6 @@ function projectOntoConstraints(
   const currentReturn = portfolioReturn(projected, expectedReturns);
   if (currentReturn < rMin - 1e-10) {
     projected = adjustForReturnConstraint(projected, expectedReturns, rMin, wMax, wMin, maxLeverage);
-  }
-
-  // Step 4: Check volatility constraint and adjust if needed
-  if (volMax !== undefined) {
-    const currentVol = Math.sqrt(portfolioVariance(projected, covMatrix));
-    if (currentVol > volMax + 1e-10) {
-      projected = adjustForVolatilityConstraint(projected, covMatrix, volMax, wMin, wMax, maxLeverage);
-    }
   }
 
   return projected;
@@ -391,7 +337,6 @@ export function calculateEfficientFrontier(
       enforceFullInvestment: options?.enforceFullInvestment,
       allowShortSelling: options?.allowShortSelling,
       maxLeverage,
-      // Note: volMax is not used for efficient frontier calculation
     });
 
     returns.push(result.return);
