@@ -22,6 +22,8 @@ import { MatrixTable } from "@/components/tables/MatrixTable";
 import { CalculationSteps } from "@/components/debug/CalculationSteps";
 import { formatPercent } from "@/lib/utils";
 import * as Tabs from "@radix-ui/react-tabs";
+import * as Popover from "@radix-ui/react-popover";
+import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function generateId() {
@@ -326,9 +328,77 @@ export default function MarkowitzPage() {
 
             {/* Optimization Strategy */}
             <div>
-              <label className="mb-2 block text-sm font-medium">
-                Estrategia de Optimización
-              </label>
+              <div className="mb-2 flex items-center gap-1.5">
+                <label className="block text-sm font-medium">
+                  Estrategia de Optimización
+                </label>
+                <Popover.Root>
+                  <Popover.Trigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      aria-label="Información sobre estrategias de optimización"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Content
+                      className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
+                      sideOffset={5}
+                      align="start"
+                    >
+                      <div className="space-y-3">
+                        <p className="text-sm font-medium">
+                          Estrategias de Optimización de Portafolio
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Selecciona como quieres optimizar tu portafolio segun la teoria de Markowitz:
+                        </p>
+                        <ul className="space-y-2 text-xs">
+                          <li>
+                            <span className="font-medium">Maximo Sharpe:</span>{" "}
+                            <span className="text-muted-foreground">
+                              Maximiza el rendimiento ajustado por riesgo usando el ratio de Sharpe. Ideal para obtener el mejor equilibrio entre riesgo y rendimiento.
+                            </span>
+                          </li>
+                          <li>
+                            <span className="font-medium">Minimo Riesgo:</span>{" "}
+                            <span className="text-muted-foreground">
+                              Minimiza la volatilidad del portafolio. Recomendado para inversores conservadores.
+                            </span>
+                          </li>
+                          <li>
+                            <span className="font-medium">Maximo Rendimiento:</span>{" "}
+                            <span className="text-muted-foreground">
+                              Maximiza el rendimiento esperado sin considerar el riesgo. Para inversores agresivos.
+                            </span>
+                          </li>
+                          <li>
+                            <span className="font-medium">Rendimiento Objetivo:</span>{" "}
+                            <span className="text-muted-foreground">
+                              Encuentra el portafolio de minimo riesgo que alcance un rendimiento especifico.
+                            </span>
+                          </li>
+                          <li>
+                            <span className="font-medium">Riesgo Objetivo:</span>{" "}
+                            <span className="text-muted-foreground">
+                              Encuentra el portafolio de maximo rendimiento para un nivel de riesgo especifico.
+                            </span>
+                          </li>
+                          <li>
+                            <span className="font-medium">Punto de Inflexion:</span>{" "}
+                            <span className="text-muted-foreground">
+                              Identifica el punto de maxima curvatura en la frontera eficiente, donde el beneficio marginal de asumir mas riesgo comienza a disminuir.
+                            </span>
+                          </li>
+                        </ul>
+                      </div>
+                      <Popover.Arrow className="fill-border" />
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover.Root>
+              </div>
               <select
                 value={strategy}
                 onChange={(e) => setStrategy(e.target.value as OptimizationStrategy)}
@@ -365,9 +435,43 @@ export default function MarkowitzPage() {
               {/* Target Risk Input */}
               {strategy === "target-risk" && (
                 <div className="mt-3">
-                  <label className="mb-1 block text-xs text-muted-foreground">
-                    Riesgo objetivo (volatilidad): {(targetRisk * 100).toFixed(1)}%
-                  </label>
+                  <div className="mb-1 flex items-center gap-1">
+                    <label className="text-xs text-muted-foreground">
+                      Riesgo objetivo (volatilidad): {(targetRisk * 100).toFixed(1)}%
+                    </label>
+                    <Popover.Root>
+                      <Popover.Trigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                          aria-label="Informacion sobre riesgo objetivo"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      </Popover.Trigger>
+                      <Popover.Portal>
+                        <Popover.Content
+                          className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-md"
+                          sideOffset={5}
+                          align="start"
+                        >
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-semibold">Riesgo Objetivo (Volatilidad)</h4>
+                            <p className="text-xs text-muted-foreground">
+                              Este parametro establece la volatilidad maxima permitida para el portafolio. La volatilidad mide la dispersion de los rendimientos y se expresa como porcentaje anualizado.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Como funciona:</strong> El optimizador busca el portafolio con el mayor rendimiento esperado cuya volatilidad no exceda el valor objetivo. Si existen multiples portafolios que cumplen la restriccion, se selecciona el de mayor rendimiento.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Factibilidad:</strong> Si el riesgo objetivo es menor que la volatilidad minima alcanzable (portafolio de minima varianza), el optimizador devolvera el portafolio de menor riesgo posible. Valores tipicos estan entre 10% y 25% anual.
+                            </p>
+                          </div>
+                          <Popover.Arrow className="fill-border" />
+                        </Popover.Content>
+                      </Popover.Portal>
+                    </Popover.Root>
+                  </div>
                   <input
                     type="range"
                     min={0.01}
@@ -414,9 +518,43 @@ export default function MarkowitzPage() {
               </select>
               {assetConstraints && (
                 <div className="mt-2">
-                  <label className="mb-1 block text-xs text-muted-foreground">
-                    Peso máximo por activo: {Math.round(wMax * 100)}%
-                  </label>
+                  <div className="mb-1 flex items-center gap-1">
+                    <label className="text-xs text-muted-foreground">
+                      Peso maximo por activo: {Math.round(wMax * 100)}%
+                    </label>
+                    <Popover.Root>
+                      <Popover.Trigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                          aria-label="Informacion sobre peso maximo por activo"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      </Popover.Trigger>
+                      <Popover.Portal>
+                        <Popover.Content
+                          className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-md"
+                          sideOffset={5}
+                          align="start"
+                        >
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-semibold">Peso Maximo por Activo</h4>
+                            <p className="text-xs text-muted-foreground">
+                              Este parametro limita la concentracion maxima que puede tener un solo activo en el portafolio optimizado.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Por que es importante:</strong> La concentracion excesiva en un solo activo aumenta el riesgo especifico. Si una empresa o sector tiene problemas, un portafolio muy concentrado sufrira perdidas significativas.
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              <strong>Efecto en la optimizacion:</strong> Un limite mas bajo fuerza mayor diversificacion, lo que generalmente reduce el riesgo pero puede disminuir el rendimiento esperado. Un limite mas alto permite al optimizador concentrar mas capital en los activos con mejor relacion riesgo-rendimiento.
+                            </p>
+                          </div>
+                          <Popover.Arrow className="fill-border" />
+                        </Popover.Content>
+                      </Popover.Portal>
+                    </Popover.Root>
+                  </div>
                   <input
                     type="range"
                     min={0.1}
