@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const results = await yahooFinance.search(q, { quotesCount: 10 });
+    const results = await yahooFinance.search(q, { quotesCount: 10 }, { validateResult: false });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const tickers = (results as any).quotes

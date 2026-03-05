@@ -20,7 +20,7 @@ historical.get(
     const { q } = c.req.valid("query");
 
     try {
-      const results = await yahooFinance.search(q, { quotesCount: 10 });
+      const results = await yahooFinance.search(q, { quotesCount: 10 }, { validateResult: false });
 
       const tickers = results.quotes
         .filter((quote: any) => quote.symbol && (quote.quoteType === "EQUITY" || quote.quoteType === "ETF"))
