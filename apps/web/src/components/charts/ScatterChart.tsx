@@ -57,7 +57,7 @@ export function RiskReturnScatterChart({
     ...(optimizedPortfolio ? [optimizedPortfolio] : []),
     ...(userPortfolio ? [userPortfolio] : []),
   ];
-  const allPoints = [...data, ...sortedFrontier, ...portfolioPoints];
+  const allPoints = [...sortedFrontier, ...portfolioPoints];
   const minVol = Math.min(...allPoints.map((p) => p.vol)) * 0.9;
   const maxVol = Math.max(...allPoints.map((p) => p.vol)) * 1.1;
   const minRet = Math.min(...allPoints.map((p) => p.ret)) * 0.9;
@@ -118,14 +118,6 @@ export function RiskReturnScatterChart({
             name="Frontera Eficiente"
           />
         )}
-
-        <Scatter
-          data={data}
-          fill="#94a3b8"
-          onClick={(entry) => onPointClick?.(entry.name)}
-          cursor={onPointClick ? "pointer" : "default"}
-          name="Activos"
-        />
 
         {optimizedPortfolio && (
           <Scatter
