@@ -543,9 +543,43 @@ export default function MarkowitzPage() {
 
             {/* Asset Constraints */}
             <div>
-              <label className="mb-2 block text-sm font-medium">
-                Restricciones de Activos
-              </label>
+              <div className="mb-2 flex items-center gap-1.5">
+                <label className="block text-sm font-medium">
+                  Restricciones de Activos
+                </label>
+                <Popover.Root>
+                  <Popover.Trigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      aria-label="Información sobre restricciones de activos"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Content
+                      className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
+                      sideOffset={5}
+                      align="start"
+                    >
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-semibold">Restricciones de Activos</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Permite imponer limites sobre el peso maximo que cada activo individual puede tener en el portafolio optimizado.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Sin restricciones:</strong> El optimizador puede asignar cualquier peso entre 0% y 100% a cada activo, lo que puede resultar en portafolios muy concentrados.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Con restricciones:</strong> Se establece un peso maximo por activo, forzando una mayor diversificacion. Por ejemplo, un limite de 30% asegura que ningun activo represente mas de ese porcentaje del portafolio.
+                        </p>
+                      </div>
+                      <Popover.Arrow className="fill-border" />
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover.Root>
+              </div>
               <select
                 value={assetConstraints ? "yes" : "no"}
                 onChange={(e) => setAssetConstraints(e.target.value === "yes")}
