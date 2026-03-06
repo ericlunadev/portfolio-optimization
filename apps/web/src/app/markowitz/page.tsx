@@ -41,6 +41,7 @@ const INITIAL_ASSETS: AssetRow[] = Array.from({ length: 2 }, () => ({
 export default function MarkowitzPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [showFrontier, setShowFrontier] = useState(true);
+  const [debugTangentSlope, setDebugTangentSlope] = useState(false);
   const [assetConstraints, setAssetConstraints] = useState(false);
   const [wMax, setWMax] = useState(0.4);
   // Constraint toggles
@@ -679,12 +680,24 @@ export default function MarkowitzPage() {
             <>
               {/* Risk vs Return Chart */}
               <div className="rounded-lg border border-border p-4">
-                <h3 className="mb-4 font-semibold">Riesgo vs Rendimiento</h3>
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="font-semibold">Riesgo vs Rendimiento</h3>
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={debugTangentSlope}
+                      onChange={(e) => setDebugTangentSlope(e.target.checked)}
+                      className="h-4 w-4 rounded border-input"
+                    />
+                    Debug
+                  </label>
+                </div>
                 <RiskReturnScatterChart
                   data={scatterData}
                   frontier={frontierPoints}
                   optimizedPortfolio={optimizedPortfolioPoint}
                   userPortfolio={userPortfolioPoint}
+                  showTangentSlope={debugTangentSlope}
                 />
               </div>
 
