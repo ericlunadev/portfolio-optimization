@@ -365,7 +365,7 @@ export function findMaxSharpePortfolio(
 ): OptimizationResult {
   const {
     wMax = 1.0,
-    numFrontierPoints = 9, // Match displayed frontier
+    numFrontierPoints = 200,
     enforceFullInvestment = true,
     allowShortSelling = false,
     maxLeverage = 1.0,

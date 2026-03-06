@@ -293,7 +293,7 @@ export function findMaxSharpePortfolio(
   const {
     wMax = 1.0,
     riskFreeRate = 0,
-    numFrontierPoints = 50,
+    numFrontierPoints = 200,
     enforceFullInvestment = true,
     allowShortSelling = false,
     maxLeverage = 1.0,
@@ -438,7 +438,7 @@ export function findTargetRiskPortfolio(
 ): OptimizationResult {
   const {
     wMax = 1.0,
-    numFrontierPoints = 50,
+    numFrontierPoints = 200,
     enforceFullInvestment = true,
     allowShortSelling = false,
     maxLeverage = 1.0,
@@ -505,7 +505,7 @@ export function findKneePointPortfolio(
 ): OptimizationResult {
   const {
     wMax = 1.0,
-    numFrontierPoints = 50,
+    numFrontierPoints = 200,
     enforceFullInvestment = true,
     allowShortSelling = false,
     maxLeverage = 1.0,
