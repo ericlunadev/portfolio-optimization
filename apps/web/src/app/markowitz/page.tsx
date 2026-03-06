@@ -57,6 +57,8 @@ export default function MarkowitzPage() {
   const [dateRange, setDateRange] = useState<DateRange>({
     startMonth: 1,
     startYear: currentYear - 5,
+    endMonth: 12,
+    endYear: currentYear,
   });
   const [assets, setAssets] = useState<AssetRow[]>(INITIAL_ASSETS);
 
@@ -94,12 +96,10 @@ export default function MarkowitzPage() {
   }, [dateRange.startMonth, dateRange.startYear]);
 
   const endDate = useMemo(() => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }, []);
+    const month = String(dateRange.endMonth).padStart(2, "0");
+    const lastDay = new Date(dateRange.endYear, dateRange.endMonth, 0).getDate();
+    return `${dateRange.endYear}-${month}-${String(lastDay).padStart(2, "0")}`;
+  }, [dateRange.endMonth, dateRange.endYear]);
 
   // Get the current strategy config
   const currentStrategy = OPTIMIZATION_STRATEGIES.find((s) => s.value === strategy);
@@ -321,9 +321,46 @@ export default function MarkowitzPage() {
           <div className="grid gap-6 md:grid-cols-2">
             {/* Date Range */}
             <div>
-              <label className="mb-2 block text-sm font-medium">
-                Rango de Fechas
-              </label>
+              <div className="mb-2 flex items-center gap-1.5">
+                <label className="block text-sm font-medium">
+                  Rango de Fechas
+                </label>
+                <Popover.Root>
+                  <Popover.Trigger asChild>
+                    <button
+                      type="button"
+                      className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                      aria-label="Información sobre rango de fechas"
+                    >
+                      <Info className="h-3.5 w-3.5" />
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Content
+                      className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
+                      sideOffset={5}
+                      align="start"
+                    >
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-semibold">Rango de Fechas</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Define el periodo historico de datos que se utilizara para calcular rendimientos esperados, volatilidades y correlaciones entre activos.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Inicio:</strong> Primer mes del periodo de analisis. Se toman datos desde el primer dia del mes seleccionado.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Fin:</strong> Ultimo mes del periodo de analisis. Se toman datos hasta el ultimo dia del mes seleccionado.
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          <strong>Recomendacion:</strong> Un periodo de 3 a 5 anos ofrece un buen balance entre capturar tendencias de mercado y evitar datos obsoletos. Periodos mas largos suavizan la volatilidad pero pueden incluir condiciones de mercado que ya no son relevantes.
+                        </p>
+                      </div>
+                      <Popover.Arrow className="fill-border" />
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover.Root>
+              </div>
               <DateRangePicker value={dateRange} onChange={setDateRange} />
             </div>
 
