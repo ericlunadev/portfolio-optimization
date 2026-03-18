@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { BarChart3, Home } from "lucide-react";
+import { BarChart3, Home, History } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Inicio", icon: Home },
   { href: "/markowitz", label: "Markowitz", icon: BarChart3 },
+  { href: "/simulaciones", label: "Simulaciones", icon: History },
 ];
 
 export function Sidebar() {

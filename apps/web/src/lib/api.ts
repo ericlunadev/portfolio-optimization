@@ -113,7 +113,8 @@ export const api = {
     endDate?: string,
     enforceFullInvestment: boolean = true,
     allowShortSelling: boolean = false,
-    maxLeverage: number = 1.0
+    maxLeverage: number = 1.0,
+    wMax: number = 1.0
   ) {
     const res = await fetch(`${API_BASE}/optimization/efficient-frontier-tickers`, {
       method: "POST",
@@ -125,6 +126,7 @@ export const api = {
         enforce_full_investment: enforceFullInvestment,
         allow_short_selling: allowShortSelling,
         max_leverage: maxLeverage,
+        w_max: wMax,
       }),
     });
     return handleResponse<EfficientFrontierResponse>(res);
@@ -182,6 +184,33 @@ export const api = {
   async getCurrentUser() {
     const res = await fetch(`${API_BASE}/auth/me`);
     return handleResponse<User>(res);
+  },
+
+  // Simulations
+  async listSimulations() {
+    const res = await fetch(`${API_BASE}/simulations`);
+    return handleResponse<SimulationListItem[]>(res);
+  },
+
+  async getSimulation(id: string) {
+    const res = await fetch(`${API_BASE}/simulations/${id}`);
+    return handleResponse<SavedSimulation>(res);
+  },
+
+  async saveSimulation(params: SimulationParams, result: OptimizationResultWithStrategy, name?: string) {
+    const res = await fetch(`${API_BASE}/simulations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ params, result, name }),
+    });
+    return handleResponse<SavedSimulation>(res);
+  },
+
+  async deleteSimulation(id: string) {
+    const res = await fetch(`${API_BASE}/simulations/${id}`, {
+      method: "DELETE",
+    });
+    return handleResponse<{ success: boolean }>(res);
   },
 };
 
@@ -319,7 +348,8 @@ export interface MaxSharpeResult {
 }
 
 export interface EfficientFrontierResponse {
-  points: { ret: number; vol: number }[];
+  tickers: string[];
+  points: { ret: number; vol: number; weights: number[] }[];
 }
 
 export interface CumulativeReturnsSeries {
@@ -348,4 +378,48 @@ export interface User {
   email: string;
   name: string | null;
   picture_url: string | null;
+}
+
+// Simulation Types
+export interface DateRange {
+  startMonth: number;
+  startYear: number;
+  endMonth: number;
+  endYear: number;
+}
+
+export interface SimulationParams {
+  tickers: string[];
+  assets: { ticker: string; allocation: number | null }[];
+  dateRange: DateRange;
+  strategy: OptimizationStrategy;
+  targetReturn?: number;
+  targetRisk?: number;
+  riskFreeRate: number;
+  enforceFullInvestment: boolean;
+  allowShortSelling: boolean;
+  useLeverage: boolean;
+  maxLeverage: number;
+  assetConstraints: boolean;
+  wMax: number;
+  showFrontier: boolean;
+}
+
+export interface SavedSimulation {
+  id: string;
+  name: string;
+  params: SimulationParams;
+  result: OptimizationResultWithStrategy;
+  createdAt: string;
+}
+
+export interface SimulationListItem {
+  id: string;
+  name: string;
+  tickers: string[];
+  strategy: OptimizationStrategy;
+  expectedReturn: number;
+  volatility: number;
+  sharpeRatio: number;
+  createdAt: string;
 }

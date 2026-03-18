@@ -10,6 +10,7 @@ import auth from "./modules/auth/routes.js";
 import optimization from "./modules/optimization/routes.js";
 import tasks from "./modules/tasks/routes.js";
 import historical from "./modules/historical/routes.js";
+import simulations from "./modules/simulations/routes.js";
 
 const app = new Hono();
 
@@ -36,9 +37,10 @@ app.route("/api/auth", auth);
 app.route("/api/optimization", optimization);
 app.route("/api/tasks", tasks);
 app.route("/api/historical", historical);
+app.route("/api/simulations", simulations);
 
 // Start server
-const port = 8000;
+const port = env.PORT;
 console.log(`Starting Portfolio Optimization API on port ${port}`);
 console.log(`Frontend URL: ${env.FRONTEND_URL}`);
 console.log(`API Docs: http://localhost:${port}/api/health`);

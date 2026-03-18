@@ -112,7 +112,8 @@ export function useEfficientFrontierTickers(
   endDate?: string,
   enforceFullInvestment: boolean = true,
   allowShortSelling: boolean = false,
-  maxLeverage: number = 1.0
+  maxLeverage: number = 1.0,
+  wMax: number = 1.0
 ) {
   return useQuery({
     queryKey: [
@@ -123,9 +124,10 @@ export function useEfficientFrontierTickers(
       enforceFullInvestment,
       allowShortSelling,
       maxLeverage,
+      wMax,
     ],
     queryFn: () =>
-      api.getEfficientFrontierTickers(tickers, startDate, endDate, enforceFullInvestment, allowShortSelling, maxLeverage),
+      api.getEfficientFrontierTickers(tickers, startDate, endDate, enforceFullInvestment, allowShortSelling, maxLeverage, wMax),
     enabled: tickers.length >= 2,
   });
 }

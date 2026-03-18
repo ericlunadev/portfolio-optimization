@@ -2,7 +2,8 @@ import { z } from "zod";
 
 const envSchema = z.object({
   // Database
-  DATABASE_URL: z.string().default("./portfolio.db"),
+  DATABASE_URL: z.string().default("file:portfolio.db"),
+  DATABASE_AUTH_TOKEN: z.string().optional(),
 
   // JWT
   JWT_SECRET_KEY: z.string().default("change-me-in-production"),
@@ -21,9 +22,12 @@ const envSchema = z.object({
   MICROSOFT_CLIENT_ID: z.string().optional(),
   MICROSOFT_CLIENT_SECRET: z.string().optional(),
 
+  // Server
+  PORT: z.coerce.number().default(8001),
+
   // URLs
   FRONTEND_URL: z.string().default("http://localhost:3000"),
-  BACKEND_URL: z.string().default("http://localhost:8000"),
+  BACKEND_URL: z.string().default("http://localhost:8001"),
 });
 
 export const env = envSchema.parse(process.env);

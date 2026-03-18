@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   useNegReturnProbability,
   useOptimization,
@@ -8,10 +8,12 @@ import {
   usePortfolioCumulativeReturnsTickers,
   useRollingVolatilityTickers,
 } from "@/hooks/useOptimization";
-import { OptimizationStrategy, OPTIMIZATION_STRATEGIES } from "@/lib/api";
+import { useSaveSimulation } from "@/hooks/useSimulations";
+import { OptimizationStrategy, OPTIMIZATION_STRATEGIES, SimulationParams } from "@/lib/api";
 import { DateRangePicker, DateRange } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
 import { ConstraintsPanel } from "@/components/forms/ConstraintsPanel";
+import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
 import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsChart";
@@ -61,6 +63,29 @@ export default function MarkowitzPage() {
     endYear: currentYear,
   });
   const [assets, setAssets] = useState<AssetRow[]>(INITIAL_ASSETS);
+
+  // Auto-save simulation
+  const saveSimulation = useSaveSimulation();
+  const hasSavedRef = useRef(false);
+  const [savedSimulationId, setSavedSimulationId] = useState<string | null>(null);
+
+  // Build current simulation params
+  const currentSimulationParams = useMemo((): SimulationParams => ({
+    tickers: assets.map((a) => a.ticker).filter(Boolean),
+    assets: assets.filter((a) => a.ticker).map((a) => ({ ticker: a.ticker, allocation: a.allocation })),
+    dateRange,
+    strategy,
+    targetReturn: strategy === "target-return" ? targetReturn : undefined,
+    targetRisk: strategy === "target-risk" ? targetRisk : undefined,
+    riskFreeRate,
+    enforceFullInvestment,
+    allowShortSelling,
+    useLeverage,
+    maxLeverage,
+    assetConstraints,
+    wMax,
+    showFrontier,
+  }), [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, showFrontier]);
 
   // Derive tickers from asset rows
   const selectedTickers = useMemo(
@@ -130,7 +155,8 @@ export default function MarkowitzPage() {
     endDate,
     enforceFullInvestment,
     allowShortSelling,
-    useLeverage ? maxLeverage : 1.0
+    useLeverage ? maxLeverage : 1.0,
+    assetConstraints ? wMax : 1.0
   );
 
   const weights = useMemo(() => {
@@ -156,6 +182,33 @@ export default function MarkowitzPage() {
     startDate,
     endDate
   );
+
+  // Auto-save simulation when results are available on step 2
+  useEffect(() => {
+    if (step === 2 && optimizationResult && !hasSavedRef.current) {
+      hasSavedRef.current = true;
+      saveSimulation.mutate(
+        { params: currentSimulationParams, result: optimizationResult },
+        {
+          onSuccess: (saved) => {
+            setSavedSimulationId(saved.id);
+          },
+          onError: () => {
+            hasSavedRef.current = false;
+          },
+        }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, optimizationResult]);
+
+  // Reset save ref when going back to step 1
+  useEffect(() => {
+    if (step === 1) {
+      hasSavedRef.current = false;
+      setSavedSimulationId(null);
+    }
+  }, [step]);
 
   // User portfolio cumulative returns (when they have allocations)
   const { data: userCumulativeData } = usePortfolioCumulativeReturnsTickers(
@@ -716,6 +769,8 @@ export default function MarkowitzPage() {
         <h1 className="text-2xl font-bold">Resultados del Portafolio</h1>
       </div>
 
+      <SimulationParamsSummary params={currentSimulationParams} />
+
       <Tabs.Root defaultValue="portfolio" className="w-full">
         <Tabs.List className="mb-4 flex border-b border-border">
           <Tabs.Trigger
@@ -766,6 +821,7 @@ export default function MarkowitzPage() {
                 <RiskReturnScatterChart
                   data={scatterData}
                   frontier={frontierPoints}
+                  frontierTickers={frontierData?.tickers}
                   optimizedPortfolio={optimizedPortfolioPoint}
                   userPortfolio={userPortfolioPoint}
                   showTangentSlope={debugTangentSlope}

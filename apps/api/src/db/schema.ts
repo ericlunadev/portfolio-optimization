@@ -148,12 +148,31 @@ export const backgroundTasks = sqliteTable("background_tasks", {
   completedAt: integer("completed_at", { mode: "timestamp" }),
 });
 
+// ==================== SIMULATIONS ====================
+
+export const simulations = sqliteTable("simulations", {
+  id: text("id").primaryKey(), // UUID
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  name: text("name").notNull(),
+  params: text("params").notNull(), // JSON string with SimulationParams
+  result: text("result").notNull(), // JSON string with OptimizationResultWithStrategy
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
 // ==================== RELATIONS ====================
 
 export const usersRelations = relations(users, ({ many }) => ({
   refreshTokens: many(refreshTokens),
   assumptions: many(userAssumptions),
   correlations: many(userCorrelations),
+  simulations: many(simulations),
+}));
+
+export const simulationsRelations = relations(simulations, ({ one }) => ({
+  user: one(users, {
+    fields: [simulations.userId],
+    references: [users.id],
+  }),
 }));
 
 export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
@@ -214,3 +233,6 @@ export type UserCorrelation = typeof userCorrelations.$inferSelect;
 
 export type BackgroundTask = typeof backgroundTasks.$inferSelect;
 export type NewBackgroundTask = typeof backgroundTasks.$inferInsert;
+
+export type Simulation = typeof simulations.$inferSelect;
+export type NewSimulation = typeof simulations.$inferInsert;

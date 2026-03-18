@@ -23,6 +23,7 @@ interface DataPoint {
 interface FrontierPoint {
   vol: number;
   ret: number;
+  weights?: number[];
 }
 
 interface PortfolioPoint {
@@ -34,6 +35,7 @@ interface PortfolioPoint {
 interface ScatterChartProps {
   data: DataPoint[];
   frontier?: FrontierPoint[];
+  frontierTickers?: string[];
   optimizedPortfolio?: PortfolioPoint | null;
   userPortfolio?: PortfolioPoint | null;
   onPointClick?: (name: string) => void;
@@ -71,6 +73,7 @@ function computeTangentSlope(
 export function RiskReturnScatterChart({
   data,
   frontier,
+  frontierTickers,
   optimizedPortfolio,
   userPortfolio,
   onPointClick,
@@ -86,7 +89,7 @@ export function RiskReturnScatterChart({
     ...(optimizedPortfolio ? [optimizedPortfolio] : []),
     ...(userPortfolio ? [userPortfolio] : []),
   ];
-  const allPoints = [...sortedFrontier, ...portfolioPoints];
+  const allPoints = [...data, ...sortedFrontier, ...portfolioPoints];
   const minVol = Math.min(...allPoints.map((p) => p.vol)) * 0.9;
   const maxVol = Math.max(...allPoints.map((p) => p.vol)) * 1.1;
   const minRet = Math.min(...allPoints.map((p) => p.ret)) * 0.9;
@@ -116,26 +119,46 @@ export function RiskReturnScatterChart({
         <Tooltip
           content={({ active, payload }) => {
             if (active && payload && payload.length) {
-              const data = payload[0].payload;
+              const point = payload[0].payload;
               const slope =
                 showTangentSlope
-                  ? computeTangentSlope(data, sortedFrontier)
+                  ? computeTangentSlope(point, sortedFrontier)
                   : null;
+              const hasWeights =
+                point.weights &&
+                Array.isArray(point.weights) &&
+                frontierTickers &&
+                frontierTickers.length > 0;
               return (
-                <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3">
-                  {data.name && (
-                    <p className="font-semibold text-gray-900 mb-1">{data.name}</p>
+                <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-xs">
+                  {point.name && (
+                    <p className="font-semibold text-gray-900 mb-1">{point.name}</p>
                   )}
                   <p className="text-sm text-gray-600">
-                    Volatilidad : {formatPercent(data.vol)}
+                    Volatilidad: {formatPercent(point.vol)}
                   </p>
                   <p className="text-sm text-gray-600">
-                    Rendimiento : {formatPercent(data.ret)}
+                    Rendimiento: {formatPercent(point.ret)}
                   </p>
                   {slope !== null && (
                     <p className="text-sm text-blue-600 mt-1">
                       Pendiente tangente: {slope.toFixed(4)}
                     </p>
+                  )}
+                  {hasWeights && (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      <p className="text-xs font-semibold text-gray-700 mb-1">Composición:</p>
+                      {frontierTickers!.map((ticker, i) => {
+                        const w = point.weights[i] ?? 0;
+                        if (Math.abs(w) < 0.001) return null;
+                        return (
+                          <div key={ticker} className="flex justify-between text-xs text-gray-600">
+                            <span>{ticker}</span>
+                            <span className="ml-3 font-medium">{formatPercent(w)}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
               );
@@ -156,6 +179,14 @@ export function RiskReturnScatterChart({
             name="Frontera Eficiente"
           />
         )}
+
+        <Scatter
+          data={data}
+          fill="#94a3b8"
+          onClick={(entry) => onPointClick?.(entry.name)}
+          cursor={onPointClick ? "pointer" : "default"}
+          name="Activos"
+        />
 
         {optimizedPortfolio && (
           <Scatter
