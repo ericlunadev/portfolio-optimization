@@ -60,7 +60,10 @@ function AssetRowInput({
     setIsSearching(true);
     searchTimeout.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/historical/search?q=${encodeURIComponent(search)}`);
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
+        const res = await fetch(`${apiBase}/api/historical/search?q=${encodeURIComponent(search)}`, {
+          credentials: process.env.NEXT_PUBLIC_API_URL ? "include" : "same-origin",
+        });
         const data = await res.json();
         setResults(data);
         setShowResults(true);

@@ -1,4 +1,15 @@
-const API_BASE = "/api";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
+  : "/api";
+
+const isExternal = !!process.env.NEXT_PUBLIC_API_URL;
+
+function apiFetch(url: string, init?: RequestInit): Promise<Response> {
+  return fetch(url, {
+    ...init,
+    credentials: isExternal ? "include" : "same-origin",
+  });
+}
 
 export class ApiError extends Error {
   constructor(
@@ -35,7 +46,7 @@ export const api = {
       maxLeverage?: number;
     } = {}
   ) {
-    const res = await fetch(`${API_BASE}/optimization/optimize`, {
+    const res = await apiFetch(`${API_BASE}/optimization/optimize`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -65,7 +76,7 @@ export const api = {
     enforceFullInvestment: boolean = true,
     allowShortSelling: boolean = false
   ) {
-    const res = await fetch(`${API_BASE}/optimization/min-variance-tickers`, {
+    const res = await apiFetch(`${API_BASE}/optimization/min-variance-tickers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -91,7 +102,7 @@ export const api = {
     enforceFullInvestment: boolean = true,
     allowShortSelling: boolean = false
   ) {
-    const res = await fetch(`${API_BASE}/optimization/max-sharpe-tickers`, {
+    const res = await apiFetch(`${API_BASE}/optimization/max-sharpe-tickers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -116,7 +127,7 @@ export const api = {
     maxLeverage: number = 1.0,
     wMax: number = 1.0
   ) {
-    const res = await fetch(`${API_BASE}/optimization/efficient-frontier-tickers`, {
+    const res = await apiFetch(`${API_BASE}/optimization/efficient-frontier-tickers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -133,7 +144,7 @@ export const api = {
   },
 
   async getPortfolioCumulativeReturnsTickers(tickers: string[], weights: number[], startDate?: string) {
-    const res = await fetch(`${API_BASE}/optimization/cumulative-returns-tickers`, {
+    const res = await apiFetch(`${API_BASE}/optimization/cumulative-returns-tickers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tickers, weights, start_date: startDate }),
@@ -142,7 +153,7 @@ export const api = {
   },
 
   async getNegReturnProbability(rAnn: number, volAnn: number, months: number = 36) {
-    const res = await fetch(`${API_BASE}/optimization/neg-return-prob`, {
+    const res = await apiFetch(`${API_BASE}/optimization/neg-return-prob`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ r_ann: rAnn, vol_ann: volAnn, months }),
@@ -156,7 +167,7 @@ export const api = {
     startDate?: string,
     endDate?: string
   ) {
-    const res = await fetch(`${API_BASE}/optimization/rolling-volatility-tickers`, {
+    const res = await apiFetch(`${API_BASE}/optimization/rolling-volatility-tickers`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -171,34 +182,34 @@ export const api = {
 
   // Tasks
   async startYahooUpdate() {
-    const res = await fetch(`${API_BASE}/tasks/yahoo-update`, { method: "POST" });
+    const res = await apiFetch(`${API_BASE}/tasks/yahoo-update`, { method: "POST" });
     return handleResponse<{ task_id: string }>(res);
   },
 
   async getTaskStatus(taskId: string) {
-    const res = await fetch(`${API_BASE}/tasks/${taskId}`);
+    const res = await apiFetch(`${API_BASE}/tasks/${taskId}`);
     return handleResponse<TaskStatus>(res);
   },
 
   // Auth
   async getCurrentUser() {
-    const res = await fetch(`${API_BASE}/auth/me`);
+    const res = await apiFetch(`${API_BASE}/auth/me`);
     return handleResponse<User>(res);
   },
 
   // Simulations
   async listSimulations() {
-    const res = await fetch(`${API_BASE}/simulations`);
+    const res = await apiFetch(`${API_BASE}/simulations`);
     return handleResponse<SimulationListItem[]>(res);
   },
 
   async getSimulation(id: string) {
-    const res = await fetch(`${API_BASE}/simulations/${id}`);
+    const res = await apiFetch(`${API_BASE}/simulations/${id}`);
     return handleResponse<SavedSimulation>(res);
   },
 
   async saveSimulation(params: SimulationParams, result: OptimizationResultWithStrategy, name?: string) {
-    const res = await fetch(`${API_BASE}/simulations`, {
+    const res = await apiFetch(`${API_BASE}/simulations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ params, result, name }),
@@ -207,7 +218,7 @@ export const api = {
   },
 
   async deleteSimulation(id: string) {
-    const res = await fetch(`${API_BASE}/simulations/${id}`, {
+    const res = await apiFetch(`${API_BASE}/simulations/${id}`, {
       method: "DELETE",
     });
     return handleResponse<{ success: boolean }>(res);

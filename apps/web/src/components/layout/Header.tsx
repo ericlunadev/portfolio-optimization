@@ -33,7 +33,7 @@ export function Header() {
           </div>
         ) : (
           <a
-            href="/api/auth/login/google"
+            href={`${process.env.NEXT_PUBLIC_API_URL || ""}/api/auth/login/google`}
             className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >
             <LogIn className="h-4 w-4" />
