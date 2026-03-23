@@ -2,13 +2,163 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import YahooFinance from "yahoo-finance2";
-import { findMinVariancePortfolio, calculateEfficientFrontier, findMaxSharpePortfolio } from "../../lib/math/optimizer.js";
+import {
+  findMinVariancePortfolio,
+  calculateEfficientFrontier,
+  findMaxSharpePortfolio,
+  findMaxReturnPortfolio,
+  findTargetReturnPortfolio,
+  findTargetRiskPortfolio,
+  findKneePointPortfolio,
+  OptimizationResult,
+} from "../../lib/math/optimizer.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 
 const yahooFinance = new YahooFinance();
 
 const optimization = new Hono();
+
+// POST /api/optimization/optimize - Unified optimization endpoint supporting all strategies
+optimization.post(
+  "/optimize",
+  zValidator(
+    "json",
+    z.object({
+      tickers: z.array(z.string()).min(1),
+      strategy: z.enum(["max-sharpe", "min-risk", "max-return", "target-return", "target-risk", "knee-point"]),
+      w_max: z.number().min(0).max(1).default(1.0),
+      risk_free_rate: z.number().min(0).max(1).default(0),
+      target_return: z.number().optional(),
+      target_risk: z.number().optional(),
+      start_date: z.string().optional(),
+      end_date: z.string().optional(),
+      enforce_full_investment: z.boolean().default(true),
+      allow_short_selling: z.boolean().default(false),
+      max_leverage: z.number().min(1).max(3).default(1.0),
+    })
+  ),
+  async (c) => {
+    const {
+      tickers,
+      strategy,
+      w_max,
+      risk_free_rate,
+      target_return,
+      target_risk,
+      start_date,
+      end_date,
+      enforce_full_investment,
+      allow_short_selling,
+      max_leverage,
+    } = c.req.valid("json");
+
+    const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
+    const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
+
+    let result: OptimizationResult & { sharpeRatio?: number };
+
+    switch (strategy) {
+      case "max-sharpe":
+        result = findMaxSharpePortfolio(expectedReturns, covMatrix, {
+          wMax: w_max,
+          riskFreeRate: risk_free_rate,
+          numFrontierPoints: 50,
+          enforceFullInvestment: enforce_full_investment,
+          allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
+        });
+        break;
+
+      case "min-risk":
+        result = findMinVariancePortfolio(expectedReturns, covMatrix, {
+          rMin: Math.min(...expectedReturns) * max_leverage,
+          wMax: w_max,
+          enforceFullInvestment: enforce_full_investment,
+          allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
+        });
+        break;
+
+      case "max-return":
+        result = findMaxReturnPortfolio(expectedReturns, covMatrix, {
+          wMax: w_max,
+        });
+        break;
+
+      case "target-return":
+        if (target_return === undefined) {
+          return c.json({ error: "target_return is required for target-return strategy" }, 400);
+        }
+        result = findTargetReturnPortfolio(expectedReturns, covMatrix, target_return, {
+          wMax: w_max,
+          enforceFullInvestment: enforce_full_investment,
+          allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
+        });
+        break;
+
+      case "target-risk":
+        if (target_risk === undefined) {
+          return c.json({ error: "target_risk is required for target-risk strategy" }, 400);
+        }
+        result = findTargetRiskPortfolio(expectedReturns, covMatrix, target_risk, {
+          wMax: w_max,
+          numFrontierPoints: 50,
+          enforceFullInvestment: enforce_full_investment,
+          allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
+        });
+        break;
+
+      case "knee-point":
+        result = findKneePointPortfolio(expectedReturns, covMatrix, {
+          wMax: w_max,
+          numFrontierPoints: 50,
+          enforceFullInvestment: enforce_full_investment,
+          allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
+        });
+        break;
+    }
+
+    const weights = tickers.map((ticker, i) => ({
+      fund_id: i,
+      fund_name: ticker,
+      weight: result.weights[i],
+      exp_ret: expectedReturns[i],
+      volatility: volatilities[i],
+    }));
+
+    const calcProbNeg = (months: number) => {
+      const timeInYears = months / 12;
+      const meanT = result.return * timeInYears;
+      const volT = result.volatility * Math.sqrt(timeInYears);
+      const zScore = -meanT / volT;
+      return normalCDF(zScore);
+    };
+
+    const sharpeRatio =
+      result.sharpeRatio ??
+      (result.volatility > 0 ? (result.return - risk_free_rate) / result.volatility : 0);
+
+    return c.json({
+      weights,
+      expected_return: result.return,
+      volatility: result.volatility,
+      sharpe_ratio: sharpeRatio,
+      strategy,
+      stats: {
+        ci_95_low: result.return - 1.96 * result.volatility,
+        ci_95_high: result.return + 1.96 * result.volatility,
+        prob_neg_1m: calcProbNeg(1),
+        prob_neg_3m: calcProbNeg(3),
+        prob_neg_1y: calcProbNeg(12),
+        prob_neg_2y: calcProbNeg(24),
+      },
+    });
+  }
+);
 
 // POST /api/optimization/min-variance-tickers - Calculate minimum variance portfolio using tickers
 optimization.post(

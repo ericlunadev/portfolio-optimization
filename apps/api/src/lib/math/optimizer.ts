@@ -348,8 +348,8 @@ export function calculateEfficientFrontier(
 }
 
 /**
- * Find the optimal portfolio using maximum curvature (knee point)
- * This finds the point on the efficient frontier with the best risk-return trade-off
+ * Find the portfolio with maximum Sharpe ratio
+ * Sharpe = (return - riskFreeRate) / volatility
  */
 export function findMaxSharpePortfolio(
   expectedReturns: number[],
@@ -362,9 +362,10 @@ export function findMaxSharpePortfolio(
     allowShortSelling?: boolean;
     maxLeverage?: number;
   } = {}
-): OptimizationResult {
+): OptimizationResult & { sharpeRatio: number } {
   const {
     wMax = 1.0,
+    riskFreeRate = 0,
     numFrontierPoints = 200,
     enforceFullInvestment = true,
     allowShortSelling = false,
@@ -380,8 +381,210 @@ export function findMaxSharpePortfolio(
     { enforceFullInvestment, allowShortSelling, maxLeverage }
   );
 
-  // Find the optimal portfolio using the "knee" method
-  // This finds the point furthest from the line connecting the first and last frontier points
+  // Find portfolio with maximum Sharpe ratio
+  let maxSharpe = -Infinity;
+  let bestIndex = 0;
+
+  for (let i = 0; i < frontier.returns.length; i++) {
+    const ret = frontier.returns[i];
+    const vol = frontier.volatilities[i];
+
+    if (vol > 0) {
+      const sharpe = (ret - riskFreeRate) / vol;
+      if (sharpe > maxSharpe) {
+        maxSharpe = sharpe;
+        bestIndex = i;
+      }
+    }
+  }
+
+  return {
+    weights: frontier.weights[bestIndex],
+    return: frontier.returns[bestIndex],
+    volatility: frontier.volatilities[bestIndex],
+    sharpeRatio: maxSharpe,
+    success: true,
+  };
+}
+
+/**
+ * Find the portfolio with maximum return (100% in highest return asset)
+ */
+export function findMaxReturnPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  options: {
+    wMax?: number;
+  } = {}
+): OptimizationResult {
+  const { wMax = 1.0 } = options;
+  const n = expectedReturns.length;
+
+  if (wMax >= 1.0) {
+    let maxIdx = 0;
+    let maxRet = expectedReturns[0];
+    for (let i = 1; i < n; i++) {
+      if (expectedReturns[i] > maxRet) {
+        maxRet = expectedReturns[i];
+        maxIdx = i;
+      }
+    }
+
+    const weights = Array(n).fill(0);
+    weights[maxIdx] = 1;
+
+    const vol = Math.sqrt(covMatrix[maxIdx][maxIdx]);
+
+    return {
+      weights,
+      return: maxRet,
+      volatility: vol,
+      success: true,
+    };
+  }
+
+  const indices = Array.from({ length: n }, (_, i) => i);
+  indices.sort((a, b) => expectedReturns[b] - expectedReturns[a]);
+
+  const weights = Array(n).fill(0);
+  let remaining = 1.0;
+
+  for (const idx of indices) {
+    const allocation = Math.min(wMax, remaining);
+    weights[idx] = allocation;
+    remaining -= allocation;
+    if (remaining <= 1e-10) break;
+  }
+
+  const ret = portfolioReturn(weights, expectedReturns);
+  const vol = Math.sqrt(portfolioVariance(weights, covMatrix));
+
+  return {
+    weights,
+    return: ret,
+    volatility: vol,
+    success: true,
+  };
+}
+
+/**
+ * Find minimum variance portfolio for a target return
+ */
+export function findTargetReturnPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  targetReturn: number,
+  options: {
+    wMax?: number;
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+    maxLeverage?: number;
+  } = {}
+): OptimizationResult {
+  const { wMax = 1.0, maxLeverage = 1.0 } = options;
+
+  return findMinVariancePortfolio(expectedReturns, covMatrix, {
+    rMin: targetReturn,
+    wMax,
+    enforceFullInvestment: options.enforceFullInvestment,
+    allowShortSelling: options.allowShortSelling,
+    maxLeverage,
+  });
+}
+
+/**
+ * Find maximum return portfolio for a target risk (volatility)
+ */
+export function findTargetRiskPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  targetVolatility: number,
+  options: {
+    wMax?: number;
+    numFrontierPoints?: number;
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+    maxLeverage?: number;
+  } = {}
+): OptimizationResult {
+  const {
+    wMax = 1.0,
+    numFrontierPoints = 200,
+    enforceFullInvestment = true,
+    allowShortSelling = false,
+    maxLeverage = 1.0,
+  } = options;
+
+  const frontier = calculateEfficientFrontier(
+    expectedReturns,
+    covMatrix,
+    numFrontierPoints,
+    wMax,
+    { enforceFullInvestment, allowShortSelling, maxLeverage }
+  );
+
+  let bestIndex = 0;
+  let bestReturn = -Infinity;
+
+  for (let i = 0; i < frontier.volatilities.length; i++) {
+    if (frontier.volatilities[i] <= targetVolatility + 1e-6) {
+      if (frontier.returns[i] > bestReturn) {
+        bestReturn = frontier.returns[i];
+        bestIndex = i;
+      }
+    }
+  }
+
+  if (bestReturn === -Infinity) {
+    let minVolIdx = 0;
+    let minVol = frontier.volatilities[0];
+    for (let i = 1; i < frontier.volatilities.length; i++) {
+      if (frontier.volatilities[i] < minVol) {
+        minVol = frontier.volatilities[i];
+        minVolIdx = i;
+      }
+    }
+    bestIndex = minVolIdx;
+  }
+
+  return {
+    weights: frontier.weights[bestIndex],
+    return: frontier.returns[bestIndex],
+    volatility: frontier.volatilities[bestIndex],
+    success: true,
+  };
+}
+
+/**
+ * Find the knee point portfolio (maximum curvature on the efficient frontier)
+ */
+export function findKneePointPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  options: {
+    wMax?: number;
+    numFrontierPoints?: number;
+    enforceFullInvestment?: boolean;
+    allowShortSelling?: boolean;
+    maxLeverage?: number;
+  } = {}
+): OptimizationResult {
+  const {
+    wMax = 1.0,
+    numFrontierPoints = 200,
+    enforceFullInvestment = true,
+    allowShortSelling = false,
+    maxLeverage = 1.0,
+  } = options;
+
+  const frontier = calculateEfficientFrontier(
+    expectedReturns,
+    covMatrix,
+    numFrontierPoints,
+    wMax,
+    { enforceFullInvestment, allowShortSelling, maxLeverage }
+  );
+
   const n = frontier.returns.length;
   if (n < 3) {
     return {
@@ -392,13 +595,11 @@ export function findMaxSharpePortfolio(
     };
   }
 
-  // Line from first point to last point
   const x1 = frontier.volatilities[0];
   const y1 = frontier.returns[0];
   const x2 = frontier.volatilities[n - 1];
   const y2 = frontier.returns[n - 1];
 
-  // Find point with maximum perpendicular distance to the line
   let maxDist = -Infinity;
   let bestIndex = 0;
 
@@ -406,7 +607,6 @@ export function findMaxSharpePortfolio(
     const x0 = frontier.volatilities[i];
     const y0 = frontier.returns[i];
 
-    // Perpendicular distance from point (x0, y0) to line through (x1,y1) and (x2,y2)
     const dist = Math.abs((y2 - y1) * x0 - (x2 - x1) * y0 + x2 * y1 - y2 * x1) /
       Math.sqrt(Math.pow(y2 - y1, 2) + Math.pow(x2 - x1, 2));
 
