@@ -317,6 +317,7 @@ optimization.post(
       tickers: z.array(z.string()),
       start_date: z.string().optional(),
       end_date: z.string().optional(),
+      w_max: z.number().min(0).max(1).default(1.0),
       // Constraint toggles (for consistent frontier calculation)
       enforce_full_investment: z.boolean().default(true),
       allow_short_selling: z.boolean().default(false),
@@ -324,12 +325,12 @@ optimization.post(
     })
   ),
   async (c) => {
-    const { tickers, start_date, end_date, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");
+    const { tickers, start_date, end_date, w_max, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");
 
     const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
     const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
 
-    const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 9, 1.0, {
+    const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 9, w_max, {
       enforceFullInvestment: enforce_full_investment,
       allowShortSelling: allow_short_selling,
       maxLeverage: max_leverage,
