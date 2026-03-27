@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
     const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
 
-    const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 9, w_max, {
+    const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 25, w_max, {
       enforceFullInvestment: enforce_full_investment,
       allowShortSelling: allow_short_selling,
       maxLeverage: max_leverage,
