@@ -4,48 +4,26 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-    --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
+    --background: 230 15% 5%;
+    --foreground: 40 6% 90%;
+    --card: 230 15% 8%;
+    --card-foreground: 40 6% 90%;
+    --popover: 230 15% 10%;
+    --popover-foreground: 40 6% 90%;
+    --primary: 38 65% 55%;
+    --primary-foreground: 230 20% 8%;
+    --secondary: 230 15% 12%;
+    --secondary-foreground: 40 6% 75%;
+    --muted: 230 12% 14%;
+    --muted-foreground: 230 8% 50%;
+    --accent: 230 15% 16%;
+    --accent-foreground: 40 6% 90%;
+    --destructive: 0 72% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 230 12% 17%;
+    --input: 230 12% 19%;
+    --ring: 38 65% 55%;
+    --radius: 0.75rem;
   }
 }
 
@@ -53,7 +31,157 @@
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    background: radial-gradient(
+      ellipse at 10% 0%,
+      hsl(230 18% 9%) 0%,
+      hsl(230 15% 5%) 60%
+    );
+    min-height: 100vh;
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(230 12% 22%);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(230 12% 30%);
+  }
+
+  /* Select styling for dark mode */
+  select option {
+    background: hsl(230 15% 10%);
+    color: hsl(40 6% 90%);
+  }
+
+  /* Range input styling */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    height: 6px;
+    background: hsl(230 12% 30%);
+    border-radius: 3px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: hsl(38 65% 55%);
+    box-shadow: 0 0 10px hsl(38 65% 55% / 0.3);
+    transition: box-shadow 0.2s;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 16px hsl(38 65% 55% / 0.5);
+  }
+  input[type="range"]::-moz-range-track {
+    background: hsl(230 12% 30%);
+    height: 6px;
+    border-radius: 3px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    height: 18px;
+    width: 18px;
+    border-radius: 50%;
+    background: hsl(38 65% 55%);
+    border: none;
+    box-shadow: 0 0 10px hsl(38 65% 55% / 0.3);
+  }
+
+  /* Checkbox styling */
+  input[type="checkbox"] {
+    accent-color: hsl(38 65% 55%);
+  }
+
+  /* Recharts dark theme */
+  .recharts-cartesian-grid line {
+    stroke: hsl(230 12% 17%);
+  }
+  .recharts-text {
+    fill: hsl(230 8% 50%);
+    font-size: 11px;
+  }
+  .recharts-legend-item-text {
+    color: hsl(40 6% 70%) !important;
+    font-size: 12px;
+  }
+  .recharts-tooltip-wrapper {
+    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.5));
+  }
+  .recharts-default-tooltip {
+    background: hsl(230 15% 10%) !important;
+    border-color: hsl(230 12% 20%) !important;
+    border-radius: 8px !important;
+  }
+  .recharts-tooltip-label {
+    color: hsl(40 6% 90%) !important;
+    font-weight: 500;
+  }
+  .recharts-tooltip-item {
+    color: hsl(40 6% 75%) !important;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-xl border border-border/50;
+    background: hsl(230 15% 8% / 0.6);
+    backdrop-filter: blur(12px);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 20px hsl(38 65% 55% / 0.15),
+                0 0 60px hsl(38 65% 55% / 0.05);
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, hsl(38 60% 50%), hsl(38 85% 65%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* Animations */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(230 15% 12%) 25%,
+    hsl(230 15% 16%) 50%,
+    hsl(230 15% 12%) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }

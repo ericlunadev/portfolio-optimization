@@ -366,11 +366,11 @@ export default function MarkowitzPage() {
   if (step === 1) {
     return (
       <div className="mx-auto max-w-4xl space-y-8">
-        <h1 className="text-2xl font-bold">Configuración de Portafolio</h1>
+        <h1 className="font-display text-3xl tracking-tight">Configuración de Portafolio</h1>
 
         {/* Date Range & Parameters */}
-        <div className="rounded-lg border border-border p-6">
-          <h2 className="mb-4 text-lg font-semibold">Parámetros</h2>
+        <div className="glass-card p-6">
+          <h2 className="mb-4 font-display text-lg">Parámetros</h2>
           <div className="grid gap-6 md:grid-cols-2">
             {/* Date Range */}
             <div>
@@ -710,8 +710,8 @@ export default function MarkowitzPage() {
         </div>
 
         {/* Portfolio Constraints */}
-        <div className="rounded-lg border border-border p-6">
-          <h2 className="mb-4 text-lg font-semibold">Restricciones del Portafolio</h2>
+        <div className="glass-card p-6">
+          <h2 className="mb-4 font-display text-lg">Restricciones del Portafolio</h2>
           <ConstraintsPanel
             enforceFullInvestment={enforceFullInvestment}
             onEnforceFullInvestmentChange={setEnforceFullInvestment}
@@ -725,8 +725,8 @@ export default function MarkowitzPage() {
         </div>
 
         {/* Asset Allocation */}
-        <div className="rounded-lg border border-border p-6">
-          <h2 className="mb-4 text-lg font-semibold">Activos</h2>
+        <div className="glass-card p-6">
+          <h2 className="mb-4 font-display text-lg">Activos</h2>
           <AssetAllocationForm assets={assets} onChange={setAssets} />
         </div>
 
@@ -736,9 +736,9 @@ export default function MarkowitzPage() {
             onClick={() => setStep(2)}
             disabled={!canProceed}
             className={cn(
-              "rounded-lg px-6 py-3 text-sm font-medium transition-colors",
+              "rounded-lg px-6 py-3 text-sm font-semibold transition-all",
               canProceed
-                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                ? "bg-primary text-primary-foreground hover:brightness-110 glow-gold"
                 : "cursor-not-allowed bg-muted text-muted-foreground"
             )}
           >
@@ -762,23 +762,22 @@ export default function MarkowitzPage() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => setStep(1)}
-          className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition-colors hover:bg-accent"
+          className="rounded-lg border border-border/50 bg-card/60 px-4 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border"
         >
           ← Volver
         </button>
-        <h1 className="text-2xl font-bold">Resultados del Portafolio</h1>
+        <h1 className="font-display text-3xl tracking-tight">Resultados del Portafolio</h1>
       </div>
 
       <SimulationParamsSummary params={currentSimulationParams} />
 
       <Tabs.Root defaultValue="portfolio" className="w-full">
-        <Tabs.List className="mb-4 flex border-b border-border">
+        <Tabs.List className="mb-6 inline-flex gap-1 rounded-xl bg-accent/50 p-1 border border-border/30">
           <Tabs.Trigger
             value="portfolio"
             className={cn(
-              "px-4 py-2 text-sm font-medium transition-colors",
-              "border-b-2 border-transparent",
-              "data-[state=active]:border-primary data-[state=active]:text-primary",
+              "px-5 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
+              "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm",
               "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -787,9 +786,8 @@ export default function MarkowitzPage() {
           <Tabs.Trigger
             value="data"
             className={cn(
-              "px-4 py-2 text-sm font-medium transition-colors",
-              "border-b-2 border-transparent",
-              "data-[state=active]:border-primary data-[state=active]:text-primary",
+              "px-5 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
+              "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm",
               "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -799,15 +797,16 @@ export default function MarkowitzPage() {
 
         <Tabs.Content value="portfolio" className="space-y-6">
           {loadingOptimization ? (
-            <div className="flex h-64 items-center justify-center">
-              <div className="text-muted-foreground">Optimizando...</div>
+            <div className="flex h-64 flex-col items-center justify-center gap-3">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+              <div className="text-sm text-muted-foreground">Optimizando portafolio...</div>
             </div>
           ) : optimizationResult ? (
             <>
               {/* Risk vs Return Chart */}
-              <div className="rounded-lg border border-border p-4">
+              <div className="glass-card p-5">
                 <div className="mb-4 flex items-center justify-between">
-                  <h3 className="font-semibold">Riesgo vs Rendimiento</h3>
+                  <h3 className="font-display text-lg">Riesgo vs Rendimiento</h3>
                   <label className="flex items-center gap-2 text-sm text-muted-foreground">
                     <input
                       type="checkbox"
@@ -830,7 +829,7 @@ export default function MarkowitzPage() {
 
               <div className="grid gap-6 md:grid-cols-2">
                 {/* Portfolio Weights */}
-                <div className="rounded-lg border border-border p-4">
+                <div className="glass-card p-5">
                   <PortfolioWeightsChart
                     data={optimizationResult.weights.map((w) => ({
                       name: w.fund_name,
@@ -844,8 +843,8 @@ export default function MarkowitzPage() {
                 </div>
 
                 {/* Portfolio Statistics */}
-                <div className="rounded-lg border border-border p-4">
-                  <h3 className="mb-4 font-semibold">
+                <div className="glass-card p-5">
+                  <h3 className="mb-4 font-display text-lg">
                     {userPortfolioStats ? "Comparación de Portafolios" : "Estadísticas del Portafolio"}
                   </h3>
                   {userPortfolioStats ? (
@@ -855,8 +854,8 @@ export default function MarkowitzPage() {
                         <thead>
                           <tr className="border-b border-border">
                             <th className="px-2 py-2 text-left font-medium">Métrica</th>
-                            <th className="px-2 py-2 text-right font-medium text-green-600">Óptimo</th>
-                            <th className="px-2 py-2 text-right font-medium text-orange-500">Tu Portafolio</th>
+                            <th className="px-2 py-2 text-right font-medium text-emerald-400">Óptimo</th>
+                            <th className="px-2 py-2 text-right font-medium text-amber-400">Tu Portafolio</th>
                             <th className="px-2 py-2 text-right font-medium">Diferencia</th>
                           </tr>
                         </thead>
@@ -872,8 +871,8 @@ export default function MarkowitzPage() {
                             <td className={cn(
                               "px-2 py-2 text-right font-medium",
                               optimizationResult.expected_return > userPortfolioStats.expectedReturn
-                                ? "text-green-600"
-                                : "text-orange-500"
+                                ? "text-emerald-400"
+                                : "text-amber-400"
                             )}>
                               {optimizationResult.expected_return >= userPortfolioStats.expectedReturn ? "+" : ""}
                               {formatPercent(optimizationResult.expected_return - userPortfolioStats.expectedReturn)}
@@ -890,8 +889,8 @@ export default function MarkowitzPage() {
                             <td className={cn(
                               "px-2 py-2 text-right font-medium",
                               optimizationResult.volatility < userPortfolioStats.volatility
-                                ? "text-green-600"
-                                : "text-orange-500"
+                                ? "text-emerald-400"
+                                : "text-amber-400"
                             )}>
                               {optimizationResult.volatility >= userPortfolioStats.volatility ? "+" : ""}
                               {formatPercent(optimizationResult.volatility - userPortfolioStats.volatility)}
@@ -973,8 +972,8 @@ export default function MarkowitzPage() {
 
               {/* Cumulative Returns */}
               {cumRetChartData.data.length > 0 && (
-                <div className="rounded-lg border border-border p-4">
-                  <h3 className="mb-4 font-semibold">
+                <div className="glass-card p-5">
+                  <h3 className="mb-4 font-display text-lg">
                     Rendimientos Acumulados
                   </h3>
                   <CumulativeReturnsChart
@@ -987,8 +986,8 @@ export default function MarkowitzPage() {
 
               {/* Probability of Negative Returns */}
               {negReturnData && (
-                <div className="rounded-lg border border-border p-4">
-                  <h3 className="mb-4 font-semibold">
+                <div className="glass-card p-5">
+                  <h3 className="mb-4 font-display text-lg">
                     Probabilidad de Rendimiento Negativo en el Tiempo
                   </h3>
                   <ProbNegReturnChart data={negReturnData.points} />
@@ -1003,8 +1002,8 @@ export default function MarkowitzPage() {
         </Tabs.Content>
 
         <Tabs.Content value="data" className="space-y-6">
-          <div className="rounded-lg border border-border p-4">
-            <h3 className="mb-4 font-semibold">Rendimientos Esperados y Volatilidad</h3>
+          <div className="glass-card p-5">
+            <h3 className="mb-4 font-display text-lg">Rendimientos Esperados y Volatilidad</h3>
             {optimizationResult ? (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1037,14 +1036,14 @@ export default function MarkowitzPage() {
 
           {/* Asset Volatility Bar Chart */}
           {assetVolatilityData.length > 0 && (
-            <div className="rounded-lg border border-border p-4">
+            <div className="glass-card p-5">
               <AssetVolatilityChart data={assetVolatilityData} />
             </div>
           )}
 
           {/* Rolling Volatility Line Chart */}
           {rollingVolChartData.data.length > 0 && (
-            <div className="rounded-lg border border-border p-4">
+            <div className="glass-card p-5">
               <RollingVolatilityChart
                 data={rollingVolChartData.data}
                 series={rollingVolChartData.series}
@@ -1054,8 +1053,8 @@ export default function MarkowitzPage() {
 
           {/* Debug: Calculation Steps and Matrices */}
           {optimizationResult?.debug && (
-            <div className="rounded-lg border border-border p-4">
-              <h3 className="mb-4 font-semibold">Proceso de Cálculo (Debug)</h3>
+            <div className="glass-card p-5">
+              <h3 className="mb-4 font-display text-lg">Proceso de Cálculo (Debug)</h3>
               <CalculationSteps
                 debug={optimizationResult.debug}
                 tickers={optimizationResult.weights.map((w) => w.fund_name)}

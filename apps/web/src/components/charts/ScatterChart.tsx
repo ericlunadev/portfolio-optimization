@@ -90,12 +90,12 @@ function FrontierDot(props: {
           cy={cy}
           r={10}
           fill="none"
-          stroke="#8884d8"
+          stroke="#a78bfa"
           strokeWidth={2}
           strokeDasharray="4 2"
         />
       )}
-      <circle cx={cx} cy={cy} r={6} fill="#8884d8" stroke="#8884d8" />
+      <circle cx={cx} cy={cy} r={6} fill="#a78bfa" stroke="#a78bfa" />
     </g>
   );
 }
@@ -170,29 +170,29 @@ export function RiskReturnScatterChart({
                   frontierTickers &&
                   frontierTickers.length > 0;
                 return (
-                  <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 max-w-xs">
+                  <div className="rounded-lg border border-border bg-popover p-3 max-w-xs shadow-lg">
                     {point.name && (
-                      <p className="font-semibold text-gray-900 mb-1">{point.name}</p>
+                      <p className="font-semibold text-foreground mb-1">{point.name}</p>
                     )}
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       Volatilidad: {formatPercent(point.vol)}
                     </p>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-muted-foreground">
                       Rendimiento: {formatPercent(point.ret)}
                     </p>
                     {slope !== null && (
-                      <p className="text-sm text-blue-600 mt-1">
+                      <p className="text-sm text-primary mt-1">
                         Pendiente tangente: {slope.toFixed(4)}
                       </p>
                     )}
                     {hasWeights && (
-                      <div className="mt-2 pt-2 border-t border-gray-100">
-                        <p className="text-xs font-semibold text-gray-700 mb-1">Composición:</p>
+                      <div className="mt-2 pt-2 border-t border-border/50">
+                        <p className="text-xs font-semibold text-foreground/80 mb-1">Composición:</p>
                         {frontierTickers!.map((ticker, i) => {
                           const w = point.weights[i] ?? 0;
                           if (Math.abs(w) < 0.001) return null;
                           return (
-                            <div key={ticker} className="flex justify-between text-xs text-gray-600">
+                            <div key={ticker} className="flex justify-between text-xs text-muted-foreground">
                               <span>{ticker}</span>
                               <span className="ml-3 font-medium">{formatPercent(w)}</span>
                             </div>
@@ -211,8 +211,8 @@ export function RiskReturnScatterChart({
           {sortedFrontier.length > 0 && (
             <Scatter
               data={sortedFrontier}
-              fill="#8884d8"
-              stroke="#8884d8"
+              fill="#a78bfa"
+              stroke="#a78bfa"
               line
               legendType="plainline"
               name="Frontera Eficiente"
@@ -224,7 +224,7 @@ export function RiskReturnScatterChart({
 
           <Scatter
             data={data}
-            fill="#94a3b8"
+            fill="#64748b"
             onClick={(entry) => onPointClick?.(entry.name)}
             cursor={onPointClick ? "pointer" : "default"}
             name="Activos"
@@ -233,7 +233,7 @@ export function RiskReturnScatterChart({
           {optimizedPortfolio && (
             <Scatter
               data={[optimizedPortfolio]}
-              fill="#22c55e"
+              fill="#34d399"
               shape="star"
               name="Portafolio Óptimo"
             />
@@ -242,7 +242,7 @@ export function RiskReturnScatterChart({
           {userPortfolio && (
             <Scatter
               data={[userPortfolio]}
-              fill="#f97316"
+              fill="#fbbf24"
               shape="diamond"
               name="Tu Portafolio"
             />
@@ -251,31 +251,31 @@ export function RiskReturnScatterChart({
       </ResponsiveContainer>
 
       {selectedPoint && frontierTickers && frontierTickers.length > 0 && (
-        <div className="mt-4 mx-5 rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+        <div className="mt-4 mx-5 glass-card p-4 border-primary/20">
           <div className="flex items-center justify-between mb-3">
-            <h4 className="text-sm font-semibold text-indigo-900">
+            <h4 className="text-sm font-semibold text-foreground">
               Punto seleccionado de la frontera
             </h4>
             <button
               onClick={() => setSelectedFrontierIndex(null)}
-              className="text-xs text-indigo-600 hover:text-indigo-800"
+              className="text-xs text-primary hover:text-primary/80"
             >
               Cerrar
             </button>
           </div>
-          <div className="flex gap-6 mb-3 text-sm text-indigo-800">
+          <div className="flex gap-6 mb-3 text-sm text-foreground/80">
             <span>Volatilidad: <strong>{formatPercent(selectedPoint.vol)}</strong></span>
             <span>Rendimiento: <strong>{formatPercent(selectedPoint.ret)}</strong></span>
           </div>
           {selectedPoint.weights && (
             <div>
-              <p className="text-xs font-semibold text-indigo-700 mb-2">Composición:</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2">Composición:</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-1">
                 {frontierTickers.map((ticker, i) => {
                   const w = selectedPoint.weights![i] ?? 0;
                   if (Math.abs(w) < 0.001) return null;
                   return (
-                    <div key={ticker} className="flex justify-between text-sm text-indigo-800">
+                    <div key={ticker} className="flex justify-between text-sm text-foreground/80">
                       <span>{ticker}</span>
                       <span className="font-medium">{formatPercent(w)}</span>
                     </div>

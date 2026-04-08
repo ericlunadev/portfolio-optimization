@@ -38,8 +38,8 @@ export default function SimulacionesPage() {
   if (!simulations || simulations.length === 0) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
-        <h1 className="text-2xl font-bold">Simulaciones</h1>
-        <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-dashed border-border">
+        <h1 className="font-display text-3xl tracking-tight">Simulaciones</h1>
+        <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-card/30">
           <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground/50" />
           <p className="text-muted-foreground">
             No hay simulaciones guardadas
@@ -54,7 +54,7 @@ export default function SimulacionesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <h1 className="text-2xl font-bold">Simulaciones</h1>
+      <h1 className="font-display text-3xl tracking-tight">Simulaciones</h1>
 
       <div className="space-y-3">
         {simulations.map((sim) => (
@@ -106,7 +106,7 @@ function SimulationCard({
   const formattedDate = formatCreatedAt(sim.createdAt);
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="glass-card">
       {/* Summary Row */}
       <div className="flex items-center gap-3 px-4 py-3">
         <button
@@ -170,7 +170,7 @@ function SimulationCard({
           className={cn(
             "shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors",
             isConfirmingDelete
-              ? "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
+              ? "bg-red-900/20 text-red-400"
               : "hover:bg-muted hover:text-foreground"
           )}
           title={isConfirmingDelete ? "Confirmar eliminación" : "Eliminar simulación"}
@@ -228,7 +228,7 @@ function SimulationDetails({ id }: { id: string }) {
       <SimulationParamsSummary params={simulation.params} defaultOpen />
 
       {/* Key Results */}
-      <div className="rounded-lg border border-border p-4">
+      <div className="glass-card p-4">
         <h4 className="mb-3 text-sm font-semibold">Resultados</h4>
         <dl className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
           <div className="flex justify-between">

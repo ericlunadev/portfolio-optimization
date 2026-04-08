@@ -68,8 +68,8 @@ export function ProbNegReturnChart({ data }: ProbNegReturnChartProps) {
         <Area
           type="monotone"
           dataKey="probability"
-          stroke="#dc2626"
-          fill="#fee2e2"
+          stroke="#f87171"
+          fill="rgba(248, 113, 113, 0.12)"
           name="Probabilidad"
         />
       </AreaChart>

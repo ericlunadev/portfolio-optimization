@@ -23,13 +23,13 @@ interface AssetVolatilityChartProps {
 }
 
 const COLORS = [
-  "#2563eb",
-  "#16a34a",
-  "#ea580c",
-  "#7c3aed",
-  "#db2777",
-  "#0891b2",
-  "#84cc16",
+  "#5b8def",
+  "#34d399",
+  "#fbbf24",
+  "#f87171",
+  "#a78bfa",
+  "#2dd4bf",
+  "#fb7185",
 ];
 
 export function AssetVolatilityChart({
@@ -45,7 +45,7 @@ export function AssetVolatilityChart({
 
   return (
     <div>
-      {title && <h3 className="mb-4 text-lg font-semibold">{title}</h3>}
+      {title && <h3 className="mb-4 font-display text-lg">{title}</h3>}
       <ResponsiveContainer width="100%" height={Math.max(200, data.length * 40)}>
         <BarChart
           data={sortedData}

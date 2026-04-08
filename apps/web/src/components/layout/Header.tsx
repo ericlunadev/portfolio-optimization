@@ -12,29 +12,31 @@ export function Header() {
   });
 
   return (
-    <header className="border-b border-border bg-card px-6 py-3">
+    <header className="border-b border-border/50 bg-card/20 backdrop-blur-sm px-8 py-3">
       <div className="flex items-center justify-end">
         {isLoading ? (
           <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
         ) : user ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {user.picture_url ? (
               <img
                 src={user.picture_url}
                 alt={user.name || "Usuario"}
-                className="h-8 w-8 rounded-full"
+                className="h-8 w-8 rounded-full ring-2 ring-primary/20"
               />
             ) : (
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary ring-2 ring-primary/20">
                 <User className="h-4 w-4" />
               </div>
             )}
-            <span className="text-sm font-medium">{user.name || user.email}</span>
+            <span className="text-sm font-medium text-foreground/80">
+              {user.name || user.email}
+            </span>
           </div>
         ) : (
           <a
             href={`${process.env.NEXT_PUBLIC_API_URL || ""}/api/auth/login/google`}
-            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 glow-gold"
           >
             <LogIn className="h-4 w-4" />
             Iniciar Sesión

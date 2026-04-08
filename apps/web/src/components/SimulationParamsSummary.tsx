@@ -27,7 +27,7 @@ export function SimulationParamsSummary({
   const endDate = `${String(lastDay).padStart(2, "0")}/${String(endMonth).padStart(2, "0")}/${endYear}`;
 
   return (
-    <div className="rounded-lg border border-border">
+    <div className="glass-card">
       <button
         onClick={() => setOpen(!open)}
         className="flex w-full items-center justify-between px-4 py-3 text-sm font-medium hover:bg-muted/50 transition-colors"

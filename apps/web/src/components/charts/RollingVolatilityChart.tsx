@@ -24,14 +24,14 @@ interface RollingVolatilityChartProps {
 }
 
 const COLORS = [
-  "#2563eb",
-  "#16a34a",
-  "#ea580c",
-  "#7c3aed",
-  "#db2777",
-  "#0891b2",
-  "#84cc16",
-  "#dc2626",
+  "#5b8def",
+  "#34d399",
+  "#fbbf24",
+  "#f87171",
+  "#a78bfa",
+  "#2dd4bf",
+  "#fb7185",
+  "#a3e635",
 ];
 
 export function RollingVolatilityChart({
@@ -41,7 +41,7 @@ export function RollingVolatilityChart({
 }: RollingVolatilityChartProps) {
   return (
     <div>
-      {title && <h3 className="mb-4 text-lg font-semibold">{title}</h3>}
+      {title && <h3 className="mb-4 font-display text-lg">{title}</h3>}
       <ResponsiveContainer width="100%" height={400}>
         <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" />

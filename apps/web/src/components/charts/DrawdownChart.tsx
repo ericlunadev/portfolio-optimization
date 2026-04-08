@@ -64,7 +64,7 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
           yAxisId="return"
           type="monotone"
           dataKey="cumulative_return"
-          stroke="#2563eb"
+          stroke="#5b8def"
           strokeWidth={2}
           dot={false}
           name="Rendimiento Acumulado"
@@ -73,8 +73,8 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
           yAxisId="drawdown"
           type="monotone"
           dataKey="drawdown"
-          fill="#fee2e2"
-          stroke="#dc2626"
+          fill="rgba(248, 113, 113, 0.12)"
+          stroke="#f87171"
           strokeWidth={1}
           name="Drawdown"
         />

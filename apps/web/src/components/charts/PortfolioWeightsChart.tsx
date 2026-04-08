@@ -33,13 +33,13 @@ interface PortfolioWeightsChartProps {
 }
 
 const COLORS = [
-  "#2563eb",
-  "#16a34a",
-  "#ea580c",
-  "#7c3aed",
-  "#db2777",
-  "#0891b2",
-  "#84cc16",
+  "#5b8def",
+  "#34d399",
+  "#fbbf24",
+  "#f87171",
+  "#a78bfa",
+  "#2dd4bf",
+  "#fb7185",
 ];
 
 export function PortfolioWeightsChart({
@@ -55,7 +55,7 @@ export function PortfolioWeightsChart({
 
     return (
       <div>
-        {title && <h3 className="mb-4 text-lg font-semibold">{title}</h3>}
+        {title && <h3 className="mb-4 font-display text-lg">{title}</h3>}
         <ResponsiveContainer
           width="100%"
           height={Math.max(200, comparisonData.length * 50)}
@@ -77,8 +77,8 @@ export function PortfolioWeightsChart({
               labelFormatter={(label) => label}
             />
             <Legend />
-            <Bar dataKey="optimalWeight" name="Óptimo" fill="#22c55e" />
-            <Bar dataKey="userWeight" name="Tu Asignación" fill="#f97316" />
+            <Bar dataKey="optimalWeight" name="Óptimo" fill="#34d399" />
+            <Bar dataKey="userWeight" name="Tu Asignación" fill="#fbbf24" />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -90,7 +90,7 @@ export function PortfolioWeightsChart({
 
   return (
     <div>
-      {title && <h3 className="mb-4 text-lg font-semibold">{title}</h3>}
+      {title && <h3 className="mb-4 font-display text-lg">{title}</h3>}
       <ResponsiveContainer width="100%" height={Math.max(200, data.length * 40)}>
         <BarChart
           data={sortedData}
