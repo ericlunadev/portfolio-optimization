@@ -14,6 +14,9 @@ export const auth = betterAuth({
   baseURL: env.BACKEND_URL,
   basePath: "/api/auth",
   secret: env.BETTER_AUTH_SECRET,
+  emailAndPassword: {
+    enabled: true,
+  },
   socialProviders: {
     ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
       ? {
