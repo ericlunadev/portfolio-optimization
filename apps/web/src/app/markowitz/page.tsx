@@ -1,29 +1,13 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
-import {
-  useNegReturnProbability,
-  useOptimization,
-  useEfficientFrontierTickers,
-  usePortfolioCumulativeReturnsTickers,
-  useRollingVolatilityTickers,
-} from "@/hooks/useOptimization";
+import { useOptimization } from "@/hooks/useOptimization";
 import { useSaveSimulation } from "@/hooks/useSimulations";
 import { OptimizationStrategy, OPTIMIZATION_STRATEGIES, SimulationParams } from "@/lib/api";
 import { DateRangePicker, DateRange } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
 import { ConstraintsPanel } from "@/components/forms/ConstraintsPanel";
-import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
-import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
-import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
-import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsChart";
-import { ProbNegReturnChart } from "@/components/charts/ProbNegReturnChart";
-import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
-import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
-import { MatrixTable } from "@/components/tables/MatrixTable";
-import { CalculationSteps } from "@/components/debug/CalculationSteps";
-import { formatPercent } from "@/lib/utils";
-import * as Tabs from "@radix-ui/react-tabs";
+import { MarkowitzResults } from "@/components/MarkowitzResults";
 import * as Popover from "@radix-ui/react-popover";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -43,7 +27,6 @@ const INITIAL_ASSETS: AssetRow[] = Array.from({ length: 2 }, () => ({
 export default function MarkowitzPage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [showFrontier, setShowFrontier] = useState(true);
-  const [debugTangentSlope, setDebugTangentSlope] = useState(false);
   const [assetConstraints, setAssetConstraints] = useState(false);
   const [wMax, setWMax] = useState(0.4);
   // Constraint toggles
@@ -67,7 +50,6 @@ export default function MarkowitzPage() {
   // Auto-save simulation
   const saveSimulation = useSaveSimulation();
   const hasSavedRef = useRef(false);
-  const [savedSimulationId, setSavedSimulationId] = useState<string | null>(null);
 
   // Build current simulation params
   const currentSimulationParams = useMemo((): SimulationParams => ({
@@ -106,14 +88,6 @@ export default function MarkowitzPage() {
   // Validation: if any allocation is set, total must equal 100%
   const isAllocationValid = !hasAnyAllocation || Math.abs(totalAllocation - 100) < 0.01;
 
-  // Derive user weights from allocations (normalized to 0-1)
-  const userWeights = useMemo(() => {
-    if (!hasAnyAllocation || !isAllocationValid) return [];
-    return assets
-      .filter((a) => a.ticker)
-      .map((a) => (a.allocation ?? 0) / 100);
-  }, [assets, hasAnyAllocation, isAllocationValid]);
-
   // Build date strings for API
   const startDate = useMemo(() => {
     const month = String(dateRange.startMonth).padStart(2, "0");
@@ -149,40 +123,6 @@ export default function MarkowitzPage() {
     }
   );
 
-  const { data: frontierData } = useEfficientFrontierTickers(
-    step === 2 && showFrontier ? selectedTickers : [],
-    startDate,
-    endDate,
-    enforceFullInvestment,
-    allowShortSelling,
-    useLeverage ? maxLeverage : 1.0,
-    assetConstraints ? wMax : 1.0
-  );
-
-  const weights = useMemo(() => {
-    if (!optimizationResult) return [];
-    return optimizationResult.weights.map((w) => w.weight);
-  }, [optimizationResult]);
-
-  const { data: cumulativeData } = usePortfolioCumulativeReturnsTickers(
-    step === 2 ? selectedTickers : [],
-    weights,
-    undefined
-  );
-
-  const { data: negReturnData } = useNegReturnProbability(
-    optimizationResult?.expected_return || 0,
-    optimizationResult?.volatility || 0,
-    36
-  );
-
-  const { data: rollingVolData } = useRollingVolatilityTickers(
-    step === 2 ? selectedTickers : [],
-    252,
-    startDate,
-    endDate
-  );
-
   // Auto-save simulation when results are available on step 2
   useEffect(() => {
     if (step === 2 && optimizationResult && !hasSavedRef.current) {
@@ -190,9 +130,6 @@ export default function MarkowitzPage() {
       saveSimulation.mutate(
         { params: currentSimulationParams, result: optimizationResult },
         {
-          onSuccess: (saved) => {
-            setSavedSimulationId(saved.id);
-          },
           onError: () => {
             hasSavedRef.current = false;
           },
@@ -206,159 +143,8 @@ export default function MarkowitzPage() {
   useEffect(() => {
     if (step === 1) {
       hasSavedRef.current = false;
-      setSavedSimulationId(null);
     }
   }, [step]);
-
-  // User portfolio cumulative returns (when they have allocations)
-  const { data: userCumulativeData } = usePortfolioCumulativeReturnsTickers(
-    step === 2 && hasAnyAllocation && isAllocationValid ? selectedTickers : [],
-    userWeights,
-    undefined
-  );
-
-  // Calculate user portfolio expected return and volatility
-  const userPortfolioStats = useMemo(() => {
-    if (!optimizationResult || !hasAnyAllocation || !isAllocationValid || userWeights.length === 0) {
-      return null;
-    }
-    // Calculate weighted average expected return
-    const expRet = optimizationResult.weights.reduce((sum, w, i) => {
-      return sum + w.exp_ret * (userWeights[i] ?? 0);
-    }, 0);
-
-    // For volatility, we need the covariance matrix which we don't have directly
-    // As an approximation, use weighted average of volatilities (this underestimates true portfolio vol)
-    // A better approach would be to add an API endpoint, but this gives a reasonable estimate
-    const approxVol = optimizationResult.weights.reduce((sum, w, i) => {
-      return sum + w.volatility * (userWeights[i] ?? 0);
-    }, 0);
-
-    return { expectedReturn: expRet, volatility: approxVol };
-  }, [optimizationResult, hasAnyAllocation, isAllocationValid, userWeights]);
-
-  // Prepare scatter chart data (individual assets)
-  const scatterData = useMemo(() => {
-    if (!optimizationResult) return [];
-    return optimizationResult.weights.map((w) => ({
-      name: w.fund_name,
-      vol: w.volatility,
-      ret: w.exp_ret,
-      weight: w.weight,
-    }));
-  }, [optimizationResult]);
-
-  // Optimized portfolio point for scatter chart
-  const optimizedPortfolioPoint = useMemo(() => {
-    if (!optimizationResult) return null;
-    const strategyLabel = OPTIMIZATION_STRATEGIES.find((s) => s.value === strategy)?.label || "Portafolio Óptimo";
-    return {
-      name: strategyLabel,
-      vol: optimizationResult.volatility,
-      ret: optimizationResult.expected_return,
-    };
-  }, [optimizationResult, strategy]);
-
-  // User portfolio point for scatter chart
-  const userPortfolioPoint = useMemo(() => {
-    if (!userPortfolioStats) return null;
-    return {
-      name: "Tu Portafolio",
-      vol: userPortfolioStats.volatility,
-      ret: userPortfolioStats.expectedReturn,
-    };
-  }, [userPortfolioStats]);
-
-  // Comparison data for weights chart
-  const weightsComparisonData = useMemo(() => {
-    if (!optimizationResult || !hasAnyAllocation || !isAllocationValid) return undefined;
-    return optimizationResult.weights.map((w, i) => ({
-      name: w.fund_name,
-      optimalWeight: w.weight,
-      userWeight: userWeights[i] ?? 0,
-    }));
-  }, [optimizationResult, hasAnyAllocation, isAllocationValid, userWeights]);
-
-  const frontierPoints = useMemo(() => {
-    if (!frontierData) return [];
-    return frontierData.points;
-  }, [frontierData]);
-
-  // Prepare cumulative returns chart data (including user portfolio if available)
-  const cumRetChartData = useMemo(() => {
-    const allSeries = [...(cumulativeData?.series || [])];
-
-    // Add user portfolio data if available
-    if (userCumulativeData?.series) {
-      const userPortfolioSeries = userCumulativeData.series.find(
-        (s) => s.name === "Portafolio Óptimo"
-      );
-      if (userPortfolioSeries) {
-        allSeries.push({
-          name: "Tu Portafolio",
-          data: userPortfolioSeries.data,
-        });
-      }
-    }
-
-    if (allSeries.length === 0) {
-      return { data: [] as { date: string; [key: string]: string | number }[], series: [] as string[] };
-    }
-
-    const allDates = new Set<string>();
-    allSeries.forEach((s) => {
-      s.data.forEach((d) => allDates.add(d.date));
-    });
-
-    const sortedDates = Array.from(allDates).sort();
-    const seriesNames = allSeries.map((s) => s.name);
-
-    const data = sortedDates.map((date) => {
-      const point: { date: string; [key: string]: string | number } = { date };
-      allSeries.forEach((s) => {
-        const dp = s.data.find((d) => d.date === date);
-        if (dp) point[s.name] = dp.value;
-      });
-      return point;
-    });
-
-    return { data, series: seriesNames };
-  }, [cumulativeData, userCumulativeData]);
-
-  // Prepare asset volatility chart data
-  const assetVolatilityData = useMemo(() => {
-    if (!optimizationResult) return [];
-    return optimizationResult.weights.map((w) => ({
-      name: w.fund_name,
-      volatility: w.volatility,
-    }));
-  }, [optimizationResult]);
-
-  // Prepare rolling volatility chart data
-  const rollingVolChartData = useMemo(() => {
-    if (!rollingVolData?.series || rollingVolData.series.length === 0) {
-      return { data: [] as { date: string; [key: string]: string | number }[], series: [] as string[] };
-    }
-
-    const allDates = new Set<string>();
-    rollingVolData.series.forEach((s) => {
-      s.data.forEach((d) => allDates.add(d.date));
-    });
-
-    const sortedDates = Array.from(allDates).sort();
-    const seriesNames = rollingVolData.series.map((s) => s.name);
-
-    const data = sortedDates.map((date) => {
-      const point: { date: string; [key: string]: string | number } = { date };
-      rollingVolData.series.forEach((s) => {
-        const dp = s.data.find((d) => d.date === date);
-        if (dp) point[s.name] = dp.volatility;
-      });
-      return point;
-    });
-
-    return { data, series: seriesNames };
-  }, [rollingVolData]);
 
   const canProceed = selectedTickers.length >= 2 && isAllocationValid;
 
@@ -769,300 +555,21 @@ export default function MarkowitzPage() {
         <h1 className="font-display text-3xl tracking-tight">Resultados del Portafolio</h1>
       </div>
 
-      <SimulationParamsSummary params={currentSimulationParams} />
-
-      <Tabs.Root defaultValue="portfolio" className="w-full">
-        <Tabs.List className="mb-6 inline-flex gap-1 rounded-xl bg-accent/50 p-1 border border-border/30">
-          <Tabs.Trigger
-            value="portfolio"
-            className={cn(
-              "px-5 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
-              "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm",
-              "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            {currentStrategy?.label || "Portafolio Óptimo"}
-          </Tabs.Trigger>
-          <Tabs.Trigger
-            value="data"
-            className={cn(
-              "px-5 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
-              "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm",
-              "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            Datos
-          </Tabs.Trigger>
-        </Tabs.List>
-
-        <Tabs.Content value="portfolio" className="space-y-6">
-          {loadingOptimization ? (
-            <div className="flex h-64 flex-col items-center justify-center gap-3">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
-              <div className="text-sm text-muted-foreground">Optimizando portafolio...</div>
-            </div>
-          ) : optimizationResult ? (
-            <>
-              {/* Risk vs Return Chart */}
-              <div className="glass-card p-5">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 className="font-display text-lg">Riesgo vs Rendimiento</h3>
-                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={debugTangentSlope}
-                      onChange={(e) => setDebugTangentSlope(e.target.checked)}
-                      className="h-4 w-4 rounded border-input"
-                    />
-                    Debug
-                  </label>
-                </div>
-                <RiskReturnScatterChart
-                  data={scatterData}
-                  frontier={frontierPoints}
-                  frontierTickers={frontierData?.tickers}
-                  optimizedPortfolio={optimizedPortfolioPoint}
-                  userPortfolio={userPortfolioPoint}
-                  showTangentSlope={debugTangentSlope}
-                />
-              </div>
-
-              <div className="grid gap-6 md:grid-cols-2">
-                {/* Portfolio Weights */}
-                <div className="glass-card p-5">
-                  <PortfolioWeightsChart
-                    data={optimizationResult.weights.map((w) => ({
-                      name: w.fund_name,
-                      weight: w.weight,
-                      ret: w.exp_ret,
-                      vol: w.volatility,
-                    }))}
-                    comparisonData={weightsComparisonData}
-                    title={weightsComparisonData ? "Comparación de Pesos" : "Pesos del Portafolio"}
-                  />
-                </div>
-
-                {/* Portfolio Statistics */}
-                <div className="glass-card p-5">
-                  <h3 className="mb-4 font-display text-lg">
-                    {userPortfolioStats ? "Comparación de Portafolios" : "Estadísticas del Portafolio"}
-                  </h3>
-                  {userPortfolioStats ? (
-                    // Comparison table when user has entered allocations
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border">
-                            <th className="px-2 py-2 text-left font-medium">Métrica</th>
-                            <th className="px-2 py-2 text-right font-medium text-emerald-400">Óptimo</th>
-                            <th className="px-2 py-2 text-right font-medium text-amber-400">Tu Portafolio</th>
-                            <th className="px-2 py-2 text-right font-medium">Diferencia</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr className="border-b border-border/50">
-                            <td className="px-2 py-2 text-muted-foreground">Rendimiento Esperado</td>
-                            <td className="px-2 py-2 text-right font-medium">
-                              {formatPercent(optimizationResult.expected_return)}
-                            </td>
-                            <td className="px-2 py-2 text-right font-medium">
-                              {formatPercent(userPortfolioStats.expectedReturn)}
-                            </td>
-                            <td className={cn(
-                              "px-2 py-2 text-right font-medium",
-                              optimizationResult.expected_return > userPortfolioStats.expectedReturn
-                                ? "text-emerald-400"
-                                : "text-amber-400"
-                            )}>
-                              {optimizationResult.expected_return >= userPortfolioStats.expectedReturn ? "+" : ""}
-                              {formatPercent(optimizationResult.expected_return - userPortfolioStats.expectedReturn)}
-                            </td>
-                          </tr>
-                          <tr className="border-b border-border/50">
-                            <td className="px-2 py-2 text-muted-foreground">Volatilidad</td>
-                            <td className="px-2 py-2 text-right font-medium">
-                              {formatPercent(optimizationResult.volatility)}
-                            </td>
-                            <td className="px-2 py-2 text-right font-medium">
-                              {formatPercent(userPortfolioStats.volatility)}
-                            </td>
-                            <td className={cn(
-                              "px-2 py-2 text-right font-medium",
-                              optimizationResult.volatility < userPortfolioStats.volatility
-                                ? "text-emerald-400"
-                                : "text-amber-400"
-                            )}>
-                              {optimizationResult.volatility >= userPortfolioStats.volatility ? "+" : ""}
-                              {formatPercent(optimizationResult.volatility - userPortfolioStats.volatility)}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                      <p className="mt-3 text-xs text-muted-foreground">
-                        * La volatilidad de tu portafolio es una aproximación basada en el promedio ponderado.
-                      </p>
-                    </div>
-                  ) : (
-                    // Original statistics when no user allocation
-                    <dl className="space-y-3">
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Rendimiento Esperado</dt>
-                        <dd className="font-medium">
-                          {formatPercent(optimizationResult.expected_return)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Volatilidad</dt>
-                        <dd className="font-medium">
-                          {formatPercent(optimizationResult.volatility)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">Ratio de Sharpe</dt>
-                        <dd className="font-medium">
-                          {optimizationResult.sharpe_ratio?.toFixed(2) ?? "N/A"}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">IC 95% Inferior</dt>
-                        <dd className="font-medium">
-                          {formatPercent(optimizationResult.stats.ci_95_low)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">IC 95% Superior</dt>
-                        <dd className="font-medium">
-                          {formatPercent(optimizationResult.stats.ci_95_high)}
-                        </dd>
-                      </div>
-
-                      <hr className="my-3" />
-
-                      <div className="text-sm font-medium text-muted-foreground">
-                        Probabilidad de Rendimiento Negativo
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">1 Mes</dt>
-                        <dd className="font-medium">
-                          {formatPercent(optimizationResult.stats.prob_neg_1m)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">3 Meses</dt>
-                        <dd className="font-medium">
-                          {formatPercent(optimizationResult.stats.prob_neg_3m)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">1 Año</dt>
-                        <dd className="font-medium">
-                          {formatPercent(optimizationResult.stats.prob_neg_1y)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-muted-foreground">2 Años</dt>
-                        <dd className="font-medium">
-                          {formatPercent(optimizationResult.stats.prob_neg_2y)}
-                        </dd>
-                      </div>
-                    </dl>
-                  )}
-                </div>
-              </div>
-
-              {/* Cumulative Returns */}
-              {cumRetChartData.data.length > 0 && (
-                <div className="glass-card p-5">
-                  <h3 className="mb-4 font-display text-lg">
-                    Rendimientos Acumulados
-                  </h3>
-                  <CumulativeReturnsChart
-                    data={cumRetChartData.data}
-                    series={cumRetChartData.series}
-                    highlightSeries="Portafolio Óptimo"
-                  />
-                </div>
-              )}
-
-              {/* Probability of Negative Returns */}
-              {negReturnData && (
-                <div className="glass-card p-5">
-                  <h3 className="mb-4 font-display text-lg">
-                    Probabilidad de Rendimiento Negativo en el Tiempo
-                  </h3>
-                  <ProbNegReturnChart data={negReturnData.points} />
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex h-64 items-center justify-center text-muted-foreground">
-              Selecciona al menos 2 activos para optimizar
-            </div>
-          )}
-        </Tabs.Content>
-
-        <Tabs.Content value="data" className="space-y-6">
-          <div className="glass-card p-5">
-            <h3 className="mb-4 font-display text-lg">Rendimientos Esperados y Volatilidad</h3>
-            {optimizationResult ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="px-2 py-2 text-left font-medium">Activo</th>
-                      <th className="px-2 py-2 text-right font-medium">Rend. Esperado</th>
-                      <th className="px-2 py-2 text-right font-medium">Volatilidad</th>
-                      <th className="px-2 py-2 text-right font-medium">Peso</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {optimizationResult.weights.map((w) => (
-                      <tr key={w.fund_name} className="border-b border-border/50">
-                        <td className="px-2 py-2 font-medium">{w.fund_name}</td>
-                        <td className="px-2 py-2 text-right">{formatPercent(w.exp_ret)}</td>
-                        <td className="px-2 py-2 text-right">{formatPercent(w.volatility)}</td>
-                        <td className="px-2 py-2 text-right">{formatPercent(w.weight)}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                Selecciona al menos 2 activos para ver los datos.
-              </p>
-            )}
-          </div>
-
-          {/* Asset Volatility Bar Chart */}
-          {assetVolatilityData.length > 0 && (
-            <div className="glass-card p-5">
-              <AssetVolatilityChart data={assetVolatilityData} />
-            </div>
-          )}
-
-          {/* Rolling Volatility Line Chart */}
-          {rollingVolChartData.data.length > 0 && (
-            <div className="glass-card p-5">
-              <RollingVolatilityChart
-                data={rollingVolChartData.data}
-                series={rollingVolChartData.series}
-              />
-            </div>
-          )}
-
-          {/* Debug: Calculation Steps and Matrices */}
-          {optimizationResult?.debug && (
-            <div className="glass-card p-5">
-              <h3 className="mb-4 font-display text-lg">Proceso de Cálculo (Debug)</h3>
-              <CalculationSteps
-                debug={optimizationResult.debug}
-                tickers={optimizationResult.weights.map((w) => w.fund_name)}
-              />
-            </div>
-          )}
-        </Tabs.Content>
-      </Tabs.Root>
+      {loadingOptimization ? (
+        <div className="flex h-64 flex-col items-center justify-center gap-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+          <div className="text-sm text-muted-foreground">Optimizando portafolio...</div>
+        </div>
+      ) : optimizationResult ? (
+        <MarkowitzResults
+          params={currentSimulationParams}
+          result={optimizationResult}
+        />
+      ) : (
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+          Selecciona al menos 2 activos para optimizar
+        </div>
+      )}
     </div>
   );
 }
