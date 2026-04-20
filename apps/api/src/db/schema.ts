@@ -1,31 +1,56 @@
 import { sqliteTable, text, integer, real, unique, index } from "drizzle-orm/sqlite-core";
 import { relations, sql } from "drizzle-orm";
 
-// ==================== AUTH ====================
+// ==================== AUTH (BetterAuth) ====================
 
-export const users = sqliteTable(
-  "users",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    email: text("email").notNull().unique(),
-    name: text("name"),
-    pictureUrl: text("picture_url"),
-    provider: text("provider").notNull(),
-    providerId: text("provider_id").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
-    lastLogin: integer("last_login", { mode: "timestamp" }),
-  },
-  (t) => [unique("provider_unique").on(t.provider, t.providerId), index("email_idx").on(t.email)]
-);
+export const user = sqliteTable("user", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: integer("email_verified", { mode: "boolean" }).notNull(),
+  image: text("image"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
 
-export const refreshTokens = sqliteTable("refresh_tokens", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: integer("user_id")
-    .notNull()
-    .references(() => users.id, { onDelete: "cascade" }),
-  tokenHash: text("token_hash").notNull().unique(),
+export const session = sqliteTable("session", {
+  id: text("id").primaryKey(),
   expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  token: text("token").notNull().unique(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+});
+
+export const account = sqliteTable("account", {
+  id: text("id").primaryKey(),
+  accountId: text("account_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  userId: text("user_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp" }),
+  refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp" }),
+  scope: text("scope"),
+  password: text("password"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const verification = sqliteTable("verification", {
+  id: text("id").primaryKey(),
+  identifier: text("identifier").notNull(),
+  value: text("value").notNull(),
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }),
+  updatedAt: integer("updated_at", { mode: "timestamp" }),
 });
 
 // ==================== FUNDS ====================
@@ -101,9 +126,9 @@ export const userAssumptions = sqliteTable(
   "user_assumptions",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    userId: integer("user_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     fundId: integer("fund_id")
       .notNull()
       .references(() => funds.id, { onDelete: "cascade" }),
@@ -118,9 +143,9 @@ export const userCorrelations = sqliteTable(
   "user_correlations",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    userId: integer("user_id")
+    userId: text("user_id")
       .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: "cascade" }),
     fundId1: integer("fund_id_1")
       .notNull()
       .references(() => funds.id),
@@ -137,7 +162,7 @@ export const userCorrelations = sqliteTable(
 
 export const backgroundTasks = sqliteTable("background_tasks", {
   id: text("id").primaryKey(), // UUID
-  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
   taskType: text("task_type").notNull(),
   status: text("status").notNull().default("pending"), // pending, running, completed, failed, cancelled
   progress: real("progress").default(0),
@@ -152,7 +177,7 @@ export const backgroundTasks = sqliteTable("background_tasks", {
 
 export const simulations = sqliteTable("simulations", {
   id: text("id").primaryKey(), // UUID
-  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
   name: text("name").notNull(),
   params: text("params").notNull(), // JSON string with SimulationParams
   result: text("result").notNull(), // JSON string with OptimizationResultWithStrategy
@@ -161,24 +186,32 @@ export const simulations = sqliteTable("simulations", {
 
 // ==================== RELATIONS ====================
 
-export const usersRelations = relations(users, ({ many }) => ({
-  refreshTokens: many(refreshTokens),
+export const userRelations = relations(user, ({ many }) => ({
+  sessions: many(session),
+  accounts: many(account),
   assumptions: many(userAssumptions),
   correlations: many(userCorrelations),
   simulations: many(simulations),
 }));
 
-export const simulationsRelations = relations(simulations, ({ one }) => ({
-  user: one(users, {
-    fields: [simulations.userId],
-    references: [users.id],
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, {
+    fields: [session.userId],
+    references: [user.id],
   }),
 }));
 
-export const refreshTokensRelations = relations(refreshTokens, ({ one }) => ({
-  user: one(users, {
-    fields: [refreshTokens.userId],
-    references: [users.id],
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, {
+    fields: [account.userId],
+    references: [user.id],
+  }),
+}));
+
+export const simulationsRelations = relations(simulations, ({ one }) => ({
+  user: one(user, {
+    fields: [simulations.userId],
+    references: [user.id],
   }),
 }));
 
@@ -194,9 +227,9 @@ export const pricesRelations = relations(prices, ({ one }) => ({
 }));
 
 export const userAssumptionsRelations = relations(userAssumptions, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [userAssumptions.userId],
-    references: [users.id],
+    references: [user.id],
   }),
   fund: one(funds, {
     fields: [userAssumptions.fundId],
@@ -205,19 +238,19 @@ export const userAssumptionsRelations = relations(userAssumptions, ({ one }) => 
 }));
 
 export const userCorrelationsRelations = relations(userCorrelations, ({ one }) => ({
-  user: one(users, {
+  user: one(user, {
     fields: [userCorrelations.userId],
-    references: [users.id],
+    references: [user.id],
   }),
 }));
 
 // ==================== TYPES ====================
 
-export type User = typeof users.$inferSelect;
-export type NewUser = typeof users.$inferInsert;
+export type User = typeof user.$inferSelect;
+export type NewUser = typeof user.$inferInsert;
 
-export type RefreshToken = typeof refreshTokens.$inferSelect;
-export type NewRefreshToken = typeof refreshTokens.$inferInsert;
+export type Session = typeof session.$inferSelect;
+export type Account = typeof account.$inferSelect;
 
 export type Fund = typeof funds.$inferSelect;
 export type NewFund = typeof funds.$inferInsert;

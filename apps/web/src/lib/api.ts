@@ -191,11 +191,7 @@ export const api = {
     return handleResponse<TaskStatus>(res);
   },
 
-  // Auth
-  async getCurrentUser() {
-    const res = await apiFetch(`${API_BASE}/auth/me`);
-    return handleResponse<User>(res);
-  },
+  // Auth is handled by better-auth client (see auth-client.ts)
 
   // Simulations
   async listSimulations() {
@@ -384,12 +380,7 @@ export interface TaskStatus {
   error_message?: string;
 }
 
-export interface User {
-  id: number;
-  email: string;
-  name: string | null;
-  picture_url: string | null;
-}
+// User type is now managed by better-auth client (see auth-client.ts)
 
 // Simulation Types
 export interface DateRange {

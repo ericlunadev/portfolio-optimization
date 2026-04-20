@@ -2,7 +2,7 @@ services:
   - type: web
     name: portfolio-optimization-api
     runtime: node
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api db:push && pnpm build:api
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api db:migrate && pnpm build:api
     startCommand: node apps/api/dist/index.js
     healthCheckPath: /api/health
     envVars:
@@ -14,7 +14,7 @@ services:
         sync: false
       - key: DATABASE_AUTH_TOKEN
         sync: false
-      - key: JWT_SECRET_KEY
+      - key: BETTER_AUTH_SECRET
         generateValue: true
       - key: FRONTEND_URL
         sync: false

@@ -5,10 +5,8 @@ const envSchema = z.object({
   DATABASE_URL: z.string().default("file:portfolio.db"),
   DATABASE_AUTH_TOKEN: z.string().optional(),
 
-  // JWT
-  JWT_SECRET_KEY: z.string().default("change-me-in-production"),
-  ACCESS_TOKEN_EXPIRE_MINUTES: z.coerce.number().default(15),
-  REFRESH_TOKEN_EXPIRE_DAYS: z.coerce.number().default(7),
+  // Auth
+  BETTER_AUTH_SECRET: z.string().default("change-me-in-production"),
 
   // OAuth - Google
   GOOGLE_CLIENT_ID: z.string().optional(),
