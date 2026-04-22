@@ -40,8 +40,9 @@ export function CumulativeReturnsChart({
   highlightSeries,
 }: CumulativeReturnsChartProps) {
   return (
-    <ResponsiveContainer width="100%" height={400}>
-      <LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+    <div className="h-[260px] sm:h-[340px] md:h-[400px]">
+    <ResponsiveContainer width="100%" height="100%">
+      <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis
           dataKey="date"
@@ -74,5 +75,6 @@ export function CumulativeReturnsChart({
         ))}
       </LineChart>
     </ResponsiveContainer>
+    </div>
   );
 }

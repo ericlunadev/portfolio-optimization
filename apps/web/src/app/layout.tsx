@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, Manrope } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
@@ -19,6 +19,13 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "Optimización de Portafolio",
   description: "Herramienta de optimización de portafolio Markowitz",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

@@ -32,21 +32,21 @@ export function StationFrame({ station, children, id, className }: StationFrameP
       )}
     >
       <motion.div style={{ opacity }} className="w-full">
-        <div className="mx-auto max-w-6xl px-6">
-          <div className="mb-10 flex items-baseline gap-4">
-            <span className="font-display text-6xl text-gradient-gold leading-none">
+        <div className="mx-auto max-w-6xl px-4 md:px-6">
+          <div className="mb-8 flex items-baseline gap-3 md:mb-10 md:gap-4">
+            <span className="font-display text-4xl md:text-6xl text-gradient-gold leading-none">
               {String(station.index).padStart(2, "0")}
             </span>
-            <div>
-              <div className="text-xs uppercase tracking-widest text-muted-foreground">
+            <div className="min-w-0">
+              <div className="text-[10px] md:text-xs uppercase tracking-widest text-muted-foreground">
                 {station.label}
               </div>
-              <h2 className="font-display text-3xl md:text-4xl leading-tight">
+              <h2 className="font-display text-2xl md:text-4xl leading-tight">
                 {station.title}
               </h2>
             </div>
           </div>
-          <p className="mb-10 max-w-2xl text-base md:text-lg text-muted-foreground italic border-l-2 border-primary/40 pl-4">
+          <p className="mb-8 md:mb-10 max-w-2xl text-sm md:text-lg text-muted-foreground italic border-l-2 border-primary/40 pl-3 md:pl-4">
             {station.tagline}
           </p>
           {children}

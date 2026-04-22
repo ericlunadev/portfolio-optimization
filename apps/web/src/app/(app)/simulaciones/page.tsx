@@ -37,7 +37,7 @@ export default function SimulacionesPage() {
   if (!simulations || simulations.length === 0) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
-        <h1 className="font-display text-3xl tracking-tight">Simulaciones</h1>
+        <h1 className="font-display text-2xl md:text-3xl tracking-tight">Simulaciones</h1>
         <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-card/30">
           <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground/50" />
           <p className="text-muted-foreground">
@@ -53,7 +53,7 @@ export default function SimulacionesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <h1 className="font-display text-3xl tracking-tight">Simulaciones</h1>
+      <h1 className="font-display text-2xl md:text-3xl tracking-tight">Simulaciones</h1>
 
       <div className="space-y-3">
         {simulations.map((sim) => (

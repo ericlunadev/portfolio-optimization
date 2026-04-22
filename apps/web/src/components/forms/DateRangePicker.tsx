@@ -32,11 +32,11 @@ interface DateRangePickerProps {
 
 export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
   const selectClass =
-    "rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+    "flex-1 min-w-[5rem] rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring sm:flex-initial";
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <label className="w-12 text-sm font-medium">Inicio</label>
         <select
           value={value.startMonth}
@@ -62,7 +62,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
         </select>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
         <label className="w-12 text-sm font-medium">Fin</label>
         <select
           value={value.endMonth}

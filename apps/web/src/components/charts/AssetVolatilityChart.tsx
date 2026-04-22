@@ -50,7 +50,7 @@ export function AssetVolatilityChart({
         <BarChart
           data={sortedData}
           layout="vertical"
-          margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
+          margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
         >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
@@ -58,7 +58,7 @@ export function AssetVolatilityChart({
             domain={[0, domainMax]}
             tickFormatter={(v) => formatPercent(v, 0)}
           />
-          <YAxis type="category" dataKey="name" width={90} />
+          <YAxis type="category" dataKey="name" width={70} />
           <Tooltip
             formatter={(value: number) => formatPercent(value)}
             labelFormatter={(label) => label}

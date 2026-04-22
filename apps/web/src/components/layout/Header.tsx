@@ -66,12 +66,16 @@ export function Header() {
 
   return (
     <>
-      <header className="border-b border-border/50 bg-card/20 backdrop-blur-sm px-8 py-3">
-        <div className="flex items-center justify-end">
+      <header className="border-b border-border/50 bg-card/20 backdrop-blur-sm px-4 py-3 md:px-8">
+        <div className="flex items-center justify-between gap-3 md:justify-end">
+          <h1 className="font-display text-lg tracking-tight md:hidden">
+            <span className="text-gradient-gold">Optim.</span>{" "}
+            <span className="text-foreground/80">Portafolio</span>
+          </h1>
           {isPending ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
           ) : user ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3">
               {user.image ? (
                 <img
                   src={user.image}
@@ -83,15 +87,16 @@ export function Header() {
                   <User className="h-4 w-4" />
                 </div>
               )}
-              <span className="text-sm font-medium text-foreground/80">
+              <span className="hidden max-w-[12rem] truncate text-sm font-medium text-foreground/80 sm:inline">
                 {user.name || user.email}
               </span>
               <button
                 onClick={handleSignOut}
-                className="flex items-center gap-1 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:px-3"
+                aria-label="Cerrar sesión"
               >
                 <LogOut className="h-3.5 w-3.5" />
-                Salir
+                <span className="hidden sm:inline">Salir</span>
               </button>
             </div>
           ) : (
@@ -101,10 +106,11 @@ export function Header() {
                 setIsSignUp(false);
                 setShowAuthModal(true);
               }}
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 glow-gold"
+              className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 glow-gold md:px-4"
             >
               <LogIn className="h-4 w-4" />
-              Iniciar Sesión
+              <span className="hidden sm:inline">Iniciar Sesión</span>
+              <span className="sm:hidden">Entrar</span>
             </button>
           )}
         </div>
@@ -112,11 +118,11 @@ export function Header() {
 
       {showAuthModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={() => setShowAuthModal(false)}
         >
           <div
-            className="relative w-full max-w-sm rounded-xl border border-border bg-card p-6 shadow-2xl"
+            className="relative w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-2xl md:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <button

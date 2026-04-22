@@ -136,8 +136,9 @@ export function RiskReturnScatterChart({
 
   return (
     <div>
-      <ResponsiveContainer width="100%" height={400}>
-        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+      <div className="h-[280px] sm:h-[360px] md:h-[400px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <ScatterChart margin={{ top: 20, right: 10, bottom: 20, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis
             type="number"
@@ -249,9 +250,10 @@ export function RiskReturnScatterChart({
           )}
         </ScatterChart>
       </ResponsiveContainer>
+      </div>
 
       {selectedPoint && frontierTickers && frontierTickers.length > 0 && (
-        <div className="mt-4 mx-5 glass-card p-4 border-primary/20">
+        <div className="mt-4 glass-card p-4 border-primary/20">
           <div className="flex items-center justify-between mb-3">
             <h4 className="text-sm font-semibold text-foreground">
               Punto seleccionado de la frontera

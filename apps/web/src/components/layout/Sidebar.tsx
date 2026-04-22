@@ -16,7 +16,7 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 border-r border-border/50 bg-card/40 backdrop-blur-sm flex flex-col">
+    <aside className="hidden md:flex w-64 shrink-0 border-r border-border/50 bg-card/40 backdrop-blur-sm flex-col">
       <div className="p-6 pb-8">
         <h1 className="font-display text-2xl tracking-tight">
           <span className="text-gradient-gold">Optim.</span>{" "}

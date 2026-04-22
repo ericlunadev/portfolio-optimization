@@ -104,12 +104,13 @@ function AssetRowInput({
   };
 
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-16 shrink-0 text-sm text-muted-foreground">
-        Activo {index + 1}
+    <div className="flex items-center gap-2 sm:gap-3">
+      <span className="w-10 shrink-0 text-xs text-muted-foreground sm:w-16 sm:text-sm">
+        <span className="sm:hidden">#{index + 1}</span>
+        <span className="hidden sm:inline">Activo {index + 1}</span>
       </span>
 
-      <div className="relative flex-1" ref={containerRef}>
+      <div className="relative min-w-0 flex-1" ref={containerRef}>
         {asset.ticker ? (
           <div className="flex items-center rounded-md border border-input bg-background px-3 py-2 text-sm">
             <span className="flex-1 font-medium">{asset.ticker}</span>
@@ -164,9 +165,10 @@ function AssetRowInput({
         )}
       </div>
 
-      <div className="relative w-24 shrink-0">
+      <div className="relative w-20 shrink-0 sm:w-24">
         <input
           type="number"
+          inputMode="decimal"
           min={0}
           max={100}
           step={0.1}
@@ -176,9 +178,9 @@ function AssetRowInput({
             const val = e.target.value;
             onAllocationChange(val === "" ? null : Number(val));
           }}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-right text-sm"
+          className="w-full rounded-md border border-input bg-background px-2 py-2 pr-6 text-right text-sm sm:px-3 sm:pr-8"
         />
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground sm:right-3">
           %
         </span>
       </div>
@@ -224,7 +226,7 @@ export function AssetAllocationForm({ assets, onChange }: AssetAllocationFormPro
         </button>
       </div>
 
-      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+      <div className="hidden items-center gap-3 text-xs text-muted-foreground sm:flex">
         <span className="w-16 shrink-0" />
         <span className="flex-1">Activo</span>
         <span className="w-24 shrink-0 text-right">Asignación (opcional)</span>

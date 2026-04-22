@@ -38,8 +38,8 @@ export function MatrixTable({
   return (
     <div>
       <h4 className="mb-3 text-sm font-medium text-muted-foreground">{title}</h4>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+      <div className="-mx-1 overflow-x-auto px-1">
+        <table className="w-full min-w-max text-xs">
           <thead>
             <tr className="border-b border-border">
               <th className="px-2 py-2 text-left font-medium"></th>

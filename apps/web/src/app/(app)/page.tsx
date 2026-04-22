@@ -29,12 +29,12 @@ export default function Home() {
       <WelcomeCard />
 
       {/* Hero */}
-      <div className="space-y-6 pt-4 animate-fade-in-up">
-        <h1 className="font-display text-5xl md:text-6xl tracking-tight leading-[1.1]">
+      <div className="space-y-5 pt-2 animate-fade-in-up md:space-y-6 md:pt-4">
+        <h1 className="font-display text-4xl md:text-6xl tracking-tight leading-[1.1]">
           Optimización de{" "}
           <span className="text-gradient-gold">Portafolio</span>
         </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl leading-relaxed">
+        <p className="text-base md:text-lg text-muted-foreground max-w-2xl leading-relaxed">
           Encuentra la asignación óptima de activos usando la teoría de
           media-varianza de Markowitz. Visualiza la frontera eficiente y
           maximiza tu rendimiento ajustado por riesgo.

@@ -152,9 +152,9 @@ export default function MarkowitzPage() {
   // Step 1: Configuration form
   if (step === 1) {
     return (
-      <div className="mx-auto max-w-4xl space-y-8">
+      <div className="mx-auto max-w-4xl space-y-6 md:space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1 className="font-display text-3xl tracking-tight">Configuración de Portafolio</h1>
+          <h1 className="font-display text-2xl md:text-3xl tracking-tight">Configuración de Portafolio</h1>
           <LessonButton
             station="portfolio"
             label="¿Primera vez? Ver guía Top-Down"
@@ -162,7 +162,7 @@ export default function MarkowitzPage() {
         </div>
 
         {/* Date Range & Parameters */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-4 md:p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg">Parámetros</h2>
             <LessonButton
@@ -190,7 +190,7 @@ export default function MarkowitzPage() {
                   </Popover.Trigger>
                   <Popover.Portal>
                     <Popover.Content
-                      className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
+                      className="z-50 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
                       sideOffset={5}
                       align="start"
                     >
@@ -235,7 +235,7 @@ export default function MarkowitzPage() {
                   </Popover.Trigger>
                   <Popover.Portal>
                     <Popover.Content
-                      className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
+                      className="z-50 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
                       sideOffset={5}
                       align="start"
                     >
@@ -342,7 +342,7 @@ export default function MarkowitzPage() {
                       </Popover.Trigger>
                       <Popover.Portal>
                         <Popover.Content
-                          className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-md"
+                          className="z-50 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-md"
                           sideOffset={5}
                           align="start"
                         >
@@ -412,7 +412,7 @@ export default function MarkowitzPage() {
                   </Popover.Trigger>
                   <Popover.Portal>
                     <Popover.Content
-                      className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
+                      className="z-50 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg"
                       sideOffset={5}
                       align="start"
                     >
@@ -459,7 +459,7 @@ export default function MarkowitzPage() {
                       </Popover.Trigger>
                       <Popover.Portal>
                         <Popover.Content
-                          className="z-50 w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-md"
+                          className="z-50 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-md"
                           sideOffset={5}
                           align="start"
                         >
@@ -510,7 +510,7 @@ export default function MarkowitzPage() {
         </div>
 
         {/* Portfolio Constraints */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-4 md:p-6">
           <h2 className="mb-4 font-display text-lg">Restricciones del Portafolio</h2>
           <ConstraintsPanel
             enforceFullInvestment={enforceFullInvestment}
@@ -525,7 +525,7 @@ export default function MarkowitzPage() {
         </div>
 
         {/* Asset Allocation */}
-        <div className="glass-card p-6">
+        <div className="glass-card p-4 md:p-6">
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg">Activos</h2>
             <LessonButton
@@ -538,7 +538,14 @@ export default function MarkowitzPage() {
         </div>
 
         {/* Next Button */}
-        <div className="flex justify-end">
+        <div className="flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-end">
+          {!canProceed && (
+            <p className="text-sm text-muted-foreground sm:mr-4">
+              {selectedTickers.length < 2
+                ? "Selecciona al menos 2 activos"
+                : `La suma de asignaciones debe ser 100% (actual: ${totalAllocation.toFixed(1)}%)`}
+            </p>
+          )}
           <button
             onClick={() => setStep(2)}
             disabled={!canProceed}
@@ -551,13 +558,6 @@ export default function MarkowitzPage() {
           >
             Siguiente
           </button>
-          {!canProceed && (
-            <p className="ml-4 self-center text-sm text-muted-foreground">
-              {selectedTickers.length < 2
-                ? "Selecciona al menos 2 activos"
-                : `La suma de asignaciones debe ser 100% (actual: ${totalAllocation.toFixed(1)}%)`}
-            </p>
-          )}
         </div>
       </div>
     );
@@ -566,14 +566,14 @@ export default function MarkowitzPage() {
   // Step 2: Results
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-3 md:gap-4">
         <button
           onClick={() => setStep(1)}
-          className="rounded-lg border border-border/50 bg-card/60 px-4 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border"
+          className="rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border md:px-4"
         >
           ← Volver
         </button>
-        <h1 className="font-display text-3xl tracking-tight">Resultados del Portafolio</h1>
+        <h1 className="font-display text-2xl md:text-3xl tracking-tight">Resultados del Portafolio</h1>
       </div>
 
       {loadingOptimization ? (

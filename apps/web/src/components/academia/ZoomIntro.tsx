@@ -23,23 +23,23 @@ export function ZoomIntro() {
     >
       <motion.div
         style={{ scale, opacity, y }}
-        className="relative z-10 mx-auto max-w-3xl px-6 text-center space-y-8"
+        className="relative z-10 mx-auto max-w-3xl px-4 text-center space-y-6 md:px-6 md:space-y-8"
       >
-        <div className="text-xs uppercase tracking-[0.3em] text-primary/80">
+        <div className="text-[10px] uppercase tracking-[0.25em] text-primary/80 md:text-xs md:tracking-[0.3em]">
           Academia · Guía para nuevos inversores
         </div>
-        <h1 className="font-display text-5xl md:text-7xl leading-[1.05] tracking-tight">
+        <h1 className="font-display text-4xl md:text-7xl leading-[1.05] tracking-tight">
           Análisis{" "}
           <span className="text-gradient-gold">Top-Down</span>
         </h1>
-        <p className="mx-auto max-w-xl text-base md:text-lg text-muted-foreground leading-relaxed">
+        <p className="mx-auto max-w-xl text-sm md:text-lg text-muted-foreground leading-relaxed">
           Invertir como un profesional no empieza buscando tickers. Empieza
           mirando el mundo. Vamos a hacer zoom: del planeta a la cartera, en
           cinco paradas.
         </p>
 
         {/* Zoom visual concept */}
-        <div className="flex items-center justify-center gap-1 py-6">
+        <div className="flex items-center justify-center gap-1 py-4 md:py-6">
           {STATIONS.map((s, i) => (
             <motion.div
               key={s.key}
@@ -51,14 +51,14 @@ export function ZoomIntro() {
               <div
                 className="rounded-full border border-primary/40 bg-primary/5 flex items-center justify-center text-xs font-medium text-primary"
                 style={{
-                  width: `${48 - i * 5}px`,
-                  height: `${48 - i * 5}px`,
+                  width: `clamp(${32 - i * 3}px, ${(48 - i * 5) / 16}rem, ${48 - i * 5}px)`,
+                  height: `clamp(${32 - i * 3}px, ${(48 - i * 5) / 16}rem, ${48 - i * 5}px)`,
                 }}
               >
                 {s.index}
               </div>
               {i < STATIONS.length - 1 && (
-                <div className="w-4 h-px bg-primary/30" />
+                <div className="w-2 h-px bg-primary/30 sm:w-4" />
               )}
             </motion.div>
           ))}

@@ -258,11 +258,11 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
       <SimulationParamsSummary params={params} />
 
       <Tabs.Root defaultValue="portfolio" className="w-full">
-        <Tabs.List className="mb-6 inline-flex gap-1 rounded-xl bg-accent/50 p-1 border border-border/30">
+        <Tabs.List className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-accent/50 p-1 border border-border/30">
           <Tabs.Trigger
             value="portfolio"
             className={cn(
-              "px-5 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
+              "whitespace-nowrap px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg sm:px-5",
               "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm",
               "text-muted-foreground hover:text-foreground"
             )}
@@ -272,7 +272,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
           <Tabs.Trigger
             value="data"
             className={cn(
-              "px-5 py-2 text-sm font-medium transition-all duration-200 rounded-lg",
+              "whitespace-nowrap px-4 py-2 text-sm font-medium transition-all duration-200 rounded-lg sm:px-5",
               "data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm",
               "text-muted-foreground hover:text-foreground"
             )}
@@ -282,7 +282,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
         </Tabs.List>
 
         <Tabs.Content value="portfolio" className="space-y-6">
-          <div className="glass-card p-5">
+          <div className="glass-card p-4 md:p-5">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-display text-lg">Riesgo vs Rendimiento</h3>
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -305,8 +305,8 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
             />
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="glass-card p-5">
+          <div className="grid gap-4 md:grid-cols-2 md:gap-6">
+            <div className="glass-card p-4 md:p-5">
               <PortfolioWeightsChart
                 data={result.weights.map((w) => ({
                   name: w.fund_name,
@@ -323,7 +323,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
               />
             </div>
 
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 md:p-5">
               <h3 className="mb-4 font-display text-lg">
                 {userPortfolioStats
                   ? "Comparación de Portafolios"
@@ -481,7 +481,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
           </div>
 
           {cumRetChartData.data.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 md:p-5">
               <h3 className="mb-4 font-display text-lg">
                 Rendimientos Acumulados
               </h3>
@@ -494,7 +494,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
           )}
 
           {negReturnData && (
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 md:p-5">
               <h3 className="mb-4 font-display text-lg">
                 Probabilidad de Rendimiento Negativo en el Tiempo
               </h3>
@@ -504,7 +504,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
         </Tabs.Content>
 
         <Tabs.Content value="data" className="space-y-6">
-          <div className="glass-card p-5">
+          <div className="glass-card p-4 md:p-5">
             <h3 className="mb-4 font-display text-lg">
               Rendimientos Esperados y Volatilidad
             </h3>
@@ -543,13 +543,13 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
           </div>
 
           {assetVolatilityData.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 md:p-5">
               <AssetVolatilityChart data={assetVolatilityData} />
             </div>
           )}
 
           {rollingVolChartData.data.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 md:p-5">
               <RollingVolatilityChart
                 data={rollingVolChartData.data}
                 series={rollingVolChartData.series}
@@ -558,7 +558,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
           )}
 
           {result.debug && (
-            <div className="glass-card p-5">
+            <div className="glass-card p-4 md:p-5">
               <h3 className="mb-4 font-display text-lg">
                 Proceso de Cálculo (Debug)
               </h3>

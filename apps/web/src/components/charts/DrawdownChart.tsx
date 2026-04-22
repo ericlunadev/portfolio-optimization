@@ -26,10 +26,11 @@ interface DrawdownChartProps {
 
 export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <div className="h-[260px] sm:h-[340px] md:h-[400px]">
+    <ResponsiveContainer width="100%" height="100%">
       <ComposedChart
         data={data}
-        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+        margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
       >
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis
@@ -80,5 +81,6 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
         />
       </ComposedChart>
     </ResponsiveContainer>
+    </div>
   );
 }

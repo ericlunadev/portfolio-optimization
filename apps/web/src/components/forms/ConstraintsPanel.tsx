@@ -45,7 +45,7 @@ export function ConstraintsPanel({
               </Popover.Trigger>
               <Popover.Portal>
                 <Popover.Content
-                  className="z-50 max-w-xs rounded-lg border border-border bg-popover p-4 text-sm text-popover-foreground shadow-lg"
+                  className="z-50 w-[calc(100vw-2rem)] max-w-xs rounded-lg border border-border bg-popover p-4 text-sm text-popover-foreground shadow-lg"
                   sideOffset={5}
                   align="start"
                 >
@@ -100,7 +100,7 @@ export function ConstraintsPanel({
               </Popover.Trigger>
               <Popover.Portal>
                 <Popover.Content
-                  className="z-50 max-w-xs rounded-lg border border-border bg-popover p-4 text-sm text-popover-foreground shadow-lg"
+                  className="z-50 w-[calc(100vw-2rem)] max-w-xs rounded-lg border border-border bg-popover p-4 text-sm text-popover-foreground shadow-lg"
                   sideOffset={5}
                   align="start"
                 >

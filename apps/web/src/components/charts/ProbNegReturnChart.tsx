@@ -28,7 +28,7 @@ export function ProbNegReturnChart({ data }: ProbNegReturnChartProps) {
   // Show message when probabilities are negligible (< 0.01%)
   if (!data?.length || maxProb < 0.0001) {
     return (
-      <div className="flex h-[300px] items-center justify-center text-muted-foreground">
+      <div className="flex h-[220px] items-center justify-center text-muted-foreground sm:h-[260px] md:h-[300px]">
         <p className="text-center">
           La probabilidad de rendimiento negativo es prácticamente nula
           <br />
@@ -39,10 +39,11 @@ export function ProbNegReturnChart({ data }: ProbNegReturnChartProps) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <div className="h-[220px] sm:h-[260px] md:h-[300px]">
+    <ResponsiveContainer width="100%" height="100%">
       <AreaChart
         data={data}
-        margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
       >
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis
@@ -74,5 +75,6 @@ export function ProbNegReturnChart({ data }: ProbNegReturnChartProps) {
         />
       </AreaChart>
     </ResponsiveContainer>
+    </div>
   );
 }
