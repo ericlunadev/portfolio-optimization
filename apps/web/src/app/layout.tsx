@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import { Instrument_Serif, Manrope } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Header } from "@/components/layout/Header";
 
 const instrumentSerif = Instrument_Serif({
   weight: "400",
@@ -33,15 +31,7 @@ export default function RootLayout({
       <body
         className={`${instrumentSerif.variable} ${manrope.variable} font-sans`}
       >
-        <Providers>
-          <div className="flex h-screen">
-            <Sidebar />
-            <div className="flex flex-1 flex-col overflow-hidden">
-              <Header />
-              <main className="flex-1 overflow-auto p-8">{children}</main>
-            </div>
-          </div>
-        </Providers>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

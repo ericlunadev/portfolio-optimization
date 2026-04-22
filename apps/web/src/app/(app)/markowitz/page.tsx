@@ -11,6 +11,7 @@ import { MarkowitzResults } from "@/components/MarkowitzResults";
 import * as Popover from "@radix-ui/react-popover";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LessonButton } from "@/components/academia/LessonButton";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -152,11 +153,24 @@ export default function MarkowitzPage() {
   if (step === 1) {
     return (
       <div className="mx-auto max-w-4xl space-y-8">
-        <h1 className="font-display text-3xl tracking-tight">Configuración de Portafolio</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-3xl tracking-tight">Configuración de Portafolio</h1>
+          <LessonButton
+            station="portfolio"
+            label="¿Primera vez? Ver guía Top-Down"
+          />
+        </div>
 
         {/* Date Range & Parameters */}
         <div className="glass-card p-6">
-          <h2 className="mb-4 font-display text-lg">Parámetros</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg">Parámetros</h2>
+            <LessonButton
+              station="allocation"
+              variant="inline"
+              label="¿Cómo elegir?"
+            />
+          </div>
           <div className="grid gap-6 md:grid-cols-2">
             {/* Date Range */}
             <div>
@@ -512,7 +526,14 @@ export default function MarkowitzPage() {
 
         {/* Asset Allocation */}
         <div className="glass-card p-6">
-          <h2 className="mb-4 font-display text-lg">Activos</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="font-display text-lg">Activos</h2>
+            <LessonButton
+              station="assets"
+              variant="inline"
+              label="¿Cómo elegir activos?"
+            />
+          </div>
           <AssetAllocationForm assets={assets} onChange={setAssets} />
         </div>
 

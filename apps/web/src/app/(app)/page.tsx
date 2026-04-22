@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BarChart3, TrendingUp, Shield, Zap } from "lucide-react";
+import { WelcomeCard } from "@/components/academia/WelcomeCard";
 
 const features = [
   {
@@ -24,9 +25,11 @@ const features = [
 
 export default function Home() {
   return (
-    <div className="max-w-5xl mx-auto space-y-16">
+    <div className="max-w-5xl mx-auto space-y-10">
+      <WelcomeCard />
+
       {/* Hero */}
-      <div className="space-y-6 pt-8 animate-fade-in-up">
+      <div className="space-y-6 pt-4 animate-fade-in-up">
         <h1 className="font-display text-5xl md:text-6xl tracking-tight leading-[1.1]">
           Optimización de{" "}
           <span className="text-gradient-gold">Portafolio</span>
