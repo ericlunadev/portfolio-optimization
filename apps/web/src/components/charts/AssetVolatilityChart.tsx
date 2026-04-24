@@ -62,6 +62,14 @@ export function AssetVolatilityChart({
           <Tooltip
             formatter={(value: number) => formatPercent(value)}
             labelFormatter={(label) => label}
+            contentStyle={{
+              background: "hsl(230 15% 10%)",
+              border: "1px solid hsl(230 12% 20%)",
+              borderRadius: "8px",
+              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.5)",
+            }}
+            labelStyle={{ color: "hsl(40 6% 90%)", fontWeight: 500 }}
+            itemStyle={{ color: "hsl(40 6% 75%)" }}
           />
           <Bar dataKey="volatility" name="Volatilidad">
             {sortedData.map((_, index) => (

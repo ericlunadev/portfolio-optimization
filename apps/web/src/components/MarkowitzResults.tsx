@@ -19,6 +19,7 @@ import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsCha
 import { ProbNegReturnChart } from "@/components/charts/ProbNegReturnChart";
 import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
+import { ChartReveal } from "@/components/charts/ChartReveal";
 import { CalculationSteps } from "@/components/debug/CalculationSteps";
 import { cn, formatPercent } from "@/lib/utils";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -295,32 +296,46 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
                 Debug
               </label>
             </div>
-            <RiskReturnScatterChart
-              data={scatterData}
-              frontier={frontierPoints}
-              frontierTickers={frontierData?.tickers}
-              optimizedPortfolio={optimizedPortfolioPoint}
-              userPortfolio={userPortfolioPoint}
-              showTangentSlope={debugTangentSlope}
-            />
+            <ChartReveal placeholderClassName="h-[280px] sm:h-[360px] md:h-[400px]">
+              <RiskReturnScatterChart
+                data={scatterData}
+                frontier={frontierPoints}
+                frontierTickers={frontierData?.tickers}
+                optimizedPortfolio={optimizedPortfolioPoint}
+                userPortfolio={userPortfolioPoint}
+                showTangentSlope={debugTangentSlope}
+              />
+            </ChartReveal>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2 md:gap-6">
             <div className="glass-card p-4 md:p-5">
-              <PortfolioWeightsChart
-                data={result.weights.map((w) => ({
-                  name: w.fund_name,
-                  weight: w.weight,
-                  ret: w.exp_ret,
-                  vol: w.volatility,
-                }))}
-                comparisonData={weightsComparisonData}
-                title={
-                  weightsComparisonData
-                    ? "Comparación de Pesos"
-                    : "Pesos del Portafolio"
-                }
-              />
+              <ChartReveal
+                placeholderStyle={{
+                  height:
+                    48 +
+                    Math.max(
+                      200,
+                      (weightsComparisonData?.length ?? result.weights.length) *
+                        (weightsComparisonData ? 50 : 40)
+                    ),
+                }}
+              >
+                <PortfolioWeightsChart
+                  data={result.weights.map((w) => ({
+                    name: w.fund_name,
+                    weight: w.weight,
+                    ret: w.exp_ret,
+                    vol: w.volatility,
+                  }))}
+                  comparisonData={weightsComparisonData}
+                  title={
+                    weightsComparisonData
+                      ? "Comparación de Pesos"
+                      : "Pesos del Portafolio"
+                  }
+                />
+              </ChartReveal>
             </div>
 
             <div className="glass-card p-4 md:p-5">
@@ -485,11 +500,13 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
               <h3 className="mb-4 font-display text-lg">
                 Rendimientos Acumulados
               </h3>
-              <CumulativeReturnsChart
-                data={cumRetChartData.data}
-                series={cumRetChartData.series}
-                highlightSeries="Portafolio Óptimo"
-              />
+              <ChartReveal>
+                <CumulativeReturnsChart
+                  data={cumRetChartData.data}
+                  series={cumRetChartData.series}
+                  highlightSeries="Portafolio Óptimo"
+                />
+              </ChartReveal>
             </div>
           )}
 
@@ -498,7 +515,9 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
               <h3 className="mb-4 font-display text-lg">
                 Probabilidad de Rendimiento Negativo en el Tiempo
               </h3>
-              <ProbNegReturnChart data={negReturnData.points} />
+              <ChartReveal placeholderClassName="h-[220px] sm:h-[260px] md:h-[300px]">
+                <ProbNegReturnChart data={negReturnData.points} />
+              </ChartReveal>
             </div>
           )}
         </Tabs.Content>
@@ -544,16 +563,24 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
 
           {assetVolatilityData.length > 0 && (
             <div className="glass-card p-4 md:p-5">
-              <AssetVolatilityChart data={assetVolatilityData} />
+              <ChartReveal
+                placeholderStyle={{
+                  height: 48 + Math.max(200, assetVolatilityData.length * 40),
+                }}
+              >
+                <AssetVolatilityChart data={assetVolatilityData} />
+              </ChartReveal>
             </div>
           )}
 
           {rollingVolChartData.data.length > 0 && (
             <div className="glass-card p-4 md:p-5">
-              <RollingVolatilityChart
-                data={rollingVolChartData.data}
-                series={rollingVolChartData.series}
-              />
+              <ChartReveal>
+                <RollingVolatilityChart
+                  data={rollingVolChartData.data}
+                  series={rollingVolChartData.series}
+                />
+              </ChartReveal>
             </div>
           )}
 

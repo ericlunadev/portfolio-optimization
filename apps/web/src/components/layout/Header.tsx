@@ -2,7 +2,7 @@
 
 import { authClient } from "@/lib/auth-client";
 import { LogIn, LogOut, User, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function Header() {
   const { data: session, isPending } = authClient.useSession();
@@ -15,6 +15,19 @@ export function Header() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showUserMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showUserMenu]);
 
   const resetForm = () => {
     setEmail("");
@@ -75,29 +88,57 @@ export function Header() {
           {isPending ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
           ) : user ? (
-            <div className="flex items-center gap-2 md:gap-3">
-              {user.image ? (
-                <img
-                  src={user.image}
-                  alt={user.name || "Usuario"}
-                  className="h-8 w-8 rounded-full ring-2 ring-primary/20"
-                />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary ring-2 ring-primary/20">
-                  <User className="h-4 w-4" />
+            <div className="relative" ref={userMenuRef}>
+              <button
+                onClick={() => setShowUserMenu((v) => !v)}
+                className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted/60 md:gap-3 md:px-2"
+                aria-haspopup="menu"
+                aria-expanded={showUserMenu}
+              >
+                {user.image ? (
+                  <img
+                    src={user.image}
+                    alt={user.name || "Usuario"}
+                    className="h-8 w-8 rounded-full ring-2 ring-primary/20"
+                  />
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary ring-2 ring-primary/20">
+                    <User className="h-4 w-4" />
+                  </div>
+                )}
+                <span className="hidden max-w-[12rem] truncate text-sm font-medium text-foreground/80 sm:inline">
+                  {user.name || user.email}
+                </span>
+              </button>
+
+              {showUserMenu && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-40 mt-2 w-56 overflow-hidden rounded-lg border border-border bg-card shadow-xl"
+                >
+                  <div className="border-b border-border/60 px-3 py-2.5">
+                    <p className="truncate text-sm font-medium text-foreground">
+                      {user.name || "Usuario"}
+                    </p>
+                    {user.email && (
+                      <p className="truncate text-xs text-muted-foreground">
+                        {user.email}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    role="menuitem"
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      handleSignOut();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Cerrar sesión
+                  </button>
                 </div>
               )}
-              <span className="hidden max-w-[12rem] truncate text-sm font-medium text-foreground/80 sm:inline">
-                {user.name || user.email}
-              </span>
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:px-3"
-                aria-label="Cerrar sesión"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Salir</span>
-              </button>
             </div>
           ) : (
             <button

@@ -267,7 +267,7 @@ export function Station5Portfolio({ id }: { id: string }) {
             Armá tu lista de tickers, definí el rango de fechas y dejá que el optimizador encuentre los pesos óptimos en la frontera eficiente.
           </p>
           <Link
-            href="/markowitz"
+            href="/efficient-frontier/new"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110"
           >
             <Zap className="h-4 w-4" />

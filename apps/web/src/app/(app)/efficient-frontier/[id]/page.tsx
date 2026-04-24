@@ -22,7 +22,7 @@ export default function SimulationDetailPage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.push("/simulaciones")}
+            onClick={() => router.push("/efficient-frontier")}
             className="rounded-lg border border-border/50 bg-card/60 px-4 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border"
           >
             ← Volver
@@ -39,7 +39,7 @@ export default function SimulationDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3 md:gap-4">
         <button
-          onClick={() => router.push("/simulaciones")}
+          onClick={() => router.push("/efficient-frontier")}
           className="shrink-0 rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border md:px-4"
         >
           ← Volver

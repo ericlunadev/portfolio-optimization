@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { BarChart3, Home, History, GraduationCap } from "lucide-react";
+import { BarChart3, Home, GraduationCap } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "Inicio", icon: Home },
-  { href: "/markowitz", label: "Markowitz", icon: BarChart3 },
-  { href: "/simulaciones", label: "Historial", icon: History },
+  { href: "/efficient-frontier", label: "Frontera Eficiente", icon: BarChart3 },
   { href: "/academia", label: "Academia", icon: GraduationCap },
 ];
 
@@ -20,7 +19,7 @@ export function MobileTabBar() {
       className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-card/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
       aria-label="Navegación principal"
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-3">
         {navItems.map((item) => {
           const isActive =
             item.href === "/"

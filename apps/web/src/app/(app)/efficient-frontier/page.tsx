@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSimulations, useDeleteSimulation } from "@/hooks/useSimulations";
 import { formatPercent, cn } from "@/lib/utils";
-import { Trash2, BarChart3, ChevronRight } from "lucide-react";
+import { Trash2, BarChart3, ChevronRight, Plus } from "lucide-react";
 
-export default function SimulacionesPage() {
+export default function EfficientFrontierPage() {
   const { data: simulations, isLoading } = useSimulations();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -37,14 +37,25 @@ export default function SimulacionesPage() {
   if (!simulations || simulations.length === 0) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
-        <h1 className="font-display text-2xl md:text-3xl tracking-tight">Simulaciones</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="font-display text-2xl md:text-3xl tracking-tight">
+            Frontera Eficiente
+          </h1>
+          <Link
+            href="/efficient-frontier/new"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
+          >
+            <Plus className="h-4 w-4" />
+            Optimización
+          </Link>
+        </div>
         <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-card/30">
           <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground/50" />
           <p className="text-muted-foreground">
-            No hay simulaciones guardadas
+            Aún no has corrido ninguna optimización
           </p>
           <p className="mt-1 text-sm text-muted-foreground/70">
-            Las simulaciones se guardan automáticamente al ver los resultados en Markowitz
+            Pulsa &quot;Optimización&quot; para configurar tu primer portafolio
           </p>
         </div>
       </div>
@@ -53,7 +64,18 @@ export default function SimulacionesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <h1 className="font-display text-2xl md:text-3xl tracking-tight">Simulaciones</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="font-display text-2xl md:text-3xl tracking-tight">
+          Frontera Eficiente
+        </h1>
+        <Link
+          href="/efficient-frontier/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
+        >
+          <Plus className="h-4 w-4" />
+          Optimización
+        </Link>
+      </div>
 
       <div className="space-y-3">
         {simulations.map((sim) => (
@@ -96,7 +118,7 @@ function SimulationCard({
     <div className="glass-card group transition-colors hover:border-border">
       <div className="flex items-center gap-3 px-4 py-3">
         <Link
-          href={`/simulaciones/${sim.id}`}
+          href={`/efficient-frontier/${sim.id}`}
           className="flex flex-1 items-center gap-3 text-left"
         >
           <div className="min-w-0 flex-1">

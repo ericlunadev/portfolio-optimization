@@ -40,7 +40,7 @@ export default function Home() {
           maximiza tu rendimiento ajustado por riesgo.
         </p>
         <Link
-          href="/markowitz"
+          href="/efficient-frontier/new"
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
         >
           <Zap className="h-4 w-4" />

@@ -67,7 +67,7 @@ export function StationNav() {
 
       {/* Skip button top-right */}
       <Link
-        href="/markowitz"
+        href="/efficient-frontier/new"
         className="fixed top-4 right-4 md:top-6 md:right-8 z-40 flex items-center gap-1.5 rounded-full border border-border/60 bg-card/80 backdrop-blur-md px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground hover:border-border"
       >
         <X className="h-3 w-3" />

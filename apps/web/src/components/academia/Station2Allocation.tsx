@@ -11,7 +11,6 @@ type Profile = "conservative" | "moderate" | "aggressive";
 interface ProfileCopy {
   label: string;
   mix: { stocks: number; bonds: number };
-  expectedReturn: number;
   maxDrawdown: number;
   description: string;
   curve: {
@@ -25,7 +24,6 @@ const PROFILES: Record<Profile, ProfileCopy> = {
   conservative: {
     label: "Conservador",
     mix: { stocks: 20, bonds: 80 },
-    expectedReturn: 4.5,
     maxDrawdown: -8,
     description:
       "Preservación del capital primero. Volatilidad baja, retornos modestos, pocas caídas grandes.",
@@ -34,7 +32,6 @@ const PROFILES: Record<Profile, ProfileCopy> = {
   moderate: {
     label: "Moderado",
     mix: { stocks: 60, bonds: 40 },
-    expectedReturn: 7.5,
     maxDrawdown: -20,
     description:
       "El balance clásico. Participa del crecimiento pero amortigua los golpes con renta fija.",
@@ -43,7 +40,6 @@ const PROFILES: Record<Profile, ProfileCopy> = {
   aggressive: {
     label: "Agresivo",
     mix: { stocks: 90, bonds: 10 },
-    expectedReturn: 10,
     maxDrawdown: -38,
     description:
       "Máximo crecimiento a largo plazo. Esperá caídas fuertes en recesiones; tenés que aguantar.",
@@ -292,22 +288,12 @@ export function Station2Allocation({ id }: { id: string }) {
             })}
           </div>
 
-          <div className="glass-card p-4 grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Retorno esperado anual
-              </div>
-              <div className="font-display text-xl text-primary">
-                {copy.expectedReturn.toFixed(1)}%
-              </div>
+          <div className="glass-card p-4">
+            <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              Tolerancia al dolor
             </div>
-            <div>
-              <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Tolerancia al dolor
-              </div>
-              <div className="font-display text-xl text-foreground/80">
-                {Math.abs(copy.maxDrawdown)}%
-              </div>
+            <div className="font-display text-xl text-foreground/80">
+              {Math.abs(copy.maxDrawdown)}%
             </div>
           </div>
 
