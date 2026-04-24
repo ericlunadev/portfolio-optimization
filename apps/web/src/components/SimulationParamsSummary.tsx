@@ -63,7 +63,7 @@ export function SimulationParamsSummary({
               <div>
                 <dt className="text-muted-foreground">Tasa Libre de Riesgo</dt>
                 <dd className="font-medium">
-                  {(params.riskFreeRate * 100).toFixed(1)}%
+                  {(params.riskFreeRate * 100).toFixed(3)}%
                 </dd>
               </div>
             )}
