@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { ZoomIntro } from "@/components/academia/ZoomIntro";
 import { StationNav } from "@/components/academia/StationNav";
 import { Station1Macro } from "@/components/academia/Station1Macro";
@@ -6,7 +7,8 @@ import { Station3Sectors } from "@/components/academia/Station3Sectors";
 import { Station4Assets } from "@/components/academia/Station4Assets";
 import { Station5Portfolio } from "@/components/academia/Station5Portfolio";
 
-export default function AcademiaPage() {
+export default async function AcademiaPage() {
+  const t = await getTranslations("Academia.Page");
   return (
     <div className="relative overflow-x-hidden">
       <StationNav />
@@ -19,7 +21,7 @@ export default function AcademiaPage() {
       <Station4Assets id="station-assets" />
       <Station5Portfolio id="station-portfolio" />
       <footer className="py-16 text-center text-xs text-muted-foreground border-t border-border/30">
-        Fin del recorrido · Los datos mostrados son ilustrativos
+        {t("footer")}
       </footer>
     </div>
   );

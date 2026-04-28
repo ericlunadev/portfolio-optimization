@@ -4,6 +4,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { STATIONS, type StationKey, getStation } from "./lessons";
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
@@ -19,6 +20,8 @@ export function AcademiaDrawer({
   onOpenChange,
   initialStation = "macro",
 }: AcademiaDrawerProps) {
+  const tDrawer = useTranslations("Academia.Drawer");
+  const tLessons = useTranslations("Academia.Lessons");
   const [current, setCurrent] = useState<StationKey>(initialStation);
 
   useEffect(() => {
@@ -55,10 +58,13 @@ export function AcademiaDrawer({
                 <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-card/95 backdrop-blur-md px-6 py-4">
                   <div>
                     <div className="text-[10px] uppercase tracking-widest text-primary/80">
-                      Academia · Parada {station.index} de {STATIONS.length}
+                      {tDrawer("stationLabel", {
+                        current: station.index,
+                        total: STATIONS.length,
+                      })}
                     </div>
                     <Dialog.Title className="font-display text-lg">
-                      {station.label}
+                      {tLessons(`${station.key}.label`)}
                     </Dialog.Title>
                   </div>
                   <Dialog.Close className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
@@ -79,7 +85,9 @@ export function AcademiaDrawer({
                             ? "bg-primary"
                             : "bg-border hover:bg-muted-foreground/40",
                         )}
-                        aria-label={`Ir a ${s.label}`}
+                        aria-label={tDrawer("goToStationAria", {
+                          label: tLessons(`${s.key}.label`),
+                        })}
                       />
                     ))}
                   </div>
@@ -93,34 +101,37 @@ export function AcademiaDrawer({
                   >
                     <div>
                       <h3 className="font-display text-2xl leading-tight">
-                        {station.title}
+                        {tLessons(`${station.key}.title`)}
                       </h3>
                       <p className="mt-2 text-sm italic text-muted-foreground">
-                        {station.tagline}
+                        {tLessons(`${station.key}.tagline`)}
                       </p>
                     </div>
 
                     <p className="text-sm text-foreground/80 leading-relaxed">
-                      {station.summary}
+                      {tLessons(`${station.key}.summary`)}
                     </p>
 
                     <ul className="space-y-2">
-                      {station.bullets.map((b) => (
-                        <li
-                          key={b}
-                          className="flex gap-2 text-sm text-muted-foreground"
-                        >
-                          <span className="text-primary/60">→</span>
-                          <span>{b}</span>
-                        </li>
-                      ))}
+                      {[1, 2, 3].map((n) => {
+                        const text = tLessons(`${station.key}.bullet${n}`);
+                        return (
+                          <li
+                            key={n}
+                            className="flex gap-2 text-sm text-muted-foreground"
+                          >
+                            <span className="text-primary/60">→</span>
+                            <span>{text}</span>
+                          </li>
+                        );
+                      })}
                     </ul>
 
                     <Link
                       href={`/academia#station-${station.key}`}
                       className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
                     >
-                      Ver esta parada en la experiencia completa
+                      {tDrawer("fullExperienceLink")}
                       <ArrowRight className="h-3 w-3" />
                     </Link>
                   </motion.div>
@@ -132,14 +143,14 @@ export function AcademiaDrawer({
                     disabled={!prev}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    ← {prev?.label ?? ""}
+                    ← {prev ? tLessons(`${prev.key}.label`) : ""}
                   </button>
                   <button
                     onClick={() => next && setCurrent(next.key)}
                     disabled={!next}
                     className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    {next?.label ?? ""} →
+                    {next ? tLessons(`${next.key}.label`) : ""} →
                   </button>
                 </div>
               </motion.div>

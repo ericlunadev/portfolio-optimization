@@ -14,10 +14,14 @@ import {
 } from "../../lib/math/optimizer.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
+import { authMiddleware } from "../../middleware/auth.js";
 
 const yahooFinance = new YahooFinance();
 
 const optimization = new Hono();
+
+// All optimization endpoints require authentication
+optimization.use("*", authMiddleware);
 
 // POST /api/optimization/optimize - Unified optimization endpoint supporting all strategies
 optimization.post(

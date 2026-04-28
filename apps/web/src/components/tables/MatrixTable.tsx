@@ -8,6 +8,7 @@ interface MatrixTableProps {
   matrix: number[][];
   formatValue?: (value: number) => string;
   colorScale?: boolean;
+  isCorrelation?: boolean;
 }
 
 export function MatrixTable({
@@ -16,11 +17,12 @@ export function MatrixTable({
   matrix,
   formatValue = (v) => v.toFixed(4),
   colorScale = false,
+  isCorrelation = false,
 }: MatrixTableProps) {
-  const getColorClass = (value: number, isCorrelation: boolean) => {
+  const getColorClass = (value: number, isCorrelationCell: boolean) => {
     if (!colorScale) return "";
 
-    if (isCorrelation) {
+    if (isCorrelationCell) {
       // For correlation: -1 to 1
       if (value >= 0.7) return "bg-green-100 dark:bg-green-900/30";
       if (value >= 0.3) return "bg-green-50 dark:bg-green-900/10";
@@ -32,8 +34,6 @@ export function MatrixTable({
       return "";
     }
   };
-
-  const isCorrelation = title.toLowerCase().includes("correlación");
 
   return (
     <div>

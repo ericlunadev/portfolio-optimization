@@ -1,54 +1,50 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 import { BarChart3, TrendingUp, Shield, Zap } from "lucide-react";
 import { WelcomeCard } from "@/components/academia/WelcomeCard";
 
-const features = [
-  {
-    icon: BarChart3,
-    title: "Frontera Eficiente",
-    description:
-      "Visualiza el conjunto óptimo de portafolios que ofrecen el mayor rendimiento para cada nivel de riesgo.",
-  },
-  {
-    icon: TrendingUp,
-    title: "6 Estrategias",
-    description:
-      "Desde Máximo Sharpe hasta Punto de Inflexión. Elige la estrategia que mejor se adapte a tu perfil.",
-  },
-  {
-    icon: Shield,
-    title: "Análisis de Riesgo",
-    description:
-      "Probabilidad de rendimiento negativo, volatilidad histórica y métricas de confianza para decisiones informadas.",
-  },
-];
+export default async function Home() {
+  const t = await getTranslations("HomePage");
 
-export default function Home() {
+  const features = [
+    {
+      icon: BarChart3,
+      title: t("feature1Title"),
+      description: t("feature1Description"),
+    },
+    {
+      icon: TrendingUp,
+      title: t("feature2Title"),
+      description: t("feature2Description"),
+    },
+    {
+      icon: Shield,
+      title: t("feature3Title"),
+      description: t("feature3Description"),
+    },
+  ];
+
   return (
     <div className="max-w-5xl mx-auto space-y-10">
       <WelcomeCard />
 
-      {/* Hero */}
       <div className="space-y-5 pt-2 animate-fade-in-up md:space-y-6 md:pt-4">
         <h1 className="font-display text-4xl md:text-6xl tracking-tight leading-[1.1]">
-          Optimización de{" "}
-          <span className="text-gradient-gold">Portafolio</span>
+          {t("heroTitleStart")}{" "}
+          <span className="text-gradient-gold">{t("heroTitleHighlight")}</span>
         </h1>
         <p className="text-base md:text-lg text-muted-foreground max-w-2xl leading-relaxed">
-          Encuentra la asignación óptima de activos usando la teoría de
-          media-varianza de Markowitz. Visualiza la frontera eficiente y
-          maximiza tu rendimiento ajustado por riesgo.
+          {t("heroDescription")}
         </p>
         <Link
           href="/efficient-frontier/new"
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
         >
           <Zap className="h-4 w-4" />
-          Comenzar Optimización
+          {t("ctaStart")}
         </Link>
       </div>
 
-      {/* Feature Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         {features.map((feature, i) => (
           <div

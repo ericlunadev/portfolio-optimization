@@ -4,6 +4,7 @@ import * as Switch from "@radix-ui/react-switch";
 import * as Slider from "@radix-ui/react-slider";
 import * as Popover from "@radix-ui/react-popover";
 import { Info } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface ConstraintsPanelProps {
   enforceFullInvestment: boolean;
@@ -26,19 +27,20 @@ export function ConstraintsPanel({
   maxLeverage,
   onMaxLeverageChange,
 }: ConstraintsPanelProps) {
+  const t = useTranslations("Forms.Constraints");
   return (
     <div className="space-y-5">
       {/* Full Investment Toggle */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-1.5">
-            <label className="text-sm font-medium">Inversion Completa (100%)</label>
+            <label className="text-sm font-medium">{t("fullInvestmentLabel")}</label>
             <Popover.Root>
               <Popover.Trigger asChild>
                 <button
                   type="button"
                   className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Informacion sobre inversion completa"
+                  aria-label={t("fullInvestmentInfoAria")}
                 >
                   <Info className="h-3.5 w-3.5" />
                 </button>
@@ -50,19 +52,19 @@ export function ConstraintsPanel({
                   align="start"
                 >
                   <div className="space-y-2">
-                    <p className="font-semibold">Que significa esta restriccion?</p>
+                    <p className="font-semibold">{t("fullInvestmentTitle")}</p>
                     <p>
-                      La restriccion de inversion completa obliga a que la suma de todos los pesos del portafolio sea exactamente <strong>100%</strong>. Es decir, todo el capital disponible debe estar invertido en los activos seleccionados.
+                      {t("fullInvestmentBody1Pre")}<strong>{t("fullInvestmentBody1Strong")}</strong>{t("fullInvestmentBody1Post")}
                     </p>
-                    <p className="font-semibold pt-1">Si desactivas esta opcion:</p>
+                    <p className="font-semibold pt-1">{t("fullInvestmentDeactivateTitle")}</p>
                     <p>
-                      El optimizador puede recomendar mantener una parte del capital en <strong>efectivo</strong> (no invertido). Esto es util cuando el modelo considera que mantener liquidez reduce el riesgo general del portafolio.
+                      {t("fullInvestmentBody2Pre")}<strong>{t("fullInvestmentBody2Strong")}</strong>{t("fullInvestmentBody2Post")}
                     </p>
-                    <p className="font-semibold pt-1">Cuando desactivarla?</p>
+                    <p className="font-semibold pt-1">{t("fullInvestmentWhenTitle")}</p>
                     <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                      <li>En periodos de alta volatilidad del mercado</li>
-                      <li>Cuando deseas una estrategia mas conservadora</li>
-                      <li>Si prefieres que el modelo decida el nivel optimo de exposicion</li>
+                      <li>{t("fullInvestmentWhen1")}</li>
+                      <li>{t("fullInvestmentWhen2")}</li>
+                      <li>{t("fullInvestmentWhen3")}</li>
                     </ul>
                   </div>
                   <Popover.Arrow className="fill-border" />
@@ -71,7 +73,7 @@ export function ConstraintsPanel({
             </Popover.Root>
           </div>
           <p className="text-xs text-muted-foreground">
-            La suma de los pesos debe ser exactamente 100%
+            {t("fullInvestmentHelp")}
           </p>
         </div>
         <Switch.Root
@@ -87,13 +89,13 @@ export function ConstraintsPanel({
       <div className="flex items-center justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-1.5">
-            <label className="text-sm font-medium">Permitir Ventas en Corto</label>
+            <label className="text-sm font-medium">{t("shortSellingLabel")}</label>
             <Popover.Root>
               <Popover.Trigger asChild>
                 <button
                   type="button"
                   className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-label="Informacion sobre ventas en corto"
+                  aria-label={t("shortSellingInfoAria")}
                 >
                   <Info className="h-3.5 w-3.5" />
                 </button>
@@ -105,20 +107,20 @@ export function ConstraintsPanel({
                   align="start"
                 >
                   <div className="space-y-2">
-                    <p className="font-semibold">Que son las ventas en corto?</p>
+                    <p className="font-semibold">{t("shortSellingTitle")}</p>
                     <p>
-                      Las ventas en corto permiten &quot;vender&quot; activos que no posees, apostando a que su precio bajara. En la optimizacion, esto se traduce en <strong>pesos negativos</strong> para ciertos activos.
+                      {t("shortSellingBody1Pre")}<strong>{t("shortSellingBody1Strong")}</strong>{t("shortSellingBody1Post")}
                     </p>
-                    <p className="font-semibold pt-1">Efecto en la optimizacion:</p>
+                    <p className="font-semibold pt-1">{t("shortSellingEffectTitle")}</p>
                     <p>
-                      Al permitir posiciones cortas, el optimizador tiene mas flexibilidad y puede encontrar portafolios con mayor rendimiento esperado o menor riesgo que solo con posiciones largas.
+                      {t("shortSellingBody2")}
                     </p>
-                    <p className="font-semibold pt-1">Consideraciones practicas:</p>
+                    <p className="font-semibold pt-1">{t("shortSellingPracticalTitle")}</p>
                     <ul className="list-disc pl-4 space-y-1 text-muted-foreground">
-                      <li>Se requiere una cuenta de margen con tu broker</li>
-                      <li>Implica costos de prestamo de acciones</li>
-                      <li>El riesgo de perdida es teoricamente ilimitado</li>
-                      <li>Puede haber requisitos de margen significativos</li>
+                      <li>{t("shortSellingPractical1")}</li>
+                      <li>{t("shortSellingPractical2")}</li>
+                      <li>{t("shortSellingPractical3")}</li>
+                      <li>{t("shortSellingPractical4")}</li>
                     </ul>
                   </div>
                   <Popover.Arrow className="fill-border" />
@@ -127,7 +129,7 @@ export function ConstraintsPanel({
             </Popover.Root>
           </div>
           <p className="text-xs text-muted-foreground">
-            Permite pesos negativos (posiciones cortas)
+            {t("shortSellingHelp")}
           </p>
         </div>
         <Switch.Root
@@ -143,9 +145,9 @@ export function ConstraintsPanel({
       <div className="space-y-3">
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1">
-            <label className="text-sm font-medium">Apalancamiento</label>
+            <label className="text-sm font-medium">{t("leverageLabel")}</label>
             <p className="text-xs text-muted-foreground">
-              Permite invertir mas del 100% del capital (usando margen)
+              {t("leverageHelp")}
             </p>
           </div>
           <Switch.Root
@@ -160,7 +162,7 @@ export function ConstraintsPanel({
         {useLeverage && (
           <div className="rounded-md border border-border bg-muted/30 p-3">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">Apalancamiento maximo:</span>
+              <span className="text-sm text-muted-foreground">{t("maxLeverageLabel")}</span>
               <span className="text-sm font-semibold text-primary">
                 {(maxLeverage * 100).toFixed(0)}% ({maxLeverage.toFixed(1)}x)
               </span>
@@ -178,7 +180,7 @@ export function ConstraintsPanel({
               </Slider.Track>
               <Slider.Thumb
                 className="block h-5 w-5 rounded-full bg-primary shadow-lg ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                aria-label="Apalancamiento maximo"
+                aria-label={t("maxLeverageAria")}
               />
             </Slider.Root>
             <div className="mt-1 flex justify-between text-xs text-muted-foreground">

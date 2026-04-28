@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Search, X, Loader2, Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 interface TickerResult {
@@ -39,6 +40,7 @@ function AssetRowInput({
   onAllocationChange: (allocation: number | null) => void;
   onRemove: () => void;
 }) {
+  const t = useTranslations("Forms.AssetAllocation");
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<TickerResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -107,7 +109,7 @@ function AssetRowInput({
     <div className="flex items-center gap-2 sm:gap-3">
       <span className="w-10 shrink-0 text-xs text-muted-foreground sm:w-16 sm:text-sm">
         <span className="sm:hidden">#{index + 1}</span>
-        <span className="hidden sm:inline">Activo {index + 1}</span>
+        <span className="hidden sm:inline">{t("rowAsset", { index: index + 1 })}</span>
       </span>
 
       <div className="relative min-w-0 flex-1" ref={containerRef}>
@@ -126,7 +128,7 @@ function AssetRowInput({
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Seleccionar..."
+              placeholder={t("selectPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onFocus={() => search.length > 0 && setShowResults(true)}
@@ -160,7 +162,7 @@ function AssetRowInput({
 
         {showResults && search.length > 0 && results.length === 0 && !isSearching && (
           <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background p-3 text-center text-sm text-muted-foreground shadow-lg">
-            No se encontraron resultados
+            {t("noResults")}
           </div>
         )}
       </div>
@@ -196,6 +198,7 @@ function AssetRowInput({
 }
 
 export function AssetAllocationForm({ assets, onChange }: AssetAllocationFormProps) {
+  const t = useTranslations("Forms.AssetAllocation");
   const updateAsset = (index: number, updates: Partial<AssetRow>) => {
     const updated = [...assets];
     updated[index] = { ...updated[index], ...updates };
@@ -217,19 +220,19 @@ export function AssetAllocationForm({ assets, onChange }: AssetAllocationFormPro
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Asignación de Activos</h3>
+        <h3 className="text-sm font-semibold">{t("title")}</h3>
         <button
           onClick={clearAll}
           className="text-xs text-muted-foreground hover:text-foreground"
         >
-          <Trash2 className="inline h-3 w-3" /> Limpiar
+          <Trash2 className="inline h-3 w-3" /> {t("clear")}
         </button>
       </div>
 
       <div className="hidden items-center gap-3 text-xs text-muted-foreground sm:flex">
         <span className="w-16 shrink-0" />
-        <span className="flex-1">Activo</span>
-        <span className="w-24 shrink-0 text-right">Asignación (opcional)</span>
+        <span className="flex-1">{t("headerAsset")}</span>
+        <span className="w-24 shrink-0 text-right">{t("headerAllocation")}</span>
         <span className="w-4 shrink-0" />
       </div>
 
@@ -254,7 +257,7 @@ export function AssetAllocationForm({ assets, onChange }: AssetAllocationFormPro
         )}
       >
         <Plus className="h-4 w-4" />
-        Agregar Activo
+        {t("addAsset")}
       </button>
     </div>
   );

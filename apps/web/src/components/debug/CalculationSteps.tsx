@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { MatrixTable } from "@/components/tables/MatrixTable";
 
@@ -68,29 +69,27 @@ function FormulaBlock({ formula, description }: { formula: string; description: 
 
 export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
   const { calculationSteps, correlationMatrix, covarianceMatrix } = debug;
+  const t = useTranslations("Debug");
 
   return (
     <div className="space-y-4">
       <div className="rounded-lg bg-blue-600 p-4 dark:bg-blue-800">
         <h3 className="font-semibold text-white">
-          Proceso de Cálculo de la Matriz de Covarianza
+          {t("headerTitle")}
         </h3>
         <p className="mt-1 text-sm text-blue-100">
-          La matriz de covarianza mide cómo se mueven los rendimientos de los activos entre sí.
-          Es fundamental para calcular el riesgo del portafolio y optimizar la diversificación.
+          {t("headerSubtitle")}
         </p>
       </div>
 
-      <StepCard stepNumber={1} title="Obtener Rendimientos Diarios" defaultOpen>
+      <StepCard stepNumber={1} title={t("step1Title")} defaultOpen>
         <p className="mb-3 text-sm text-muted-foreground">
-          Primero calculamos el rendimiento diario logarítmico de cada activo usando los precios históricos.
-          Se usa el rendimiento logarítmico porque es aditivo en el tiempo y tiene mejor comportamiento
-          estadístico (distribución más cercana a la normal).
+          {t("step1Body")}
         </p>
 
         <FormulaBlock
           formula="R_t = ln(P_t / P_{t-1})"
-          description="Donde R_t es el rendimiento logarítmico del día t, P_t es el precio de cierre del día t"
+          description={t("step1FormulaDesc")}
         />
 
         <div className="mt-4 space-y-3">
@@ -99,7 +98,7 @@ export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
               <div className="mb-2 flex items-center justify-between">
                 <span className="font-medium">{ticker}</span>
                 <span className="text-xs text-muted-foreground">
-                  {returns.length} días de datos
+                  {t("step1DaysOfData", { count: returns.length })}
                 </span>
               </div>
               <div className="flex flex-wrap gap-1">
@@ -118,7 +117,7 @@ export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
                 ))}
                 {returns.length > 20 && (
                   <span className="text-xs text-muted-foreground">
-                    ... (mostrando últimos 20 de {returns.length})
+                    {t("step1ShowingLastN", { count: returns.length })}
                   </span>
                 )}
               </div>
@@ -127,20 +126,19 @@ export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
         </div>
       </StepCard>
 
-      <StepCard stepNumber={2} title="Calcular Estadísticas por Activo">
+      <StepCard stepNumber={2} title={t("step2Title")}>
         <p className="mb-3 text-sm text-muted-foreground">
-          Para cada activo calculamos la media (rendimiento esperado) y la desviación estándar
-          (volatilidad) de los rendimientos diarios, y los anualizamos usando 252 días hábiles por año.
+          {t("step2Body")}
         </p>
 
         <div className="grid gap-3 md:grid-cols-2">
           <FormulaBlock
             formula="μ_anual = μ_diario × 252"
-            description="Rendimiento anualizado"
+            description={t("step2FormulaDescAnnualReturn")}
           />
           <FormulaBlock
             formula="σ_anual = σ_diario × √252"
-            description="Volatilidad anualizada"
+            description={t("step2FormulaDescAnnualVol")}
           />
         </div>
 
@@ -148,11 +146,11 @@ export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                <th className="px-2 py-2 text-left font-medium">Activo</th>
-                <th className="px-2 py-2 text-right font-medium">Rend. Diario</th>
-                <th className="px-2 py-2 text-right font-medium">Vol. Diaria</th>
-                <th className="px-2 py-2 text-right font-medium">Rend. Anual</th>
-                <th className="px-2 py-2 text-right font-medium">Vol. Anual</th>
+                <th className="px-2 py-2 text-left font-medium">{t("tableAsset")}</th>
+                <th className="px-2 py-2 text-right font-medium">{t("tableDailyReturn")}</th>
+                <th className="px-2 py-2 text-right font-medium">{t("tableDailyVol")}</th>
+                <th className="px-2 py-2 text-right font-medium">{t("tableAnnualReturn")}</th>
+                <th className="px-2 py-2 text-right font-medium">{t("tableAnnualVol")}</th>
               </tr>
             </thead>
             <tbody>
@@ -183,16 +181,14 @@ export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
         </div>
       </StepCard>
 
-      <StepCard stepNumber={3} title="Calcular Correlaciones entre Pares">
+      <StepCard stepNumber={3} title={t("step3Title")}>
         <p className="mb-3 text-sm text-muted-foreground">
-          La correlación mide qué tan sincronizados están los movimientos de dos activos.
-          Va de -1 (movimientos opuestos) a +1 (movimientos idénticos). Una correlación cercana
-          a 0 significa que los activos se mueven independientemente.
+          {t("step3Body")}
         </p>
 
         <FormulaBlock
           formula="ρ(A,B) = Cov(A,B) / (σ_A × σ_B)"
-          description="Correlación de Pearson entre activos A y B"
+          description={t("step3FormulaDesc")}
         />
 
         <div className="mt-4 space-y-2">
@@ -240,28 +236,24 @@ export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
         </div>
 
         <div className="mt-4 rounded bg-muted/30 p-3 text-xs text-muted-foreground">
-          <strong>Interpretación:</strong>
+          <strong>{t("interpretationLabel")}</strong>
           <ul className="mt-1 list-inside list-disc space-y-1">
             <li>
-              <span className="text-green-600">Alta correlación positiva ({">"} 0.7)</span>: Los
-              activos suben y bajan juntos
+              <span className="text-green-600">{t("interpretationHighPositive")}</span>{t("interpretationHighPositiveText")}
             </li>
             <li>
-              <span className="text-red-600">Correlación negativa ({"<"} -0.3)</span>: Los activos
-              se mueven en direcciones opuestas (bueno para diversificar)
+              <span className="text-red-600">{t("interpretationNegative")}</span>{t("interpretationNegativeText")}
             </li>
             <li>
-              <span className="text-gray-600">Correlación baja (-0.3 a 0.3)</span>: Movimientos
-              independientes
+              <span className="text-gray-600">{t("interpretationLow")}</span>{t("interpretationLowText")}
             </li>
           </ul>
         </div>
       </StepCard>
 
-      <StepCard stepNumber={4} title="Construir Matriz de Correlación">
+      <StepCard stepNumber={4} title={t("step4Title")}>
         <p className="mb-3 text-sm text-muted-foreground">
-          Organizamos todas las correlaciones en una matriz simétrica. La diagonal siempre es 1
-          (cada activo está perfectamente correlacionado consigo mismo).
+          {t("step4Body")}
         </p>
 
         <MatrixTable
@@ -270,19 +262,18 @@ export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
           matrix={correlationMatrix}
           formatValue={(v) => v.toFixed(3)}
           colorScale
+          isCorrelation
         />
       </StepCard>
 
-      <StepCard stepNumber={5} title="Construir Matriz de Covarianza">
+      <StepCard stepNumber={5} title={t("step5Title")}>
         <p className="mb-3 text-sm text-muted-foreground">
-          Finalmente, construimos la matriz de covarianza combinando las volatilidades y las
-          correlaciones. La covarianza entre dos activos es el producto de sus volatilidades
-          por su correlación.
+          {t("step5Body")}
         </p>
 
         <FormulaBlock
           formula="Cov(A,B) = σ_A × σ_B × ρ(A,B)"
-          description="La diagonal contiene las varianzas (σ²) de cada activo"
+          description={t("step5FormulaDesc")}
         />
 
         <div className="mt-4">
@@ -293,28 +284,24 @@ export function CalculationSteps({ debug, tickers }: CalculationStepsProps) {
             formatValue={(v) => (v * 100).toFixed(4)}
           />
           <p className="mt-2 text-xs text-muted-foreground">
-            * Valores expresados en porcentaje (×100)
+            {t("step5Note")}
           </p>
         </div>
       </StepCard>
 
-      <StepCard stepNumber={6} title="Uso en Optimización de Portafolio">
+      <StepCard stepNumber={6} title={t("step6Title")}>
         <p className="mb-3 text-sm text-muted-foreground">
-          La matriz de covarianza se usa para calcular el riesgo total del portafolio.
-          La fórmula combina los pesos de cada activo con la covarianza entre todos los pares.
+          {t("step6Body")}
         </p>
 
         <FormulaBlock
           formula="σ²_portfolio = Σᵢ Σⱼ wᵢ × wⱼ × Cov(i,j)"
-          description="Varianza del portafolio = suma ponderada de todas las covarianzas"
+          description={t("step6FormulaDesc")}
         />
 
         <div className="mt-4 rounded bg-green-600 p-3 dark:bg-green-700">
           <p className="text-sm text-white">
-            <strong>Beneficio de la diversificación:</strong> Cuando los activos no están
-            perfectamente correlacionados (ρ {"<"} 1), la volatilidad del portafolio es menor que
-            el promedio ponderado de las volatilidades individuales. Esto es el poder de la
-            diversificación.
+            <strong>{t("diversificationBenefitLabel")}</strong>{t("diversificationBenefitText")}
           </p>
         </div>
       </StepCard>

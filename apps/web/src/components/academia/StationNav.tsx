@@ -4,10 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, useScroll, useSpring } from "framer-motion";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { STATIONS } from "./lessons";
 import { cn } from "@/lib/utils";
 
 export function StationNav() {
+  const tNav = useTranslations("Academia.StationNav");
+  const tLessons = useTranslations("Academia.Lessons");
   const [active, setActive] = useState<string>("intro");
 
   const { scrollYProgress } = useScroll();
@@ -71,7 +74,7 @@ export function StationNav() {
         className="fixed top-4 right-4 md:top-6 md:right-8 z-40 flex items-center gap-1.5 rounded-full border border-border/60 bg-card/80 backdrop-blur-md px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground hover:border-border"
       >
         <X className="h-3 w-3" />
-        Saltar a la app
+        {tNav("skipToApp")}
       </Link>
 
       {/* Sticky station nav left: dot always visible; label appears as a floating pill on hover/active */}
@@ -89,7 +92,7 @@ export function StationNav() {
                 : "text-primary/80 opacity-0 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-hover/nav:opacity-100 group-hover/nav:translate-x-0 group-hover/nav:pointer-events-auto",
             )}
           >
-            Intro
+            {tNav("introLabel")}
           </span>
         </button>
         {STATIONS.map((s, i) => {
@@ -110,7 +113,7 @@ export function StationNav() {
                     : "text-primary/80 opacity-0 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-hover/nav:opacity-100 group-hover/nav:translate-x-0 group-hover/nav:pointer-events-auto",
                 )}
               >
-                {String(s.index).padStart(2, "0")} · {s.label}
+                {String(s.index).padStart(2, "0")} · {tLessons(`${s.key}.label`)}
               </span>
             </button>
           );

@@ -20,9 +20,12 @@ import { ProbNegReturnChart } from "@/components/charts/ProbNegReturnChart";
 import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
+import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { CalculationSteps } from "@/components/debug/CalculationSteps";
 import { cn, formatPercent } from "@/lib/utils";
 import * as Tabs from "@radix-ui/react-tabs";
+import { useTranslations } from "next-intl";
+import { TrendingUp, Activity, Sparkles, ShieldAlert } from "lucide-react";
 
 interface MarkowitzResultsProps {
   params: SimulationParams;
@@ -30,12 +33,17 @@ interface MarkowitzResultsProps {
 }
 
 export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
+  const tStrategies = useTranslations("Strategies");
+  const t = useTranslations("MarkowitzResults");
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
 
   const selectedTickers = params.tickers;
   const currentStrategy = OPTIMIZATION_STRATEGIES.find(
     (s) => s.value === params.strategy
   );
+  const strategyLabel = currentStrategy
+    ? tStrategies(`${currentStrategy.value}.label`)
+    : t("fallbackStrategy");
 
   const startDate = useMemo(() => {
     const month = String(params.dateRange.startMonth).padStart(2, "0");
@@ -144,22 +152,24 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
   );
 
   const optimizedPortfolioPoint = useMemo(() => {
-    const strategyLabel = currentStrategy?.label ?? "Portafolio Óptimo";
     return {
       name: strategyLabel,
       vol: result.volatility,
       ret: result.expected_return,
     };
-  }, [result, currentStrategy]);
+  }, [result, strategyLabel]);
+
+  const userPortfolioLabel = t("userPortfolio");
+  const optimalPortfolioLabel = t("optimalPortfolio");
 
   const userPortfolioPoint = useMemo(() => {
     if (!userPortfolioStats) return null;
     return {
-      name: "Tu Portafolio",
+      name: userPortfolioLabel,
       vol: userPortfolioStats.volatility,
       ret: userPortfolioStats.expectedReturn,
     };
-  }, [userPortfolioStats]);
+  }, [userPortfolioStats, userPortfolioLabel]);
 
   const weightsComparisonData = useMemo(() => {
     if (!hasAnyAllocation || !isAllocationValid) return undefined;
@@ -176,15 +186,22 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
   );
 
   const cumRetChartData = useMemo(() => {
-    const allSeries = [...(cumulativeData?.series || [])];
+    // The API returns a series identified by "Portafolio Óptimo".
+    // We rename it on the client to the localized label so it renders correctly.
+    const PORTFOLIO_API_NAME = "Portafolio Óptimo";
+    const allSeries = (cumulativeData?.series || []).map((s) =>
+      s.name === PORTFOLIO_API_NAME
+        ? { ...s, name: optimalPortfolioLabel }
+        : s
+    );
 
     if (userCumulativeData?.series) {
       const userPortfolioSeries = userCumulativeData.series.find(
-        (s) => s.name === "Portafolio Óptimo"
+        (s) => s.name === PORTFOLIO_API_NAME
       );
       if (userPortfolioSeries) {
         allSeries.push({
-          name: "Tu Portafolio",
+          name: userPortfolioLabel,
           data: userPortfolioSeries.data,
         });
       }
@@ -215,7 +232,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
     });
 
     return { data, series: seriesNames };
-  }, [cumulativeData, userCumulativeData]);
+  }, [cumulativeData, userCumulativeData, optimalPortfolioLabel, userPortfolioLabel]);
 
   const assetVolatilityData = useMemo(
     () =>
@@ -268,7 +285,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
               "text-muted-foreground hover:text-foreground"
             )}
           >
-            {currentStrategy?.label || "Portafolio Óptimo"}
+            {strategyLabel}
           </Tabs.Trigger>
           <Tabs.Trigger
             value="data"
@@ -278,22 +295,69 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
               "text-muted-foreground hover:text-foreground"
             )}
           >
-            Datos
+            {t("tabData")}
           </Tabs.Trigger>
         </Tabs.List>
 
         <Tabs.Content value="portfolio" className="space-y-6">
-          <div className="glass-card p-4 md:p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-display text-lg">Riesgo vs Rendimiento</h3>
-              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <StatCardGrid>
+            <StatCard
+              label={t("expectedReturn")}
+              value={formatPercent(result.expected_return)}
+              accent="gold"
+              icon={<TrendingUp className="h-4 w-4" />}
+              hint={
+                <>
+                  {t("ci95Label")}: {formatPercent(result.stats.ci_95_low)} —{" "}
+                  {formatPercent(result.stats.ci_95_high)}
+                </>
+              }
+            />
+            <StatCard
+              label={t("volatility")}
+              value={formatPercent(result.volatility)}
+              accent="violet"
+              icon={<Activity className="h-4 w-4" />}
+              hint={t("volatilityHint")}
+            />
+            <StatCard
+              label={t("sharpeRatio")}
+              value={
+                result.sharpe_ratio != null
+                  ? result.sharpe_ratio.toFixed(2)
+                  : "N/A"
+              }
+              accent="emerald"
+              icon={<Sparkles className="h-4 w-4" />}
+              hint={t("sharpeHint")}
+            />
+            <StatCard
+              label={t("probNeg1y")}
+              value={formatPercent(result.stats.prob_neg_1y)}
+              accent="rose"
+              icon={<ShieldAlert className="h-4 w-4" />}
+              hint={t("probNeg2yHint", {
+                value: formatPercent(result.stats.prob_neg_2y),
+              })}
+            />
+          </StatCardGrid>
+
+          <div className="glass-card overflow-hidden p-4 md:p-5">
+            <div className="mb-4 flex items-center justify-between gap-4">
+              <div>
+                <h3 className="font-display text-lg">{t("riskReturnTitle")}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {t("riskReturnSubtitle")}
+                </p>
+              </div>
+              <label className="flex shrink-0 items-center gap-2 rounded-lg border border-border/50 bg-accent/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
                 <input
                   type="checkbox"
                   checked={debugTangentSlope}
                   onChange={(e) => setDebugTangentSlope(e.target.checked)}
-                  className="h-4 w-4 rounded border-input"
+                  className="h-3.5 w-3.5 rounded border-input"
                 />
-                Debug
+                {t("debug")}
               </label>
             </div>
             <ChartReveal placeholderClassName="h-[280px] sm:h-[360px] md:h-[400px]">
@@ -331,8 +395,8 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
                   comparisonData={weightsComparisonData}
                   title={
                     weightsComparisonData
-                      ? "Comparación de Pesos"
-                      : "Pesos del Portafolio"
+                      ? t("weightsComparison")
+                      : t("portfolioWeights")
                   }
                 />
               </ChartReveal>
@@ -341,170 +405,36 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
             <div className="glass-card p-4 md:p-5">
               <h3 className="mb-4 font-display text-lg">
                 {userPortfolioStats
-                  ? "Comparación de Portafolios"
-                  : "Estadísticas del Portafolio"}
+                  ? t("comparisonTitle")
+                  : t("negRiskDistribution")}
               </h3>
               {userPortfolioStats ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="px-2 py-2 text-left font-medium">
-                          Métrica
-                        </th>
-                        <th className="px-2 py-2 text-right font-medium text-emerald-400">
-                          Óptimo
-                        </th>
-                        <th className="px-2 py-2 text-right font-medium text-amber-400">
-                          Tu Portafolio
-                        </th>
-                        <th className="px-2 py-2 text-right font-medium">
-                          Diferencia
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-border/50">
-                        <td className="px-2 py-2 text-muted-foreground">
-                          Rendimiento Esperado
-                        </td>
-                        <td className="px-2 py-2 text-right font-medium">
-                          {formatPercent(result.expected_return)}
-                        </td>
-                        <td className="px-2 py-2 text-right font-medium">
-                          {formatPercent(userPortfolioStats.expectedReturn)}
-                        </td>
-                        <td
-                          className={cn(
-                            "px-2 py-2 text-right font-medium",
-                            result.expected_return >
-                              userPortfolioStats.expectedReturn
-                              ? "text-emerald-400"
-                              : "text-amber-400"
-                          )}
-                        >
-                          {result.expected_return >=
-                          userPortfolioStats.expectedReturn
-                            ? "+"
-                            : ""}
-                          {formatPercent(
-                            result.expected_return -
-                              userPortfolioStats.expectedReturn
-                          )}
-                        </td>
-                      </tr>
-                      <tr className="border-b border-border/50">
-                        <td className="px-2 py-2 text-muted-foreground">
-                          Volatilidad
-                        </td>
-                        <td className="px-2 py-2 text-right font-medium">
-                          {formatPercent(result.volatility)}
-                        </td>
-                        <td className="px-2 py-2 text-right font-medium">
-                          {formatPercent(userPortfolioStats.volatility)}
-                        </td>
-                        <td
-                          className={cn(
-                            "px-2 py-2 text-right font-medium",
-                            result.volatility < userPortfolioStats.volatility
-                              ? "text-emerald-400"
-                              : "text-amber-400"
-                          )}
-                        >
-                          {result.volatility >= userPortfolioStats.volatility
-                            ? "+"
-                            : ""}
-                          {formatPercent(
-                            result.volatility - userPortfolioStats.volatility
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    * La volatilidad de tu portafolio es una aproximación
-                    basada en el promedio ponderado.
-                  </p>
-                </div>
+                <ComparisonPanel
+                  optimal={{
+                    expectedReturn: result.expected_return,
+                    volatility: result.volatility,
+                  }}
+                  user={userPortfolioStats}
+                />
               ) : (
-                <dl className="space-y-3">
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">
-                      Rendimiento Esperado
-                    </dt>
-                    <dd className="font-medium">
-                      {formatPercent(result.expected_return)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Volatilidad</dt>
-                    <dd className="font-medium">
-                      {formatPercent(result.volatility)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">Ratio de Sharpe</dt>
-                    <dd className="font-medium">
-                      {result.sharpe_ratio?.toFixed(2) ?? "N/A"}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">IC 95% Inferior</dt>
-                    <dd className="font-medium">
-                      {formatPercent(result.stats.ci_95_low)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">IC 95% Superior</dt>
-                    <dd className="font-medium">
-                      {formatPercent(result.stats.ci_95_high)}
-                    </dd>
-                  </div>
-
-                  <hr className="my-3" />
-
-                  <div className="text-sm font-medium text-muted-foreground">
-                    Probabilidad de Rendimiento Negativo
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">1 Mes</dt>
-                    <dd className="font-medium">
-                      {formatPercent(result.stats.prob_neg_1m)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">3 Meses</dt>
-                    <dd className="font-medium">
-                      {formatPercent(result.stats.prob_neg_3m)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">1 Año</dt>
-                    <dd className="font-medium">
-                      {formatPercent(result.stats.prob_neg_1y)}
-                    </dd>
-                  </div>
-                  <div className="flex justify-between">
-                    <dt className="text-muted-foreground">2 Años</dt>
-                    <dd className="font-medium">
-                      {formatPercent(result.stats.prob_neg_2y)}
-                    </dd>
-                  </div>
-                </dl>
+                <ProbNegBars stats={result.stats} />
               )}
             </div>
           </div>
 
           {cumRetChartData.data.length > 0 && (
             <div className="glass-card p-4 md:p-5">
-              <h3 className="mb-4 font-display text-lg">
-                Rendimientos Acumulados
-              </h3>
+              <div className="mb-4">
+                <h3 className="font-display text-lg">{t("cumulativeReturnsTitle")}</h3>
+                <p className="text-xs text-muted-foreground">
+                  {t("cumulativeReturnsSubtitle")}
+                </p>
+              </div>
               <ChartReveal>
                 <CumulativeReturnsChart
                   data={cumRetChartData.data}
                   series={cumRetChartData.series}
-                  highlightSeries="Portafolio Óptimo"
+                  highlightSeries={optimalPortfolioLabel}
                 />
               </ChartReveal>
             </div>
@@ -512,9 +442,14 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
 
           {negReturnData && (
             <div className="glass-card p-4 md:p-5">
-              <h3 className="mb-4 font-display text-lg">
-                Probabilidad de Rendimiento Negativo en el Tiempo
-              </h3>
+              <div className="mb-4">
+                <h3 className="font-display text-lg">
+                  {t("probNegTitle")}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {t("probNegSubtitle")}
+                </p>
+              </div>
               <ChartReveal placeholderClassName="h-[220px] sm:h-[260px] md:h-[300px]">
                 <ProbNegReturnChart data={negReturnData.points} />
               </ChartReveal>
@@ -525,20 +460,20 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
         <Tabs.Content value="data" className="space-y-6">
           <div className="glass-card p-4 md:p-5">
             <h3 className="mb-4 font-display text-lg">
-              Rendimientos Esperados y Volatilidad
+              {t("expReturnsAndVolTitle")}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border">
-                    <th className="px-2 py-2 text-left font-medium">Activo</th>
+                    <th className="px-2 py-2 text-left font-medium">{t("tableAsset")}</th>
                     <th className="px-2 py-2 text-right font-medium">
-                      Rend. Esperado
+                      {t("tableExpReturn")}
                     </th>
                     <th className="px-2 py-2 text-right font-medium">
-                      Volatilidad
+                      {t("tableVolatility")}
                     </th>
-                    <th className="px-2 py-2 text-right font-medium">Peso</th>
+                    <th className="px-2 py-2 text-right font-medium">{t("tableWeight")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -587,7 +522,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
           {result.debug && (
             <div className="glass-card p-4 md:p-5">
               <h3 className="mb-4 font-display text-lg">
-                Proceso de Cálculo (Debug)
+                {t("calcStepsTitle")}
               </h3>
               <CalculationSteps
                 debug={result.debug}
@@ -597,6 +532,138 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
           )}
         </Tabs.Content>
       </Tabs.Root>
+    </div>
+  );
+}
+
+interface ComparisonPanelProps {
+  optimal: { expectedReturn: number; volatility: number };
+  user: { expectedReturn: number; volatility: number };
+}
+
+function ComparisonPanel({ optimal, user }: ComparisonPanelProps) {
+  const t = useTranslations("MarkowitzResults");
+  const rows: {
+    label: string;
+    optimal: number;
+    user: number;
+    higherIsBetter: boolean;
+  }[] = [
+    {
+      label: t("compareReturnLabel"),
+      optimal: optimal.expectedReturn,
+      user: user.expectedReturn,
+      higherIsBetter: true,
+    },
+    {
+      label: t("compareVolatilityLabel"),
+      optimal: optimal.volatility,
+      user: user.volatility,
+      higherIsBetter: false,
+    },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {rows.map((row) => {
+        const max = Math.max(row.optimal, row.user, 0.0001);
+        const optPct = (row.optimal / max) * 100;
+        const userPct = (row.user / max) * 100;
+        const diff = row.optimal - row.user;
+        const optimalBetter = row.higherIsBetter ? diff > 0 : diff < 0;
+        return (
+          <div key={row.label} className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">{row.label}</span>
+              <span
+                className={cn(
+                  "font-mono text-xs tabular-nums",
+                  optimalBetter ? "text-emerald-400" : "text-amber-400"
+                )}
+              >
+                {diff > 0 ? "+" : ""}
+                {formatPercent(diff)}
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-3">
+                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-[#fcd9a8]/80">
+                  {t("compareOptimal")}
+                </span>
+                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/40">
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#c89853] to-[#fcd9a8] transition-all duration-700"
+                    style={{ width: `${optPct}%` }}
+                  />
+                </div>
+                <span className="w-14 text-right font-mono text-xs tabular-nums">
+                  {formatPercent(row.optimal)}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-amber-300/80">
+                  {t("compareUserAlloc")}
+                </span>
+                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/40">
+                  <div
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-500 to-amber-200 transition-all duration-700"
+                    style={{ width: `${userPct}%` }}
+                  />
+                </div>
+                <span className="w-14 text-right font-mono text-xs tabular-nums">
+                  {formatPercent(row.user)}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-xs text-muted-foreground">
+        {t("compareDisclaimer")}
+      </p>
+    </div>
+  );
+}
+
+interface ProbNegBarsProps {
+  stats: {
+    prob_neg_1m: number;
+    prob_neg_3m: number;
+    prob_neg_1y: number;
+    prob_neg_2y: number;
+  };
+}
+
+function ProbNegBars({ stats }: ProbNegBarsProps) {
+  const t = useTranslations("MarkowitzResults");
+  const horizons = [
+    { label: t("horizon1m"), value: stats.prob_neg_1m },
+    { label: t("horizon3m"), value: stats.prob_neg_3m },
+    { label: t("horizon1y"), value: stats.prob_neg_1y },
+    { label: t("horizon2y"), value: stats.prob_neg_2y },
+  ];
+  const max = Math.max(...horizons.map((h) => h.value), 0.001);
+  return (
+    <div className="space-y-3">
+      {horizons.map((h) => {
+        const pct = (h.value / max) * 100;
+        return (
+          <div key={h.label} className="space-y-1">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{h.label}</span>
+              <span className="font-mono font-medium tabular-nums text-foreground">
+                {formatPercent(h.value)}
+              </span>
+            </div>
+            <div className="relative h-1.5 overflow-hidden rounded-full bg-accent/40">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-rose-500/70 to-rose-300/90 transition-all duration-700"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

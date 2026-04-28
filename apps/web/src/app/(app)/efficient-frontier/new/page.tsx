@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useOptimization } from "@/hooks/useOptimization";
 import { useSaveSimulation } from "@/hooks/useSimulations";
 import { OptimizationStrategy, OPTIMIZATION_STRATEGIES, SimulationParams } from "@/lib/api";
@@ -12,6 +13,8 @@ import * as Popover from "@radix-ui/react-popover";
 import { Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LessonButton } from "@/components/academia/LessonButton";
+import { authClient } from "@/lib/auth-client";
+import { SignInPrompt } from "@/components/auth/SignInPrompt";
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -26,7 +29,11 @@ const INITIAL_ASSETS: AssetRow[] = Array.from({ length: 2 }, () => ({
 }));
 
 export default function NewOptimizationPage() {
+  const t = useTranslations("NewOptimization");
+  const tCommon = useTranslations("Common");
   const router = useRouter();
+  const { data: session, isPending: isSessionPending } = authClient.useSession();
+  const isSignedIn = !!session?.user;
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showFrontier, setShowFrontier] = useState(true);
   const [assetConstraints, setAssetConstraints] = useState(false);
@@ -93,6 +100,7 @@ export default function NewOptimizationPage() {
     return `${dateRange.endYear}-${month}-${String(lastDay).padStart(2, "0")}`;
   }, [dateRange.endMonth, dateRange.endYear]);
 
+  const tStrategies = useTranslations("Strategies");
   const currentStrategy = OPTIMIZATION_STRATEGIES.find((s) => s.value === strategy);
 
   const {
@@ -135,11 +143,28 @@ export default function NewOptimizationPage() {
 
   const canProceed = selectedTickers.length >= 2 && isAllocationValid;
 
+  if (isSessionPending) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-muted-foreground">{tCommon("loading")}</div>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <SignInPrompt
+        title={t("signInTitle")}
+        description={t("signInDescription")}
+      />
+    );
+  }
+
   if (isSubmitted) {
     const errorMessage = optimizationError
-      ? "Error al optimizar. Verifica los activos y vuelve a intentarlo."
+      ? t("errorOptimize")
       : saveSimulation.isError
-      ? "Error al guardar la simulación."
+      ? t("errorSave")
       : null;
 
     if (errorMessage) {
@@ -154,15 +179,15 @@ export default function NewOptimizationPage() {
             }}
             className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent"
           >
-            Volver a la configuración
+            {t("backToConfig")}
           </button>
         </div>
       );
     }
 
     const loadingLabel = loadingOptimization || !optimizationResult
-      ? "Optimizando portafolio..."
-      : "Guardando simulación...";
+      ? t("loadingOptimize")
+      : t("loadingSave");
 
     return (
       <div className="flex h-64 flex-col items-center justify-center gap-3">
@@ -175,21 +200,21 @@ export default function NewOptimizationPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 md:space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl md:text-3xl tracking-tight">Configuración de Portafolio</h1>
+        <h1 className="font-display text-2xl md:text-3xl tracking-tight">{t("title")}</h1>
         <LessonButton
           station="portfolio"
-          label="¿Primera vez? Ver guía Top-Down"
+          label={t("lessonPortfolio")}
         />
       </div>
 
       {/* Date Range & Parameters */}
       <div className="glass-card p-4 md:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg">Parámetros</h2>
+          <h2 className="font-display text-lg">{t("parameters")}</h2>
           <LessonButton
             station="allocation"
             variant="inline"
-            label="¿Cómo elegir?"
+            label={t("lessonAllocation")}
           />
         </div>
         <div className="grid gap-6 md:grid-cols-2">
@@ -197,14 +222,14 @@ export default function NewOptimizationPage() {
           <div>
             <div className="mb-2 flex items-center gap-1.5">
               <label className="block text-sm font-medium">
-                Rango de Fechas
+                {t("dateRangeLabel")}
               </label>
               <Popover.Root>
                 <Popover.Trigger asChild>
                   <button
                     type="button"
                     className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    aria-label="Información sobre rango de fechas"
+                    aria-label={t("dateRangeInfoAria")}
                   >
                     <Info className="h-3.5 w-3.5" />
                   </button>
@@ -216,18 +241,18 @@ export default function NewOptimizationPage() {
                     align="start"
                   >
                     <div className="space-y-2">
-                      <h4 className="text-sm font-semibold">Rango de Fechas</h4>
+                      <h4 className="text-sm font-semibold">{t("dateRangeInfoTitle")}</h4>
                       <p className="text-xs text-muted-foreground">
-                        Define el periodo historico de datos que se utilizara para calcular rendimientos esperados, volatilidades y correlaciones entre activos.
+                        {t("dateRangeInfoIntro")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <strong>Inicio:</strong> Primer mes del periodo de analisis. Se toman datos desde el primer dia del mes seleccionado.
+                        <strong>{t("dateRangeInfoStartLabel")}</strong> {t("dateRangeInfoStart")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <strong>Fin:</strong> Ultimo mes del periodo de analisis. Se toman datos hasta el ultimo dia del mes seleccionado.
+                        <strong>{t("dateRangeInfoEndLabel")}</strong> {t("dateRangeInfoEnd")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <strong>Recomendacion:</strong> Un periodo de 3 a 5 anos ofrece un buen balance entre capturar tendencias de mercado y evitar datos obsoletos. Periodos mas largos suavizan la volatilidad pero pueden incluir condiciones de mercado que ya no son relevantes.
+                        <strong>{t("dateRangeInfoTipLabel")}</strong> {t("dateRangeInfoTip")}
                       </p>
                     </div>
                     <Popover.Arrow className="fill-border" />
@@ -242,14 +267,14 @@ export default function NewOptimizationPage() {
           <div>
             <div className="mb-2 flex items-center gap-1.5">
               <label className="block text-sm font-medium">
-                Estrategia de Optimización
+                {t("strategyLabel")}
               </label>
               <Popover.Root>
                 <Popover.Trigger asChild>
                   <button
                     type="button"
                     className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    aria-label="Información sobre estrategias de optimización"
+                    aria-label={t("strategyInfoAria")}
                   >
                     <Info className="h-3.5 w-3.5" />
                   </button>
@@ -262,46 +287,46 @@ export default function NewOptimizationPage() {
                   >
                     <div className="space-y-3">
                       <p className="text-sm font-medium">
-                        Estrategias de Optimización de Portafolio
+                        {t("strategyInfoTitle")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Selecciona como quieres optimizar tu portafolio segun la teoria de Markowitz:
+                        {t("strategyInfoIntro")}
                       </p>
                       <ul className="space-y-2 text-xs">
                         <li>
-                          <span className="font-medium">Maximo Sharpe:</span>{" "}
+                          <span className="font-medium">{t("strategyMaxSharpeLabel")}</span>{" "}
                           <span className="text-muted-foreground">
-                            Maximiza el rendimiento ajustado por riesgo usando el ratio de Sharpe. Ideal para obtener el mejor equilibrio entre riesgo y rendimiento.
+                            {t("strategyMaxSharpeText")}
                           </span>
                         </li>
                         <li>
-                          <span className="font-medium">Minimo Riesgo:</span>{" "}
+                          <span className="font-medium">{t("strategyMinRiskLabel")}</span>{" "}
                           <span className="text-muted-foreground">
-                            Minimiza la volatilidad del portafolio. Recomendado para inversores conservadores.
+                            {t("strategyMinRiskText")}
                           </span>
                         </li>
                         <li>
-                          <span className="font-medium">Maximo Rendimiento:</span>{" "}
+                          <span className="font-medium">{t("strategyMaxReturnLabel")}</span>{" "}
                           <span className="text-muted-foreground">
-                            Maximiza el rendimiento esperado sin considerar el riesgo. Para inversores agresivos.
+                            {t("strategyMaxReturnText")}
                           </span>
                         </li>
                         <li>
-                          <span className="font-medium">Rendimiento Objetivo:</span>{" "}
+                          <span className="font-medium">{t("strategyTargetReturnLabel")}</span>{" "}
                           <span className="text-muted-foreground">
-                            Encuentra el portafolio de minimo riesgo que alcance un rendimiento especifico.
+                            {t("strategyTargetReturnText")}
                           </span>
                         </li>
                         <li>
-                          <span className="font-medium">Riesgo Objetivo:</span>{" "}
+                          <span className="font-medium">{t("strategyTargetRiskLabel")}</span>{" "}
                           <span className="text-muted-foreground">
-                            Encuentra el portafolio de maximo rendimiento para un nivel de riesgo especifico.
+                            {t("strategyTargetRiskText")}
                           </span>
                         </li>
                         <li>
-                          <span className="font-medium">Punto de Inflexion:</span>{" "}
+                          <span className="font-medium">{t("strategyInflectionLabel")}</span>{" "}
                           <span className="text-muted-foreground">
-                            Identifica el punto de maxima curvatura en la frontera eficiente, donde el beneficio marginal de asumir mas riesgo comienza a disminuir.
+                            {t("strategyInflectionText")}
                           </span>
                         </li>
                       </ul>
@@ -318,18 +343,18 @@ export default function NewOptimizationPage() {
             >
               {OPTIMIZATION_STRATEGIES.map((s) => (
                 <option key={s.value} value={s.value}>
-                  {s.label}
+                  {tStrategies(`${s.value}.label`)}
                 </option>
               ))}
             </select>
             <p className="mt-1 text-xs text-muted-foreground">
-              {currentStrategy?.description}
+              {currentStrategy ? tStrategies(`${currentStrategy.value}.description`) : null}
             </p>
 
             {strategy === "target-return" && (
               <div className="mt-3">
                 <label className="mb-1 block text-xs text-muted-foreground">
-                  Rendimiento objetivo: {(targetReturn * 100).toFixed(1)}%
+                  {t("targetReturnSlider", { value: (targetReturn * 100).toFixed(1) })}
                 </label>
                 <input
                   type="range"
@@ -347,14 +372,14 @@ export default function NewOptimizationPage() {
               <div className="mt-3">
                 <div className="mb-1 flex items-center gap-1">
                   <label className="text-xs text-muted-foreground">
-                    Riesgo objetivo (volatilidad): {(targetRisk * 100).toFixed(1)}%
+                    {t("targetRiskSlider", { value: (targetRisk * 100).toFixed(1) })}
                   </label>
                   <Popover.Root>
                     <Popover.Trigger asChild>
                       <button
                         type="button"
                         className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                        aria-label="Informacion sobre riesgo objetivo"
+                        aria-label={t("targetRiskInfoAria")}
                       >
                         <Info className="h-3.5 w-3.5" />
                       </button>
@@ -366,15 +391,15 @@ export default function NewOptimizationPage() {
                         align="start"
                       >
                         <div className="space-y-2">
-                          <h4 className="text-sm font-semibold">Riesgo Objetivo (Volatilidad)</h4>
+                          <h4 className="text-sm font-semibold">{t("targetRiskInfoTitle")}</h4>
                           <p className="text-xs text-muted-foreground">
-                            Este parametro establece la volatilidad maxima permitida para el portafolio. La volatilidad mide la dispersion de los rendimientos y se expresa como porcentaje anualizado.
+                            {t("targetRiskInfoIntro")}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            <strong>Como funciona:</strong> El optimizador busca el portafolio con el mayor rendimiento esperado cuya volatilidad no exceda el valor objetivo. Si existen multiples portafolios que cumplen la restriccion, se selecciona el de mayor rendimiento.
+                            <strong>{t("targetRiskInfoHowLabel")}</strong> {t("targetRiskInfoHow")}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            <strong>Factibilidad:</strong> Si el riesgo objetivo es menor que la volatilidad minima alcanzable (portafolio de minima varianza), el optimizador devolvera el portafolio de menor riesgo posible. Valores tipicos estan entre 10% y 25% anual.
+                            <strong>{t("targetRiskInfoFeasLabel")}</strong> {t("targetRiskInfoFeas")}
                           </p>
                         </div>
                         <Popover.Arrow className="fill-border" />
@@ -397,7 +422,7 @@ export default function NewOptimizationPage() {
             {strategy === "max-sharpe" && (
               <div className="mt-3">
                 <label className="mb-1 block text-xs text-muted-foreground">
-                  Tasa libre de riesgo: {(riskFreeRate * 100).toFixed(3)}%
+                  {t("riskFreeRateSlider", { value: (riskFreeRate * 100).toFixed(3) })}
                 </label>
                 <input
                   type="range"
@@ -416,14 +441,14 @@ export default function NewOptimizationPage() {
           <div>
             <div className="mb-2 flex items-center gap-1.5">
               <label className="block text-sm font-medium">
-                Restricciones de Activos
+                {t("assetConstraintsLabel")}
               </label>
               <Popover.Root>
                 <Popover.Trigger asChild>
                   <button
                     type="button"
                     className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                    aria-label="Información sobre restricciones de activos"
+                    aria-label={t("assetConstraintsInfoAria")}
                   >
                     <Info className="h-3.5 w-3.5" />
                   </button>
@@ -435,15 +460,15 @@ export default function NewOptimizationPage() {
                     align="start"
                   >
                     <div className="space-y-2">
-                      <h4 className="text-sm font-semibold">Restricciones de Activos</h4>
+                      <h4 className="text-sm font-semibold">{t("assetConstraintsInfoTitle")}</h4>
                       <p className="text-xs text-muted-foreground">
-                        Permite imponer limites sobre el peso maximo que cada activo individual puede tener en el portafolio optimizado.
+                        {t("assetConstraintsInfoIntro")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <strong>Sin restricciones:</strong> El optimizador puede asignar cualquier peso entre 0% y 100% a cada activo, lo que puede resultar en portafolios muy concentrados.
+                        <strong>{t("assetConstraintsInfoNoneLabel")}</strong> {t("assetConstraintsInfoNone")}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        <strong>Con restricciones:</strong> Se establece un peso maximo por activo, forzando una mayor diversificacion. Por ejemplo, un limite de 30% asegura que ningun activo represente mas de ese porcentaje del portafolio.
+                        <strong>{t("assetConstraintsInfoWithLabel")}</strong> {t("assetConstraintsInfoWith")}
                       </p>
                     </div>
                     <Popover.Arrow className="fill-border" />
@@ -456,21 +481,21 @@ export default function NewOptimizationPage() {
               onChange={(e) => setAssetConstraints(e.target.value === "yes")}
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             >
-              <option value="no">No</option>
-              <option value="yes">Sí</option>
+              <option value="no">{tCommon("no")}</option>
+              <option value="yes">{tCommon("yes")}</option>
             </select>
             {assetConstraints && (
               <div className="mt-2">
                 <div className="mb-1 flex items-center gap-1">
                   <label className="text-xs text-muted-foreground">
-                    Peso maximo por activo: {Math.round(wMax * 100)}%
+                    {t("wMaxSlider", { value: Math.round(wMax * 100) })}
                   </label>
                   <Popover.Root>
                     <Popover.Trigger asChild>
                       <button
                         type="button"
                         className="inline-flex items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                        aria-label="Informacion sobre peso maximo por activo"
+                        aria-label={t("wMaxInfoAria")}
                       >
                         <Info className="h-3.5 w-3.5" />
                       </button>
@@ -482,15 +507,15 @@ export default function NewOptimizationPage() {
                         align="start"
                       >
                         <div className="space-y-2">
-                          <h4 className="text-sm font-semibold">Peso Maximo por Activo</h4>
+                          <h4 className="text-sm font-semibold">{t("wMaxInfoTitle")}</h4>
                           <p className="text-xs text-muted-foreground">
-                            Este parametro limita la concentracion maxima que puede tener un solo activo en el portafolio optimizado.
+                            {t("wMaxInfoIntro")}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            <strong>Por que es importante:</strong> La concentracion excesiva en un solo activo aumenta el riesgo especifico. Si una empresa o sector tiene problemas, un portafolio muy concentrado sufrira perdidas significativas.
+                            <strong>{t("wMaxInfoWhyLabel")}</strong> {t("wMaxInfoWhy")}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            <strong>Efecto en la optimizacion:</strong> Un limite mas bajo fuerza mayor diversificacion, lo que generalmente reduce el riesgo pero puede disminuir el rendimiento esperado. Un limite mas alto permite al optimizador concentrar mas capital en los activos con mejor relacion riesgo-rendimiento.
+                            <strong>{t("wMaxInfoEffectLabel")}</strong> {t("wMaxInfoEffect")}
                           </p>
                         </div>
                         <Popover.Arrow className="fill-border" />
@@ -521,7 +546,7 @@ export default function NewOptimizationPage() {
               className="h-4 w-4 rounded border-input"
             />
             <label htmlFor="showFrontier" className="text-sm">
-              Mostrar Frontera Eficiente
+              {t("showFrontier")}
             </label>
           </div>
         </div>
@@ -529,7 +554,7 @@ export default function NewOptimizationPage() {
 
       {/* Portfolio Constraints */}
       <div className="glass-card p-4 md:p-6">
-        <h2 className="mb-4 font-display text-lg">Restricciones del Portafolio</h2>
+        <h2 className="mb-4 font-display text-lg">{t("portfolioConstraints")}</h2>
         <ConstraintsPanel
           enforceFullInvestment={enforceFullInvestment}
           onEnforceFullInvestmentChange={setEnforceFullInvestment}
@@ -545,11 +570,11 @@ export default function NewOptimizationPage() {
       {/* Asset Allocation */}
       <div className="glass-card p-4 md:p-6">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="font-display text-lg">Activos</h2>
+          <h2 className="font-display text-lg">{t("assets")}</h2>
           <LessonButton
             station="assets"
             variant="inline"
-            label="¿Cómo elegir activos?"
+            label={t("lessonAssets")}
           />
         </div>
         <AssetAllocationForm assets={assets} onChange={setAssets} />
@@ -560,8 +585,8 @@ export default function NewOptimizationPage() {
         {!canProceed && (
           <p className="text-sm text-muted-foreground sm:mr-4">
             {selectedTickers.length < 2
-              ? "Selecciona al menos 2 activos"
-              : `La suma de asignaciones debe ser 100% (actual: ${totalAllocation.toFixed(1)}%)`}
+              ? t("needAtLeastTwo")
+              : t("allocationMustSumTo100", { value: totalAllocation.toFixed(1) })}
           </p>
         )}
         <button
@@ -574,7 +599,7 @@ export default function NewOptimizationPage() {
               : "cursor-not-allowed bg-muted text-muted-foreground"
           )}
         >
-          Siguiente
+          {t("submit")}
         </button>
       </div>
     </div>

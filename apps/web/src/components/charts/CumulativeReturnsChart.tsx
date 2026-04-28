@@ -1,16 +1,25 @@
 "use client";
 
 import {
-  LineChart,
+  ComposedChart,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
+import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
+import {
+  CHART_GRID_STROKE,
+  CHART_PALETTE,
+  ChartLegend,
+  ChartTooltip,
+  axisProps,
+  formatChartDate,
+} from "./chart-theme";
 
 interface DataPoint {
   date: string;
@@ -23,66 +32,131 @@ interface CumulativeReturnsChartProps {
   highlightSeries?: string;
 }
 
-const COLORS = [
-  "#5b8def",
-  "#34d399",
-  "#fbbf24",
-  "#f87171",
-  "#a78bfa",
-  "#2dd4bf",
-  "#fb7185",
-  "#a3e635",
-];
-
 export function CumulativeReturnsChart({
   data,
   series,
   highlightSeries,
 }: CumulativeReturnsChartProps) {
+  const t = useTranslations("CumulativeReturnsChart");
+  const effectiveHighlight = highlightSeries ?? t("highlightDefault");
+  const seriesMeta = series.map((name, i) => {
+    const palette = CHART_PALETTE[i % CHART_PALETTE.length];
+    return {
+      name,
+      color: palette.stroke,
+      gradientId: `cum-grad-${i}`,
+      isHighlight: name === effectiveHighlight,
+    };
+  });
+
   return (
-    <div className="h-[260px] sm:h-[340px] md:h-[400px]">
-    <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis
-          dataKey="date"
-          tickFormatter={(date) => {
-            const d = new Date(date);
-            return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
-          }}
-        />
-        <YAxis tickFormatter={(v) => formatPercent(v, 0)} />
-        <Tooltip
-          formatter={(value: number) => formatPercent(value)}
-          labelFormatter={(label) => {
-            const d = new Date(label);
-            return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
-          }}
-          contentStyle={{
-            background: "hsl(230 15% 10%)",
-            border: "1px solid hsl(230 12% 20%)",
-            borderRadius: "8px",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.5)",
-          }}
-          labelStyle={{ color: "hsl(40 6% 90%)", fontWeight: 500 }}
-          itemStyle={{ color: "hsl(40 6% 75%)" }}
-        />
-        <Legend />
-        {series.map((name, index) => (
-          <Line
-            key={name}
-            type="monotone"
-            dataKey={name}
-            stroke={COLORS[index % COLORS.length]}
-            strokeWidth={
-              highlightSeries === name || name === "Portafolio Óptimo" ? 3 : 1.5
-            }
-            dot={false}
-            name={name}
-          />
-        ))}
-      </LineChart>
-    </ResponsiveContainer>
+    <div>
+      <ChartLegend
+        items={seriesMeta.map((s) => ({
+          label: s.name,
+          color: s.color,
+          variant: "line" as const,
+        }))}
+        className="mb-3"
+      />
+      <div className="h-[260px] sm:h-[340px] md:h-[400px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart
+            data={data}
+            margin={{ top: 8, right: 16, left: 4, bottom: 4 }}
+          >
+            <defs>
+              {seriesMeta.map((s) => (
+                <linearGradient
+                  key={s.gradientId}
+                  id={s.gradientId}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="0%"
+                    stopColor={s.color}
+                    stopOpacity={s.isHighlight ? 0.45 : 0.18}
+                  />
+                  <stop
+                    offset="60%"
+                    stopColor={s.color}
+                    stopOpacity={s.isHighlight ? 0.12 : 0.04}
+                  />
+                  <stop offset="100%" stopColor={s.color} stopOpacity={0} />
+                </linearGradient>
+              ))}
+              <filter id="cum-line-glow">
+                <feGaussianBlur stdDeviation="2" />
+              </filter>
+            </defs>
+            <CartesianGrid
+              stroke={CHART_GRID_STROKE}
+              strokeDasharray="2 4"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="date"
+              tickFormatter={formatChartDate}
+              minTickGap={48}
+              {...axisProps}
+            />
+            <YAxis
+              tickFormatter={(v) => formatPercent(v, 0)}
+              {...axisProps}
+            />
+            <Tooltip
+              cursor={{
+                stroke: "hsl(230 12% 28%)",
+                strokeDasharray: "3 3",
+                strokeWidth: 1,
+              }}
+              content={({ active, payload, label }) => (
+                <ChartTooltip
+                  active={active}
+                  payload={payload as never}
+                  label={label as string | number | undefined}
+                  labelFormatter={(l) => formatChartDate(l)}
+                  valueFormatter={(v) => formatPercent(v)}
+                />
+              )}
+            />
+            {seriesMeta.map((s) => (
+              <Area
+                key={`area-${s.name}`}
+                type="monotone"
+                dataKey={s.name}
+                stroke="none"
+                fill={`url(#${s.gradientId})`}
+                isAnimationActive
+                animationDuration={900}
+              />
+            ))}
+            {seriesMeta.map((s) => (
+              <Line
+                key={`line-${s.name}`}
+                type="monotone"
+                dataKey={s.name}
+                stroke={s.color}
+                strokeWidth={s.isHighlight ? 2.5 : 1.5}
+                strokeOpacity={s.isHighlight ? 1 : 0.7}
+                dot={false}
+                activeDot={{
+                  r: s.isHighlight ? 5 : 4,
+                  fill: s.color,
+                  stroke: "hsl(230 15% 6%)",
+                  strokeWidth: 2,
+                }}
+                name={s.name}
+                isAnimationActive
+                animationDuration={900}
+              />
+            ))}
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }

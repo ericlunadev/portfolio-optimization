@@ -2,6 +2,7 @@
 
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef, ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import type { StationMeta } from "./lessons";
 
@@ -13,6 +14,7 @@ interface StationFrameProps {
 }
 
 export function StationFrame({ station, children, id, className }: StationFrameProps) {
+  const tLessons = useTranslations("Academia.Lessons");
   const ref = useRef<HTMLElement>(null);
 
   const { scrollYProgress } = useScroll({
@@ -39,15 +41,15 @@ export function StationFrame({ station, children, id, className }: StationFrameP
             </span>
             <div className="min-w-0">
               <div className="text-[10px] md:text-xs uppercase tracking-widest text-muted-foreground">
-                {station.label}
+                {tLessons(`${station.key}.label`)}
               </div>
               <h2 className="font-display text-2xl md:text-4xl leading-tight">
-                {station.title}
+                {tLessons(`${station.key}.title`)}
               </h2>
             </div>
           </div>
           <p className="mb-8 md:mb-10 max-w-2xl text-sm md:text-lg text-muted-foreground italic border-l-2 border-primary/40 pl-3 md:pl-4">
-            {station.tagline}
+            {tLessons(`${station.key}.tagline`)}
           </p>
           {children}
         </div>

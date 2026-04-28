@@ -2,22 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { BarChart3, Home, GraduationCap } from "lucide-react";
 
 const navItems = [
-  { href: "/", label: "Inicio", icon: Home },
-  { href: "/efficient-frontier", label: "Frontera Eficiente", icon: BarChart3 },
-  { href: "/academia", label: "Academia", icon: GraduationCap },
-];
+  { href: "/", labelKey: "home", icon: Home },
+  { href: "/efficient-frontier", labelKey: "efficientFrontier", icon: BarChart3 },
+  { href: "/academia", labelKey: "academia", icon: GraduationCap },
+] as const;
 
 export function MobileTabBar() {
   const pathname = usePathname();
+  const tNav = useTranslations("Nav");
 
   return (
     <nav
       className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-card/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
-      aria-label="Navegación principal"
+      aria-label={tNav("ariaLabel")}
     >
       <ul className="grid grid-cols-3">
         {navItems.map((item) => {
@@ -39,7 +41,7 @@ export function MobileTabBar() {
                 aria-current={isActive ? "page" : undefined}
               >
                 <item.icon className="h-5 w-5" strokeWidth={isActive ? 2.25 : 1.75} />
-                <span>{item.label}</span>
+                <span>{tNav(item.labelKey)}</span>
               </Link>
             </li>
           );

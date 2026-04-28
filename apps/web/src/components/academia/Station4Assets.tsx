@@ -2,15 +2,16 @@
 
 import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { StationFrame } from "./StationFrame";
 import { getStation } from "./lessons";
 import { cn } from "@/lib/utils";
 
 interface Candidate {
   ticker: string;
-  name: string;
+  nameKey: "alphaName" | "betaName" | "deltaName";
   moat: number; // 0-100
-  valuation: number; // 0-100 (100 = muy barata)
+  valuation: number; // 0-100 (100 = very cheap)
   balance: number; // 0-100
   trend: "up" | "down" | "sideways";
   rsi: number; // 0-100
@@ -20,7 +21,7 @@ interface Candidate {
 const CANDIDATES: Candidate[] = [
   {
     ticker: "ALPHA",
-    name: "Empresa con ventaja competitiva sólida",
+    nameKey: "alphaName",
     moat: 82,
     valuation: 55,
     balance: 75,
@@ -30,7 +31,7 @@ const CANDIDATES: Candidate[] = [
   },
   {
     ticker: "BETA",
-    name: "Líder sectorial con precio caliente",
+    nameKey: "betaName",
     moat: 70,
     valuation: 28,
     balance: 68,
@@ -40,7 +41,7 @@ const CANDIDATES: Candidate[] = [
   },
   {
     ticker: "DELTA",
-    name: "Buen precio pero negocio débil",
+    nameKey: "deltaName",
     moat: 35,
     valuation: 82,
     balance: 42,
@@ -102,6 +103,8 @@ function Gauge({ value, label }: { value: number; label: string }) {
 }
 
 export function Station4Assets({ id }: { id: string }) {
+  const t = useTranslations("Academia.Station4");
+  const tLessons = useTranslations("Academia.Lessons");
   const station = getStation("assets");
   const [active, setActive] = useState<string>(CANDIDATES[0].ticker);
   const candidate = CANDIDATES.find((c) => c.ticker === active)!;
@@ -126,11 +129,33 @@ export function Station4Assets({ id }: { id: string }) {
     [candidate.priceSeed, candidate.trend],
   );
 
+  const trendLabel =
+    candidate.trend === "up"
+      ? t("trendUp")
+      : candidate.trend === "down"
+        ? t("trendDown")
+        : t("trendSideways");
+
+  const rsiState =
+    candidate.rsi >= 70
+      ? t("rsiOverbought")
+      : candidate.rsi <= 30
+        ? t("rsiOversold")
+        : t("rsiNeutral");
+
+  const verdict = passesBoth
+    ? t("verdictPassBoth")
+    : passesFundamental
+      ? t("verdictPassFundamental")
+      : passesTechnical
+        ? t("verdictPassTechnical")
+        : t("verdictFail");
+
   return (
     <StationFrame station={station} id={id}>
       <div className="space-y-8">
         <p className="max-w-3xl text-muted-foreground leading-relaxed">
-          {station.summary}
+          {tLessons(`${station.key}.summary`)}
         </p>
 
         {/* Candidate selector */}
@@ -163,9 +188,9 @@ export function Station4Assets({ id }: { id: string }) {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                  ¿Qué comprar?
+                  {t("fundamentalKicker")}
                 </div>
-                <h3 className="font-display text-xl">Análisis Fundamental</h3>
+                <h3 className="font-display text-xl">{t("fundamentalTitle")}</h3>
               </div>
               <span
                 className={cn(
@@ -175,7 +200,7 @@ export function Station4Assets({ id }: { id: string }) {
                     : "bg-destructive/10 text-destructive",
                 )}
               >
-                {passesFundamental ? "✓ Aprueba" : "✗ No aprueba"}
+                {passesFundamental ? t("passes") : t("fails")}
               </span>
             </div>
             <AnimatePresence mode="wait">
@@ -186,13 +211,13 @@ export function Station4Assets({ id }: { id: string }) {
                 exit={{ opacity: 0 }}
                 className="space-y-3"
               >
-                <Gauge value={candidate.moat} label="Ventaja competitiva (moat)" />
-                <Gauge value={candidate.valuation} label="Valuación atractiva" />
-                <Gauge value={candidate.balance} label="Salud del balance" />
+                <Gauge value={candidate.moat} label={t("moatLabel")} />
+                <Gauge value={candidate.valuation} label={t("valuationLabel")} />
+                <Gauge value={candidate.balance} label={t("balanceLabel")} />
               </motion.div>
             </AnimatePresence>
             <p className="text-xs text-muted-foreground italic">
-              {candidate.name}
+              {t(candidate.nameKey)}
             </p>
           </motion.div>
 
@@ -207,9 +232,9 @@ export function Station4Assets({ id }: { id: string }) {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                  ¿Cuándo comprar?
+                  {t("technicalKicker")}
                 </div>
-                <h3 className="font-display text-xl">Análisis Técnico</h3>
+                <h3 className="font-display text-xl">{t("technicalTitle")}</h3>
               </div>
               <span
                 className={cn(
@@ -219,7 +244,7 @@ export function Station4Assets({ id }: { id: string }) {
                     : "bg-destructive/10 text-destructive",
                 )}
               >
-                {passesTechnical ? "✓ Aprueba" : "✗ No aprueba"}
+                {passesTechnical ? t("passes") : t("fails")}
               </span>
             </div>
 
@@ -242,7 +267,7 @@ export function Station4Assets({ id }: { id: string }) {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  Tendencia
+                  {t("trendLabel")}
                 </div>
                 <div
                   className={cn(
@@ -254,16 +279,12 @@ export function Station4Assets({ id }: { id: string }) {
                         : "text-muted-foreground",
                   )}
                 >
-                  {candidate.trend === "up"
-                    ? "Alcista ↗"
-                    : candidate.trend === "down"
-                      ? "Bajista ↘"
-                      : "Lateral →"}
+                  {trendLabel}
                 </div>
               </div>
               <div>
                 <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                  RSI
+                  {t("rsiLabel")}
                 </div>
                 <div
                   className={cn(
@@ -275,11 +296,7 @@ export function Station4Assets({ id }: { id: string }) {
                 >
                   {candidate.rsi}{" "}
                   <span className="text-xs text-muted-foreground">
-                    {candidate.rsi >= 70
-                      ? "sobrecompra"
-                      : candidate.rsi <= 30
-                        ? "sobreventa"
-                        : "neutral"}
+                    {rsiState}
                   </span>
                 </div>
               </div>
@@ -299,19 +316,13 @@ export function Station4Assets({ id }: { id: string }) {
         >
           <div>
             <div className="text-xs uppercase tracking-widest text-muted-foreground">
-              Veredicto del filtro doble
+              {t("verdictLabel")}
             </div>
             <div className={cn(
               "font-display text-xl",
               passesBoth ? "text-primary" : "text-foreground/60",
             )}>
-              {passesBoth
-                ? "Calidad + Timing. Candidato para incluir."
-                : passesFundamental
-                  ? "Buena empresa, mal momento. Esperá."
-                  : passesTechnical
-                    ? "Buen momento, empresa débil. Evitá."
-                    : "No pasa ningún filtro. Siguiente."}
+              {verdict}
             </div>
           </div>
           <div className="flex gap-2">
@@ -331,12 +342,15 @@ export function Station4Assets({ id }: { id: string }) {
         </motion.div>
 
         <ul className="grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
-          {station.bullets.map((b) => (
-            <li key={b} className="flex gap-2 glass-card p-3">
-              <span className="text-primary/60">→</span>
-              <span>{b}</span>
-            </li>
-          ))}
+          {[1, 2, 3].map((n) => {
+            const text = tLessons(`${station.key}.bullet${n}`);
+            return (
+              <li key={n} className="flex gap-2 glass-card p-3">
+                <span className="text-primary/60">→</span>
+                <span>{text}</span>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </StationFrame>

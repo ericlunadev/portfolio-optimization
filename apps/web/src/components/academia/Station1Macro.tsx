@@ -3,56 +3,42 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { StationFrame } from "./StationFrame";
 import { getStation } from "./lessons";
 import { cn } from "@/lib/utils";
 
+function GlobeLoading() {
+  const t = useTranslations("Academia.ZoomGlobe");
+  return (
+    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+      {t("loading")}
+    </div>
+  );
+}
+
 const ZoomGlobe = dynamic(() => import("./ZoomGlobe"), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
-      Cargando globo...
-    </div>
-  ),
+  loading: () => <GlobeLoading />,
 });
 
 type Climate = "expansion" | "contraction" | "stagflation";
 
-interface ClimateCopy {
-  label: string;
-  description: string;
-  winners: string[];
-  mood: string;
-}
-
-const CLIMATES: Record<Climate, ClimateCopy> = {
-  expansion: {
-    label: "Expansión",
-    description:
-      "Tasas bajas, crecimiento saludable, empleo fuerte. El optimismo es el tono dominante.",
-    winners: ["Tecnología", "Consumo discrecional", "Industriales"],
-    mood: "Viento a favor",
-  },
-  contraction: {
-    label: "Contracción",
-    description:
-      "Actividad cayendo, despidos, crédito más caro. El capital busca refugio en activos defensivos.",
-    winners: ["Bonos largos", "Consumo básico", "Servicios públicos"],
-    mood: "Modo defensivo",
-  },
-  stagflation: {
-    label: "Estanflación",
-    description:
-      "Inflación alta mientras la economía se estanca. La peor combinación: ahorro que pierde valor real.",
-    winners: ["Energía", "Materiales", "Oro"],
-    mood: "Refugio en tangibles",
-  },
-};
-
 export function Station1Macro({ id }: { id: string }) {
+  const t = useTranslations("Academia.Station1");
+  const tLessons = useTranslations("Academia.Lessons");
   const station = getStation("macro");
   const [climate, setClimate] = useState<Climate>("expansion");
-  const copy = CLIMATES[climate];
+
+  const climates: Climate[] = ["expansion", "contraction", "stagflation"];
+  const currentLabel = t(`${climate}Label`);
+  const currentDescription = t(`${climate}Description`);
+  const currentMood = t(`${climate}Mood`);
+  const currentWinners = [
+    t(`${climate}Winner1`),
+    t(`${climate}Winner2`),
+    t(`${climate}Winner3`),
+  ];
 
   return (
     <StationFrame station={station} id={id}>
@@ -63,20 +49,22 @@ export function Station1Macro({ id }: { id: string }) {
             <ZoomGlobe climate={climate} />
           </div>
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Representación ilustrativa. Arrastrá para rotar.
+            {t("globeCaption")}
           </p>
         </div>
 
         {/* Controls + copy */}
         <div className="space-y-6">
-          <p className="text-muted-foreground leading-relaxed">{station.summary}</p>
+          <p className="text-muted-foreground leading-relaxed">
+            {tLessons(`${station.key}.summary`)}
+          </p>
 
           <div>
             <div className="mb-2 text-xs uppercase tracking-widest text-muted-foreground">
-              Elegí el clima económico
+              {t("climateLabel")}
             </div>
             <div className="flex gap-2">
-              {(Object.keys(CLIMATES) as Climate[]).map((c) => (
+              {climates.map((c) => (
                 <button
                   key={c}
                   onClick={() => setClimate(c)}
@@ -87,7 +75,7 @@ export function Station1Macro({ id }: { id: string }) {
                       : "border-border/50 bg-card/40 text-muted-foreground hover:border-border hover:text-foreground",
                   )}
                 >
-                  {CLIMATES[c].label}
+                  {t(`${c}Label`)}
                 </button>
               ))}
             </div>
@@ -103,20 +91,20 @@ export function Station1Macro({ id }: { id: string }) {
               className="glass-card p-5 space-y-3"
             >
               <div className="flex items-baseline justify-between">
-                <h3 className="font-display text-xl">{copy.label}</h3>
+                <h3 className="font-display text-xl">{currentLabel}</h3>
                 <span className="text-xs uppercase tracking-widest text-primary/80">
-                  {copy.mood}
+                  {currentMood}
                 </span>
               </div>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {copy.description}
+                {currentDescription}
               </p>
               <div>
                 <div className="mb-1.5 text-xs uppercase tracking-widest text-muted-foreground">
-                  Sectores que suelen liderar
+                  {t("leadingSectorsLabel")}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {copy.winners.map((w) => (
+                  {currentWinners.map((w) => (
                     <span
                       key={w}
                       className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 text-xs text-primary"
@@ -130,12 +118,15 @@ export function Station1Macro({ id }: { id: string }) {
           </AnimatePresence>
 
           <ul className="space-y-2 text-sm text-muted-foreground">
-            {station.bullets.map((b) => (
-              <li key={b} className="flex gap-2">
-                <span className="text-primary/60">→</span>
-                <span>{b}</span>
-              </li>
-            ))}
+            {[1, 2, 3].map((n) => {
+              const text = tLessons(`${station.key}.bullet${n}`);
+              return (
+                <li key={n} className="flex gap-2">
+                  <span className="text-primary/60">→</span>
+                  <span>{text}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>

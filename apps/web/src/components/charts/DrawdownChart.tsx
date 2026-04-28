@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
 
 interface DataPoint {
@@ -25,6 +26,7 @@ interface DrawdownChartProps {
 }
 
 export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
+  const t = useTranslations("DrawdownChart");
   return (
     <div className="h-[260px] sm:h-[340px] md:h-[400px]">
     <ResponsiveContainer width="100%" height="100%">
@@ -76,7 +78,7 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
           stroke="#5b8def"
           strokeWidth={2}
           dot={false}
-          name="Rendimiento Acumulado"
+          name={t("cumulativeReturn")}
         />
         <Area
           yAxisId="drawdown"
@@ -85,7 +87,7 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
           fill="rgba(248, 113, 113, 0.12)"
           stroke="#f87171"
           strokeWidth={1}
-          name="Drawdown"
+          name={t("drawdown")}
         />
       </ComposedChart>
     </ResponsiveContainer>

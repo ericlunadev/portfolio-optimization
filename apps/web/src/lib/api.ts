@@ -213,6 +213,15 @@ export const api = {
     return handleResponse<SavedSimulation>(res);
   },
 
+  async updateSimulationName(id: string, name: string | null) {
+    const res = await apiFetch(`${API_BASE}/simulations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    return handleResponse<{ id: string; name: string | null }>(res);
+  },
+
   async deleteSimulation(id: string) {
     const res = await apiFetch(`${API_BASE}/simulations/${id}`, {
       method: "DELETE",
@@ -232,42 +241,14 @@ export type OptimizationStrategy =
 
 export const OPTIMIZATION_STRATEGIES: {
   value: OptimizationStrategy;
-  label: string;
-  description: string;
   requiresTarget?: "return" | "risk";
 }[] = [
-  {
-    value: "max-sharpe",
-    label: "Máximo Sharpe (Óptimo)",
-    description: "Mejor rendimiento ajustado por riesgo",
-  },
-  {
-    value: "min-risk",
-    label: "Mínimo Riesgo",
-    description: "Menor volatilidad posible",
-  },
-  {
-    value: "max-return",
-    label: "Máximo Rendimiento",
-    description: "Mayor rendimiento esperado",
-  },
-  {
-    value: "target-return",
-    label: "Rendimiento Objetivo",
-    description: "Mínimo riesgo para un rendimiento específico",
-    requiresTarget: "return",
-  },
-  {
-    value: "target-risk",
-    label: "Riesgo Objetivo",
-    description: "Máximo rendimiento para un riesgo específico",
-    requiresTarget: "risk",
-  },
-  {
-    value: "knee-point",
-    label: "Punto de Inflexión",
-    description: "Punto de máxima curvatura en la frontera",
-  },
+  { value: "max-sharpe" },
+  { value: "min-risk" },
+  { value: "max-return" },
+  { value: "target-return", requiresTarget: "return" },
+  { value: "target-risk", requiresTarget: "risk" },
+  { value: "knee-point" },
 ];
 
 // Types
@@ -409,7 +390,7 @@ export interface SimulationParams {
 
 export interface SavedSimulation {
   id: string;
-  name: string;
+  name: string | null;
   params: SimulationParams;
   result: OptimizationResultWithStrategy;
   createdAt: string;
@@ -417,7 +398,7 @@ export interface SavedSimulation {
 
 export interface SimulationListItem {
   id: string;
-  name: string;
+  name: string | null;
   tickers: string[];
   strategy: OptimizationStrategy;
   expectedReturn: number;

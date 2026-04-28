@@ -2,15 +2,40 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useSimulations, useDeleteSimulation } from "@/hooks/useSimulations";
 import { formatPercent, cn } from "@/lib/utils";
 import { Trash2, BarChart3, ChevronRight, Plus } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
+import { SignInPrompt } from "@/components/auth/SignInPrompt";
 
 export default function EfficientFrontierPage() {
-  const { data: simulations, isLoading } = useSimulations();
+  const t = useTranslations("EfficientFrontierList");
+  const tCommon = useTranslations("Common");
+  const { data: session, isPending: isSessionPending } = authClient.useSession();
+  const isSignedIn = !!session?.user;
+
+  const { data: simulations, isLoading } = useSimulations(isSignedIn);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const deleteSimulation = useDeleteSimulation();
+
+  if (isSessionPending) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-muted-foreground">{tCommon("loading")}</div>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <SignInPrompt
+        title={t("signInTitle")}
+        description={t("signInDescription")}
+      />
+    );
+  }
 
   function handleDelete(id: string) {
     if (deletingId === id) {
@@ -29,7 +54,7 @@ export default function EfficientFrontierPage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="text-muted-foreground">Cargando simulaciones...</div>
+        <div className="text-muted-foreground">{t("loadingList")}</div>
       </div>
     );
   }
@@ -39,23 +64,21 @@ export default function EfficientFrontierPage() {
       <div className="mx-auto max-w-4xl space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="font-display text-2xl md:text-3xl tracking-tight">
-            Frontera Eficiente
+            {t("title")}
           </h1>
           <Link
             href="/efficient-frontier/new"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
           >
             <Plus className="h-4 w-4" />
-            Optimización
+            {t("newButton")}
           </Link>
         </div>
         <div className="flex h-64 flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-card/30">
           <BarChart3 className="mb-3 h-10 w-10 text-muted-foreground/50" />
-          <p className="text-muted-foreground">
-            Aún no has corrido ninguna optimización
-          </p>
+          <p className="text-muted-foreground">{t("emptyTitle")}</p>
           <p className="mt-1 text-sm text-muted-foreground/70">
-            Pulsa &quot;Optimización&quot; para configurar tu primer portafolio
+            {t("emptyHint")}
           </p>
         </div>
       </div>
@@ -66,14 +89,14 @@ export default function EfficientFrontierPage() {
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl md:text-3xl tracking-tight">
-          Frontera Eficiente
+          {t("title")}
         </h1>
         <Link
           href="/efficient-frontier/new"
           className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
         >
           <Plus className="h-4 w-4" />
-          Optimización
+          {t("newButton")}
         </Link>
       </div>
 
@@ -100,7 +123,7 @@ function SimulationCard({
 }: {
   sim: {
     id: string;
-    name: string;
+    name: string | null;
     tickers: string[];
     strategy: string;
     expectedReturn: number;
@@ -112,7 +135,16 @@ function SimulationCard({
   isConfirmingDelete: boolean;
   isDeleting: boolean;
 }) {
+  const t = useTranslations("EfficientFrontierList");
+  const tStrategies = useTranslations("Strategies");
   const formattedDate = formatCreatedAt(sim.createdAt);
+
+  const tickerStr =
+    sim.tickers.length <= 4
+      ? sim.tickers.join(", ")
+      : `${sim.tickers.slice(0, 3).join(", ")} +${sim.tickers.length - 3}`;
+  const computedName = `${tickerStr} - ${tStrategies(`${sim.strategy}.label`)}`;
+  const displayName = sim.name ?? computedName;
 
   return (
     <div className="glass-card group transition-colors hover:border-border">
@@ -124,19 +156,19 @@ function SimulationCard({
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
               <h3 className="truncate text-sm font-medium group-hover:text-primary transition-colors">
-                {sim.name}
+                {displayName}
               </h3>
               <span className="shrink-0 text-xs text-muted-foreground">
                 {formattedDate}
               </span>
             </div>
             <div className="mt-1 flex flex-wrap gap-1.5">
-              {sim.tickers.slice(0, 6).map((t) => (
+              {sim.tickers.slice(0, 6).map((tk) => (
                 <span
-                  key={t}
+                  key={tk}
                   className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium"
                 >
-                  {t}
+                  {tk}
                 </span>
               ))}
               {sim.tickers.length > 6 && (
@@ -149,19 +181,19 @@ function SimulationCard({
 
           <div className="hidden gap-4 text-right text-xs sm:flex">
             <div>
-              <div className="text-muted-foreground">Rendimiento</div>
+              <div className="text-muted-foreground">{t("colReturn")}</div>
               <div className="font-medium">
                 {formatPercent(sim.expectedReturn)}
               </div>
             </div>
             <div>
-              <div className="text-muted-foreground">Volatilidad</div>
+              <div className="text-muted-foreground">{t("colVolatility")}</div>
               <div className="font-medium">
                 {formatPercent(sim.volatility)}
               </div>
             </div>
             <div>
-              <div className="text-muted-foreground">Sharpe</div>
+              <div className="text-muted-foreground">{t("colSharpe")}</div>
               <div className="font-medium">{sim.sharpeRatio.toFixed(2)}</div>
             </div>
           </div>
@@ -182,11 +214,7 @@ function SimulationCard({
               ? "bg-red-900/20 text-red-400"
               : "hover:bg-muted hover:text-foreground"
           )}
-          title={
-            isConfirmingDelete
-              ? "Confirmar eliminación"
-              : "Eliminar simulación"
-          }
+          title={isConfirmingDelete ? t("deleteConfirm") : t("deleteAction")}
         >
           <Trash2 className="h-4 w-4" />
         </button>
@@ -194,17 +222,17 @@ function SimulationCard({
 
       <div className="flex gap-4 border-t border-border/50 px-4 py-2 text-xs sm:hidden">
         <div>
-          <span className="text-muted-foreground">Rend: </span>
+          <span className="text-muted-foreground">{t("colReturnShort")} </span>
           <span className="font-medium">
             {formatPercent(sim.expectedReturn)}
           </span>
         </div>
         <div>
-          <span className="text-muted-foreground">Vol: </span>
+          <span className="text-muted-foreground">{t("colVolatilityShort")} </span>
           <span className="font-medium">{formatPercent(sim.volatility)}</span>
         </div>
         <div>
-          <span className="text-muted-foreground">Sharpe: </span>
+          <span className="text-muted-foreground">{t("colSharpeShort")} </span>
           <span className="font-medium">{sim.sharpeRatio.toFixed(2)}</span>
         </div>
       </div>

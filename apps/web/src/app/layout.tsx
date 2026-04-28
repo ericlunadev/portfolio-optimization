@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Instrument_Serif, Manrope } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
 
@@ -16,10 +18,13 @@ const manrope = Manrope({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: "Optimización de Portafolio",
-  description: "Herramienta de optimización de portafolio Markowitz",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Metadata");
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -28,17 +33,22 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
-    <html lang="es">
+    <html lang={locale}>
       <body
         className={`${instrumentSerif.variable} ${manrope.variable} font-sans`}
       >
-        <Providers>{children}</Providers>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <Providers>{children}</Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

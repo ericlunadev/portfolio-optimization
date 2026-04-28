@@ -1,21 +1,24 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { simulations } from "../../db/schema.js";
-import { optionalAuthMiddleware } from "../../middleware/auth.js";
+import { authMiddleware } from "../../middleware/auth.js";
 
 const app = new Hono();
 
-// All routes use optional auth (simulations work without login too)
-app.use("*", optionalAuthMiddleware);
+// All simulation routes require authentication and are scoped per user
+app.use("*", authMiddleware);
 
-// GET /api/simulations - List all simulations
+// GET /api/simulations - List all simulations for the current user
 app.get("/", async (c) => {
+  const user = c.get("user");
+
   const rows = await db
     .select()
     .from(simulations)
+    .where(eq(simulations.userId, user.id))
     .orderBy(desc(simulations.createdAt));
 
   const items = rows.map((row) => {
@@ -39,9 +42,10 @@ app.get("/", async (c) => {
 // GET /api/simulations/:id - Get full simulation details
 app.get("/:id", async (c) => {
   const { id } = c.req.param();
+  const user = c.get("user");
 
   const row = await db.query.simulations.findFirst({
-    where: eq(simulations.id, id),
+    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
   });
 
   if (!row) {
@@ -70,17 +74,14 @@ app.post("/", zValidator("json", createSchema), async (c) => {
   const params = body.params as Record<string, unknown>;
   const result = body.result as Record<string, unknown>;
 
-  // Auto-generate name if not provided
-  const name =
-    body.name ||
-    generateSimulationName(params);
+  const name = body.name?.trim() || null;
 
   const id = crypto.randomUUID();
-  const user = c.get("optionalUser");
+  const user = c.get("user");
 
   await db.insert(simulations).values({
     id,
-    userId: user?.id ?? null,
+    userId: user.id,
     name,
     params: JSON.stringify(params),
     result: JSON.stringify(result),
@@ -102,44 +103,52 @@ app.post("/", zValidator("json", createSchema), async (c) => {
   );
 });
 
-// DELETE /api/simulations/:id - Delete a simulation
-app.delete("/:id", async (c) => {
+// PATCH /api/simulations/:id - Rename a simulation owned by the current user
+const patchSchema = z.object({
+  name: z.string().max(200).nullable(),
+});
+
+app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   const { id } = c.req.param();
+  const user = c.get("user");
+  const body = c.req.valid("json");
 
   const row = await db.query.simulations.findFirst({
-    where: eq(simulations.id, id),
+    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
   });
 
   if (!row) {
     return c.json({ error: "Simulation not found" }, 404);
   }
 
-  await db.delete(simulations).where(eq(simulations.id, id));
+  const name = body.name?.trim() || null;
+
+  await db
+    .update(simulations)
+    .set({ name })
+    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)));
+
+  return c.json({ id, name });
+});
+
+// DELETE /api/simulations/:id - Delete a simulation owned by the current user
+app.delete("/:id", async (c) => {
+  const { id } = c.req.param();
+  const user = c.get("user");
+
+  const row = await db.query.simulations.findFirst({
+    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
+  });
+
+  if (!row) {
+    return c.json({ error: "Simulation not found" }, 404);
+  }
+
+  await db
+    .delete(simulations)
+    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)));
 
   return c.json({ success: true });
 });
-
-function generateSimulationName(params: Record<string, unknown>): string {
-  const tickers = (params.tickers as string[]) ?? [];
-  const strategy = (params.strategy as string) ?? "max-sharpe";
-
-  const strategyLabels: Record<string, string> = {
-    "max-sharpe": "Máximo Sharpe",
-    "min-risk": "Mínimo Riesgo",
-    "max-return": "Máximo Rendimiento",
-    "target-return": "Rendimiento Objetivo",
-    "target-risk": "Riesgo Objetivo",
-    "knee-point": "Punto de Inflexión",
-  };
-
-  const tickerStr =
-    tickers.length <= 4
-      ? tickers.join(", ")
-      : `${tickers.slice(0, 3).join(", ")} +${tickers.length - 3}`;
-
-  const strategyLabel = strategyLabels[strategy] ?? strategy;
-
-  return `${tickerStr} - ${strategyLabel}`;
-}
 
 export default app;

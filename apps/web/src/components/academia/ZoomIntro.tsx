@@ -3,9 +3,11 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { STATIONS } from "./lessons";
 
 export function ZoomIntro() {
+  const t = useTranslations("Academia.ZoomIntro");
   const ref = useRef<HTMLElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
@@ -15,6 +17,8 @@ export function ZoomIntro() {
   const scale = useTransform(scrollYProgress, [0, 1], [1, 1.6]);
   const opacity = useTransform(scrollYProgress, [0, 0.9], [1, 0]);
   const y = useTransform(scrollYProgress, [0, 1], [0, -80]);
+
+  const titleStart = t("titleStart");
 
   return (
     <section
@@ -26,16 +30,14 @@ export function ZoomIntro() {
         className="relative z-10 mx-auto max-w-3xl px-4 text-center space-y-6 md:px-6 md:space-y-8"
       >
         <div className="text-[10px] uppercase tracking-[0.25em] text-primary/80 md:text-xs md:tracking-[0.3em]">
-          Academia · Guía para nuevos inversores
+          {t("kicker")}
         </div>
         <h1 className="font-display text-4xl md:text-7xl leading-[1.05] tracking-tight">
-          Análisis{" "}
-          <span className="text-gradient-gold">Top-Down</span>
+          {titleStart && <>{titleStart}{" "}</>}
+          <span className="text-gradient-gold">{t("titleHighlight")}</span>
         </h1>
         <p className="mx-auto max-w-xl text-sm md:text-lg text-muted-foreground leading-relaxed">
-          Invertir como un profesional no empieza buscando tickers. Empieza
-          mirando el mundo. Vamos a hacer zoom: del planeta a la cartera, en
-          cinco paradas.
+          {t("description")}
         </p>
 
         {/* Zoom visual concept */}
@@ -65,7 +67,7 @@ export function ZoomIntro() {
         </div>
 
         <div className="text-xs text-muted-foreground">
-          Cinco niveles · Aproximadamente 5 minutos
+          {t("summary")}
         </div>
       </motion.div>
 

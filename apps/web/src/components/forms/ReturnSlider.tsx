@@ -1,6 +1,7 @@
 "use client";
 
 import * as Slider from "@radix-ui/react-slider";
+import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
 
 interface ReturnSliderProps {
@@ -18,12 +19,14 @@ export function ReturnSlider({
   value,
   onChange,
   step = 0.01,
-  label = "Rendimiento Requerido",
+  label,
 }: ReturnSliderProps) {
+  const t = useTranslations("Forms.ReturnSlider");
+  const effectiveLabel = label ?? t("defaultLabel");
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium">{label}</label>
+        <label className="text-sm font-medium">{effectiveLabel}</label>
         <span className="text-sm font-semibold text-primary">
           {formatPercent(value)}
         </span>
@@ -42,7 +45,7 @@ export function ReturnSlider({
         </Slider.Track>
         <Slider.Thumb
           className="block h-5 w-5 rounded-full bg-primary shadow-lg ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          aria-label={label}
+          aria-label={effectiveLabel}
         />
       </Slider.Root>
 

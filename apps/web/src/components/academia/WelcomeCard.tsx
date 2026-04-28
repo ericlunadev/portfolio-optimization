@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { GraduationCap, X, ArrowRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const STORAGE_KEY = "academia.welcome.dismissed";
 
 export function WelcomeCard() {
+  const t = useTranslations("Academia.Welcome");
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -38,7 +40,7 @@ export function WelcomeCard() {
           />
           <button
             onClick={dismiss}
-            aria-label="Cerrar"
+            aria-label={t("closeAria")}
             className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
           >
             <X className="h-4 w-4" />
@@ -50,11 +52,10 @@ export function WelcomeCard() {
               </div>
               <div>
                 <h3 className="font-display text-lg md:text-xl leading-tight">
-                  ¿Primera vez invirtiendo?
+                  {t("title")}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground max-w-lg">
-                  Recorré la guía Top-Down en cinco paradas. Del mapa global
-                  hasta los pesos de tu cartera, en unos cinco minutos.
+                  {t("description")}
                 </p>
               </div>
             </div>
@@ -62,7 +63,7 @@ export function WelcomeCard() {
               href="/academia"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold whitespace-nowrap"
             >
-              Empezar
+              {t("cta")}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>

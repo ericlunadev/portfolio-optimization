@@ -2,8 +2,10 @@
 
 ## Language Rules
 
-- All user-facing text (UI labels, messages, notifications, tooltips, placeholders, error messages, etc.) must be written in **Spanish**.
-- All code (variable names, function names, class names, comments, documentation, file names, and any other code-related identifiers) must be written in **English**.
+- The app is internationalized with **next-intl**. Supported locales: **Spanish (`es`, default)** and **English (`en`)**.
+- All user-facing text must come from translation files — **never hardcode UI strings**. Add the key to both `apps/web/messages/es.json` and `apps/web/messages/en.json`, then read it via `useTranslations()` (client) or `getTranslations()` (server).
+- All code (variable names, function names, class names, comments, documentation, file names, translation keys) must be written in **English**.
+- Locale is selected via the `NEXT_LOCALE` cookie (no `[locale]` URL segment); the user toggles it from the header `LocaleSwitcher`. Config lives in `apps/web/src/i18n/`.
 
 ## Date Format
 

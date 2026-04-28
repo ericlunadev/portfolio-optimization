@@ -9,8 +9,16 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from "recharts";
+import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
+import {
+  CHART_GRID_STROKE,
+  CHART_PALETTE,
+  ChartTooltip,
+  axisProps,
+} from "./chart-theme";
 
 interface AssetVolatilityData {
   name: string;
@@ -22,62 +30,94 @@ interface AssetVolatilityChartProps {
   title?: string;
 }
 
-const COLORS = [
-  "#5b8def",
-  "#34d399",
-  "#fbbf24",
-  "#f87171",
-  "#a78bfa",
-  "#2dd4bf",
-  "#fb7185",
-];
-
 export function AssetVolatilityChart({
   data,
-  title = "Volatilidad por Activo",
+  title,
 }: AssetVolatilityChartProps) {
-  // Sort by volatility descending
+  const t = useTranslations("AssetVolatilityChart");
+  const effectiveTitle = title ?? t("title");
   const sortedData = [...data].sort((a, b) => b.volatility - a.volatility);
-
-  // Calculate max volatility for domain
   const maxVol = Math.max(...data.map((d) => d.volatility));
   const domainMax = Math.ceil(maxVol * 10) / 10 + 0.05;
 
   return (
     <div>
-      {title && <h3 className="mb-4 font-display text-lg">{title}</h3>}
-      <ResponsiveContainer width="100%" height={Math.max(200, data.length * 40)}>
+      {effectiveTitle && <h3 className="mb-4 font-display text-lg">{effectiveTitle}</h3>}
+      <ResponsiveContainer
+        width="100%"
+        height={Math.max(220, data.length * 44)}
+      >
         <BarChart
           data={sortedData}
           layout="vertical"
-          margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+          margin={{ top: 6, right: 32, left: 4, bottom: 6 }}
+          barCategoryGap="20%"
         >
-          <CartesianGrid strokeDasharray="3 3" />
+          <defs>
+            {CHART_PALETTE.map((c, i) => (
+              <linearGradient
+                key={c.name}
+                id={`vol-bar-${i}`}
+                x1="0"
+                y1="0"
+                x2="1"
+                y2="0"
+              >
+                <stop offset="0%" stopColor={c.solid} stopOpacity={0.95} />
+                <stop offset="100%" stopColor={c.soft} stopOpacity={0.95} />
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid
+            stroke={CHART_GRID_STROKE}
+            strokeDasharray="2 4"
+            horizontal={false}
+          />
           <XAxis
             type="number"
             domain={[0, domainMax]}
             tickFormatter={(v) => formatPercent(v, 0)}
+            {...axisProps}
           />
-          <YAxis type="category" dataKey="name" width={70} />
+          <YAxis
+            type="category"
+            dataKey="name"
+            width={86}
+            {...axisProps}
+            tick={{ ...axisProps.tick, fontSize: 12 }}
+          />
           <Tooltip
-            formatter={(value: number) => formatPercent(value)}
-            labelFormatter={(label) => label}
-            contentStyle={{
-              background: "hsl(230 15% 10%)",
-              border: "1px solid hsl(230 12% 20%)",
-              borderRadius: "8px",
-              boxShadow: "0 4px 16px rgba(0, 0, 0, 0.5)",
-            }}
-            labelStyle={{ color: "hsl(40 6% 90%)", fontWeight: 500 }}
-            itemStyle={{ color: "hsl(40 6% 75%)" }}
+            cursor={{ fill: "hsl(230 12% 16% / 0.5)" }}
+            content={({ active, payload, label }) => (
+              <ChartTooltip
+                active={active}
+                payload={payload as never}
+                label={label as string | number | undefined}
+                valueFormatter={(v) => formatPercent(v)}
+              />
+            )}
           />
-          <Bar dataKey="volatility" name="Volatilidad">
-            {sortedData.map((_, index) => (
+          <Bar
+            dataKey="volatility"
+            name={t("barVolatility")}
+            radius={[6, 6, 6, 6]}
+            isAnimationActive
+            animationDuration={700}
+          >
+            {sortedData.map((entry, index) => (
               <Cell
-                key={`cell-${index}`}
-                fill={COLORS[index % COLORS.length]}
+                key={`cell-${entry.name}`}
+                fill={`url(#vol-bar-${index % CHART_PALETTE.length})`}
               />
             ))}
+            <LabelList
+              dataKey="volatility"
+              position="right"
+              formatter={(v: number) => formatPercent(v, 1)}
+              fill="hsl(40 6% 80%)"
+              fontSize={11}
+              style={{ fontFamily: "var(--font-mono, monospace)" }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>

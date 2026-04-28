@@ -178,7 +178,7 @@ export const backgroundTasks = sqliteTable("background_tasks", {
 export const simulations = sqliteTable("simulations", {
   id: text("id").primaryKey(), // UUID
   userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
-  name: text("name").notNull(),
+  name: text("name"),
   params: text("params").notNull(), // JSON string with SimulationParams
   result: text("result").notNull(), // JSON string with OptimizationResultWithStrategy
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),

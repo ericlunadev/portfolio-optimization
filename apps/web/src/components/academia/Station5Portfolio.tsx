@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Zap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { StationFrame } from "./StationFrame";
 import { getStation } from "./lessons";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,8 @@ const RANDOM_PORTFOLIOS = Array.from({ length: 80 }, () => {
 const OPTIMAL = { risk: 14, ret: 10.5 };
 
 export function Station5Portfolio({ id }: { id: string }) {
+  const t = useTranslations("Academia.Station5");
+  const tLessons = useTranslations("Academia.Lessons");
   const station = getStation("portfolio");
   const [hovered, setHovered] = useState<{ i: number; j: number } | null>(null);
 
@@ -55,7 +58,7 @@ export function Station5Portfolio({ id }: { id: string }) {
     <StationFrame station={station} id={id}>
       <div className="space-y-8">
         <p className="max-w-3xl text-muted-foreground leading-relaxed">
-          {station.summary}
+          {tLessons(`${station.key}.summary`)}
         </p>
 
         <div className="grid gap-6 md:grid-cols-2">
@@ -63,11 +66,11 @@ export function Station5Portfolio({ id }: { id: string }) {
           <div className="glass-card p-6 space-y-4">
             <div>
               <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                Diversificación real
+                {t("correlationKicker")}
               </div>
-              <h3 className="font-display text-xl">Matriz de correlaciones</h3>
+              <h3 className="font-display text-xl">{t("correlationTitle")}</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Rojo = se mueven igual (mala diversificación). Azul = se mueven al revés (buena diversificación).
+                {t("correlationDescription")}
               </p>
             </div>
 
@@ -76,12 +79,12 @@ export function Station5Portfolio({ id }: { id: string }) {
                 <thead>
                   <tr>
                     <th></th>
-                    {TICKERS.map((t) => (
+                    {TICKERS.map((tk) => (
                       <th
-                        key={t}
+                        key={tk}
                         className="px-2 py-1 text-[10px] font-mono text-muted-foreground"
                       >
-                        {t}
+                        {tk}
                       </th>
                     ))}
                   </tr>
@@ -128,13 +131,13 @@ export function Station5Portfolio({ id }: { id: string }) {
                   </span>
                   {" — "}
                   {CORRELATIONS[hovered.i][hovered.j] > 0.5
-                    ? "alta correlación positiva: diversifican poco."
+                    ? t("correlationHighPositive")
                     : CORRELATIONS[hovered.i][hovered.j] < 0
-                      ? "correlación negativa: se complementan bien."
-                      : "correlación baja: buenos candidatos para combinar."}
+                      ? t("correlationNegative")
+                      : t("correlationLow")}
                 </span>
               ) : (
-                <span>Pasá el cursor por una celda para interpretar.</span>
+                <span>{t("correlationHoverHint")}</span>
               )}
             </div>
           </div>
@@ -143,11 +146,11 @@ export function Station5Portfolio({ id }: { id: string }) {
           <div className="glass-card p-6 space-y-4">
             <div>
               <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                Frontera eficiente
+                {t("frontierKicker")}
               </div>
-              <h3 className="font-display text-xl">Los mejores portafolios posibles</h3>
+              <h3 className="font-display text-xl">{t("frontierTitle")}</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                Cada punto es un portafolio. La curva marca los óptimos: máximo retorno por cada nivel de riesgo.
+                {t("frontierDescription")}
               </p>
             </div>
 
@@ -157,7 +160,7 @@ export function Station5Portfolio({ id }: { id: string }) {
               <line x1="10" y1="10" x2="10" y2="90" stroke="hsl(230 12% 22%)" strokeWidth="0.3" />
 
               <text x="52" y="98" textAnchor="middle" fill="hsl(230 8% 50%)" style={{ fontSize: "3px" }}>
-                Riesgo →
+                {t("axisRisk")}
               </text>
               <text
                 x="4"
@@ -167,7 +170,7 @@ export function Station5Portfolio({ id }: { id: string }) {
                 style={{ fontSize: "3px" }}
                 transform="rotate(-90 4 50)"
               >
-                Retorno →
+                {t("axisReturn")}
               </text>
 
               {/* Random portfolio cloud */}
@@ -229,7 +232,7 @@ export function Station5Portfolio({ id }: { id: string }) {
                         fill="hsl(38 65% 65%)"
                         style={{ fontSize: "3px", fontFamily: "var(--font-display)" }}
                       >
-                        Máx. Sharpe
+                        {t("maxSharpeLabel")}
                       </text>
                     </>
                   );
@@ -238,18 +241,21 @@ export function Station5Portfolio({ id }: { id: string }) {
             </svg>
 
             <p className="text-xs text-muted-foreground italic">
-              Ilustración. En la app real usás tus tickers y fechas.
+              {t("frontierCaption")}
             </p>
           </div>
         </div>
 
         <ul className="grid gap-2 text-sm text-muted-foreground md:grid-cols-3">
-          {station.bullets.map((b) => (
-            <li key={b} className="flex gap-2 glass-card p-3">
-              <span className="text-primary/60">→</span>
-              <span>{b}</span>
-            </li>
-          ))}
+          {[1, 2, 3].map((n) => {
+            const text = tLessons(`${station.key}.bullet${n}`);
+            return (
+              <li key={n} className="flex gap-2 glass-card p-3">
+                <span className="text-primary/60">→</span>
+                <span>{text}</span>
+              </li>
+            );
+          })}
         </ul>
 
         {/* CTA */}
@@ -261,17 +267,17 @@ export function Station5Portfolio({ id }: { id: string }) {
           className="glass-card p-8 border-primary/40 glow-gold text-center space-y-4"
         >
           <h3 className="font-display text-2xl md:text-3xl">
-            Ahora es tu turno
+            {t("ctaTitle")}
           </h3>
           <p className="mx-auto max-w-xl text-sm text-muted-foreground">
-            Armá tu lista de tickers, definí el rango de fechas y dejá que el optimizador encuentre los pesos óptimos en la frontera eficiente.
+            {t("ctaDescription")}
           </p>
           <Link
             href="/efficient-frontier/new"
             className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110"
           >
             <Zap className="h-4 w-4" />
-            Ir al optimizador
+            {t("ctaButton")}
             <ArrowRight className="h-4 w-4" />
           </Link>
         </motion.div>

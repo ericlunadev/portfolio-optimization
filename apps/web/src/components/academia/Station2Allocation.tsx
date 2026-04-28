@@ -2,17 +2,16 @@
 
 import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import { StationFrame } from "./StationFrame";
 import { getStation } from "./lessons";
 import { cn } from "@/lib/utils";
 
 type Profile = "conservative" | "moderate" | "aggressive";
 
-interface ProfileCopy {
-  label: string;
+interface ProfileData {
   mix: { stocks: number; bonds: number };
   maxDrawdown: number;
-  description: string;
   curve: {
     volatility: number;
     preDrift: number;
@@ -20,29 +19,20 @@ interface ProfileCopy {
   };
 }
 
-const PROFILES: Record<Profile, ProfileCopy> = {
+const PROFILES: Record<Profile, ProfileData> = {
   conservative: {
-    label: "Conservador",
     mix: { stocks: 20, bonds: 80 },
     maxDrawdown: -8,
-    description:
-      "Preservación del capital primero. Volatilidad baja, retornos modestos, pocas caídas grandes.",
     curve: { volatility: 0.35, preDrift: 0.35, postDrift: 0.45 },
   },
   moderate: {
-    label: "Moderado",
     mix: { stocks: 60, bonds: 40 },
     maxDrawdown: -20,
-    description:
-      "El balance clásico. Participa del crecimiento pero amortigua los golpes con renta fija.",
     curve: { volatility: 1.0, preDrift: 0.75, postDrift: 1.05 },
   },
   aggressive: {
-    label: "Agresivo",
     mix: { stocks: 90, bonds: 10 },
     maxDrawdown: -38,
-    description:
-      "Máximo crecimiento a largo plazo. Esperá caídas fuertes en recesiones; tenés que aguantar.",
     curve: { volatility: 2.1, preDrift: 1.15, postDrift: 1.65 },
   },
 };
@@ -57,7 +47,7 @@ function scaleY(v: number): number {
 }
 
 function generateDrawdownPath(
-  curve: ProfileCopy["curve"],
+  curve: ProfileData["curve"],
   drawdown: number,
   seed: number,
 ): string {
@@ -99,23 +89,28 @@ function generateDrawdownPath(
 }
 
 export function Station2Allocation({ id }: { id: string }) {
+  const t = useTranslations("Academia.Station2");
+  const tLessons = useTranslations("Academia.Lessons");
   const station = getStation("allocation");
   const [profile, setProfile] = useState<Profile>("moderate");
-  const copy = PROFILES[profile];
+  const data = PROFILES[profile];
 
-  const stocksAngle = (copy.mix.stocks / 100) * 360;
+  const stocksAngle = (data.mix.stocks / 100) * 360;
 
   const path = useMemo(
     () =>
       generateDrawdownPath(
-        copy.curve,
-        copy.maxDrawdown,
+        data.curve,
+        data.maxDrawdown,
         profile === "conservative" ? 1 : profile === "moderate" ? 2 : 3,
       ),
-    [copy.curve, copy.maxDrawdown, profile],
+    [data.curve, data.maxDrawdown, profile],
   );
 
   const baselineY = scaleY(100);
+
+  const profileLabel = (p: Profile) => t(`${p}Label`);
+  const profileDescription = (p: Profile) => t(`${p}Description`);
 
   return (
     <StationFrame station={station} id={id}>
@@ -159,7 +154,7 @@ export function Station2Allocation({ id }: { id: string }) {
                   className="text-xs"
                   style={{ fontSize: "11px", letterSpacing: "0.1em" }}
                 >
-                  PERFIL
+                  {t("profileLabel")}
                 </text>
                 <text
                   x="110"
@@ -168,7 +163,7 @@ export function Station2Allocation({ id }: { id: string }) {
                   fill="hsl(38 65% 55%)"
                   style={{ fontSize: "22px", fontFamily: "var(--font-display)" }}
                 >
-                  {copy.label}
+                  {profileLabel(profile)}
                 </text>
               </svg>
             </div>
@@ -177,7 +172,7 @@ export function Station2Allocation({ id }: { id: string }) {
           <div className="grid grid-cols-2 gap-4 text-center">
             <div className="glass-card p-4">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Acciones
+                {t("stocksLabel")}
               </div>
               <motion.div
                 key={`s-${profile}`}
@@ -185,12 +180,12 @@ export function Station2Allocation({ id }: { id: string }) {
                 animate={{ opacity: 1, y: 0 }}
                 className="font-display text-2xl text-primary"
               >
-                {copy.mix.stocks}%
+                {data.mix.stocks}%
               </motion.div>
             </div>
             <div className="glass-card p-4">
               <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Bonos
+                {t("bondsLabel")}
               </div>
               <motion.div
                 key={`b-${profile}`}
@@ -198,7 +193,7 @@ export function Station2Allocation({ id }: { id: string }) {
                 animate={{ opacity: 1, y: 0 }}
                 className="font-display text-2xl text-foreground/80"
               >
-                {copy.mix.bonds}%
+                {data.mix.bonds}%
               </motion.div>
             </div>
           </div>
@@ -207,10 +202,10 @@ export function Station2Allocation({ id }: { id: string }) {
           <div className="glass-card p-4">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs uppercase tracking-widest text-muted-foreground">
-                Caída máxima simulada
+                {t("maxDrawdownLabel")}
               </span>
               <span className="text-sm font-medium text-destructive">
-                {copy.maxDrawdown}%
+                {data.maxDrawdown}%
               </span>
             </div>
             <svg viewBox="0 0 100 100" className="w-full h-28" preserveAspectRatio="none">
@@ -238,14 +233,16 @@ export function Station2Allocation({ id }: { id: string }) {
               />
             </svg>
             <p className="mt-1 text-[11px] text-muted-foreground italic">
-              Curva ilustrativa. Representa una trayectoria hipotética con recesión a mitad de camino.
+              {t("drawdownCaption")}
             </p>
           </div>
         </div>
 
         {/* Right: selector + description */}
         <div className="space-y-6">
-          <p className="text-muted-foreground leading-relaxed">{station.summary}</p>
+          <p className="text-muted-foreground leading-relaxed">
+            {tLessons(`${station.key}.summary`)}
+          </p>
 
           <div className="space-y-2">
             {(Object.keys(PROFILES) as Profile[]).map((p) => {
@@ -268,7 +265,7 @@ export function Station2Allocation({ id }: { id: string }) {
                         isActive ? "text-primary" : "text-foreground/80",
                       )}
                     >
-                      {PROFILES[p].label}
+                      {profileLabel(p)}
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {PROFILES[p].mix.stocks}/{PROFILES[p].mix.bonds}
@@ -280,7 +277,7 @@ export function Station2Allocation({ id }: { id: string }) {
                       animate={{ opacity: 1, height: "auto" }}
                       className="mt-2 text-xs text-muted-foreground leading-relaxed"
                     >
-                      {PROFILES[p].description}
+                      {profileDescription(p)}
                     </motion.p>
                   )}
                 </button>
@@ -290,20 +287,23 @@ export function Station2Allocation({ id }: { id: string }) {
 
           <div className="glass-card p-4">
             <div className="text-[10px] uppercase tracking-widest text-muted-foreground">
-              Tolerancia al dolor
+              {t("painToleranceLabel")}
             </div>
             <div className="font-display text-xl text-foreground/80">
-              {Math.abs(copy.maxDrawdown)}%
+              {Math.abs(data.maxDrawdown)}%
             </div>
           </div>
 
           <ul className="space-y-2 text-sm text-muted-foreground">
-            {station.bullets.map((b) => (
-              <li key={b} className="flex gap-2">
-                <span className="text-primary/60">→</span>
-                <span>{b}</span>
-              </li>
-            ))}
+            {[1, 2, 3].map((n) => {
+              const text = tLessons(`${station.key}.bullet${n}`);
+              return (
+                <li key={n} className="flex gap-2">
+                  <span className="text-primary/60">→</span>
+                  <span>{text}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </div>
