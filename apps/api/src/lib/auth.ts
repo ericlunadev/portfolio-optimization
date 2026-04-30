@@ -3,6 +3,11 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index.js";
 import { env } from "../config/env.js";
 import * as schema from "../db/schema.js";
+import { sendEmail } from "./email/send.js";
+import { emailMessages } from "./email/i18n.js";
+import { getLocaleFromRequest } from "./email/locale.js";
+import { VerifyEmail } from "./email/templates/VerifyEmail.js";
+import { ResetPassword } from "./email/templates/ResetPassword.js";
 
 const isProduction = env.BACKEND_URL.startsWith("https://");
 
@@ -16,6 +21,28 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   emailAndPassword: {
     enabled: true,
+    sendResetPassword: async ({ user, token }, request) => {
+      const locale = getLocaleFromRequest(request);
+      const url = `${env.FRONTEND_URL}/auth/reset-password?token=${encodeURIComponent(token)}`;
+      await sendEmail({
+        to: user.email,
+        subject: emailMessages[locale].resetSubject,
+        react: ResetPassword({ url, locale, userName: user.name }),
+      });
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, token }, request) => {
+      const locale = getLocaleFromRequest(request);
+      const url = `${env.FRONTEND_URL}/auth/verify-email?token=${encodeURIComponent(token)}`;
+      await sendEmail({
+        to: user.email,
+        subject: emailMessages[locale].verifySubject,
+        react: VerifyEmail({ url, locale, userName: user.name }),
+      });
+    },
   },
   socialProviders: {
     ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET

@@ -26,6 +26,12 @@ const envSchema = z.object({
   // URLs
   FRONTEND_URL: z.string().default("http://localhost:3000"),
   BACKEND_URL: z.string().default("http://localhost:8001"),
+
+  // Email (Resend)
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z
+    .string()
+    .default("Portfolio Optimization <onboarding@resend.dev>"),
 });
 
 export const env = envSchema.parse(process.env);

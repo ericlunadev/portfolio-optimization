@@ -5,6 +5,7 @@ import { LogIn, LogOut, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 
 export function Header() {
@@ -34,6 +35,7 @@ export function Header() {
 
   return (
     <>
+      <EmailVerificationBanner />
       <header className="border-b border-border/50 bg-card/20 backdrop-blur-sm px-4 py-3 md:px-8">
         <div className="flex items-center justify-between gap-3 md:justify-end">
           <h1 className="font-display text-lg tracking-tight md:hidden">

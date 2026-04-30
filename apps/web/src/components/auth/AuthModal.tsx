@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { authClient } from "@/lib/auth-client";
@@ -117,6 +118,18 @@ export function AuthModal({ open, onClose, initialMode = "signin" }: AuthModalPr
             minLength={8}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
+
+          {!isSignUp && (
+            <div className="text-right">
+              <Link
+                href="/auth/forgot-password"
+                onClick={onClose}
+                className="text-xs text-muted-foreground hover:text-primary hover:underline"
+              >
+                {t("forgotPassword")}
+              </Link>
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-400">{error}</p>}
 
