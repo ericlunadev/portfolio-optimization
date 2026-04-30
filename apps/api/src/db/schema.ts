@@ -158,6 +158,37 @@ export const userCorrelations = sqliteTable(
   (t) => [unique("user_corr_unique").on(t.userId, t.fundId1, t.fundId2)]
 );
 
+// ==================== USER PROFILE (Onboarding) ====================
+
+export const userProfile = sqliteTable("user_profile", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id")
+    .notNull()
+    .unique()
+    .references(() => user.id, { onDelete: "cascade" }),
+
+  // Step 1 — Localization
+  countryCode: text("country_code"),
+  currency: text("currency"),
+
+  // Step 2 — Investor profile
+  experience: text("experience"),
+  horizon: text("horizon"),
+  riskBehavior: text("risk_behavior"),
+  riskTolerance: text("risk_tolerance"),
+  goal: text("goal"),
+
+  // Step 3 — Market preferences (JSON-encoded arrays)
+  marketsOfInterest: text("markets_of_interest"),
+  conceptFamiliarity: text("concept_familiarity"),
+
+  // Progress
+  currentStep: integer("current_step").notNull().default(1),
+  completedAt: integer("completed_at", { mode: "timestamp" }),
+  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
 // ==================== TASKS ====================
 
 export const backgroundTasks = sqliteTable("background_tasks", {
@@ -244,6 +275,13 @@ export const userCorrelationsRelations = relations(userCorrelations, ({ one }) =
   }),
 }));
 
+export const userProfileRelations = relations(userProfile, ({ one }) => ({
+  user: one(user, {
+    fields: [userProfile.userId],
+    references: [user.id],
+  }),
+}));
+
 // ==================== TYPES ====================
 
 export type User = typeof user.$inferSelect;
@@ -269,3 +307,6 @@ export type NewBackgroundTask = typeof backgroundTasks.$inferInsert;
 
 export type Simulation = typeof simulations.$inferSelect;
 export type NewSimulation = typeof simulations.$inferInsert;
+
+export type UserProfile = typeof userProfile.$inferSelect;
+export type NewUserProfile = typeof userProfile.$inferInsert;

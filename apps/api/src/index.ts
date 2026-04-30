@@ -11,6 +11,7 @@ import optimization from "./modules/optimization/routes.js";
 import tasks from "./modules/tasks/routes.js";
 import historical from "./modules/historical/routes.js";
 import simulations from "./modules/simulations/routes.js";
+import onboarding from "./modules/onboarding/routes.js";
 
 const app = new Hono();
 
@@ -38,6 +39,7 @@ app.route("/api/optimization", optimization);
 app.route("/api/tasks", tasks);
 app.route("/api/historical", historical);
 app.route("/api/simulations", simulations);
+app.route("/api/onboarding", onboarding);
 
 // Start server
 const port = env.PORT;

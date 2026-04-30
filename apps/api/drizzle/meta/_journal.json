@@ -15,6 +15,13 @@
       "when": 1777383748034,
       "tag": "0001_numerous_drax",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1777560924724,
+      "tag": "0002_lean_beyonder",
+      "breakpoints": true
     }
   ]
 }

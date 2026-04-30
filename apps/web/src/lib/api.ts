@@ -228,6 +228,26 @@ export const api = {
     });
     return handleResponse<{ success: boolean }>(res);
   },
+
+  // Onboarding
+  async getOnboarding() {
+    const res = await apiFetch(`${API_BASE}/onboarding`);
+    return handleResponse<UserProfile>(res);
+  },
+
+  async patchOnboardingStep(step: 1 | 2 | 3, data: OnboardingStepPayload) {
+    const res = await apiFetch(`${API_BASE}/onboarding/step/${step}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return handleResponse<UserProfile>(res);
+  },
+
+  async completeOnboarding() {
+    const res = await apiFetch(`${API_BASE}/onboarding/complete`, { method: "POST" });
+    return handleResponse<UserProfile>(res);
+  },
 };
 
 // Optimization Strategy Types
@@ -406,3 +426,40 @@ export interface SimulationListItem {
   sharpeRatio: number;
   createdAt: string;
 }
+
+// Onboarding Types
+export type ExperienceLevel = "none" | "beginner" | "intermediate" | "advanced";
+export type InvestmentHorizon = "short" | "medium" | "long";
+export type RiskBehavior = "sell_all" | "sell_some" | "hold" | "buy_more";
+export type RiskTolerance = "conservative" | "moderate" | "aggressive";
+export type InvestmentGoal = "retirement" | "growth" | "preservation" | "specific";
+export type MarketCode = "MX" | "US" | "EU" | "LATAM" | "CRYPTO";
+export type ConceptKey = "markowitz" | "sharpe" | "volatility" | "beta" | "frontier";
+
+export interface UserProfile {
+  id: number;
+  userId: string;
+  countryCode: string | null;
+  currency: string | null;
+  experience: ExperienceLevel | null;
+  horizon: InvestmentHorizon | null;
+  riskBehavior: RiskBehavior | null;
+  riskTolerance: RiskTolerance | null;
+  goal: InvestmentGoal | null;
+  marketsOfInterest: MarketCode[] | null;
+  conceptFamiliarity: ConceptKey[] | null;
+  currentStep: number;
+  completedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export type OnboardingStepPayload =
+  | { countryCode: string; currency: string }
+  | {
+      experience: ExperienceLevel;
+      horizon: InvestmentHorizon;
+      riskBehavior: RiskBehavior;
+      goal: InvestmentGoal;
+    }
+  | { marketsOfInterest: MarketCode[]; conceptFamiliarity: ConceptKey[] };
