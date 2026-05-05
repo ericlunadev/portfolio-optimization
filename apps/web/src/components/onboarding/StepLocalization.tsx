@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useMemo } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { WhyTooltip } from "./WhyTooltip";
 import { COUNTRY_TO_CURRENCY, SUPPORTED_COUNTRIES, SUPPORTED_CURRENCIES } from "./useAutoDetect";
 
@@ -16,6 +17,15 @@ interface Props {
 
 export function StepLocalization({ value, onChange }: Props) {
   const t = useTranslations("Onboarding.step1");
+  const locale = useLocale();
+
+  const countryOptions = useMemo(() => {
+    const displayNames = new Intl.DisplayNames([locale], { type: "region" });
+    return SUPPORTED_COUNTRIES.map((code) => ({
+      code,
+      name: displayNames.of(code) ?? code,
+    })).sort((a, b) => a.name.localeCompare(b.name, locale));
+  }, [locale]);
 
   const handleCountryChange = (countryCode: string) => {
     const inferredCurrency = COUNTRY_TO_CURRENCY[countryCode];
@@ -42,9 +52,9 @@ export function StepLocalization({ value, onChange }: Props) {
           onChange={(e) => handleCountryChange(e.target.value)}
           className="mt-1.5 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
         >
-          {SUPPORTED_COUNTRIES.map((code) => (
+          {countryOptions.map(({ code, name }) => (
             <option key={code} value={code}>
-              {code}
+              {name}
             </option>
           ))}
         </select>
