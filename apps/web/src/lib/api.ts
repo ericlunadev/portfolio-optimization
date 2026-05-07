@@ -433,7 +433,7 @@ export type InvestmentHorizon = "short" | "medium" | "long";
 export type RiskBehavior = "sell_all" | "sell_some" | "hold" | "buy_more";
 export type RiskTolerance = "conservative" | "moderate" | "aggressive";
 export type InvestmentGoal = "retirement" | "growth" | "preservation" | "specific";
-export type MarketCode = "MX" | "US" | "EU" | "LATAM" | "CRYPTO";
+export type MarketCode = "MX" | "US" | "EU" | "LATAM" | "AR" | "CRYPTO";
 export type ConceptKey = "markowitz" | "sharpe" | "volatility" | "beta" | "frontier";
 
 export interface UserProfile {
@@ -447,6 +447,7 @@ export interface UserProfile {
   riskTolerance: RiskTolerance | null;
   goal: InvestmentGoal | null;
   marketsOfInterest: MarketCode[] | null;
+  otherMarkets: string[] | null;
   conceptFamiliarity: ConceptKey[] | null;
   currentStep: number;
   completedAt: string | null;
@@ -462,4 +463,8 @@ export type OnboardingStepPayload =
       riskBehavior: RiskBehavior;
       goal: InvestmentGoal;
     }
-  | { marketsOfInterest: MarketCode[]; conceptFamiliarity: ConceptKey[] };
+  | {
+      marketsOfInterest: MarketCode[];
+      otherMarkets: string[];
+      conceptFamiliarity: ConceptKey[];
+    };

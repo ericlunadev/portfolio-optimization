@@ -1,0 +1,1 @@
+ALTER TABLE `user_profile` ADD `other_markets` text;

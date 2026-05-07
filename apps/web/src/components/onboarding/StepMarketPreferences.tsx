@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ConceptKey, MarketCode } from "@/lib/api";
 import { WhyTooltip } from "./WhyTooltip";
 
 export interface Step3Values {
   marketsOfInterest: MarketCode[];
+  otherMarkets: string[];
   conceptFamiliarity: ConceptKey[];
 }
 
@@ -14,7 +16,7 @@ interface Props {
   onChange: (next: Step3Values) => void;
 }
 
-const MARKET_OPTIONS: MarketCode[] = ["MX", "US", "EU", "LATAM", "CRYPTO"];
+const MARKET_OPTIONS: MarketCode[] = ["MX", "US", "EU", "LATAM", "AR", "CRYPTO"];
 const CONCEPT_OPTIONS: ConceptKey[] = ["markowitz", "sharpe", "volatility", "beta", "frontier"];
 
 const MARKET_KEY: Record<MarketCode, string> = {
@@ -22,6 +24,7 @@ const MARKET_KEY: Record<MarketCode, string> = {
   US: "marketUS",
   EU: "marketEU",
   LATAM: "marketLATAM",
+  AR: "marketAR",
   CRYPTO: "marketCRYPTO",
 };
 
@@ -72,8 +75,26 @@ function toggle<T>(arr: readonly T[], v: T): T[] {
   return arr.includes(v) ? arr.filter((x) => x !== v) : [...arr, v];
 }
 
+function parseOtherMarkets(raw: string): string[] {
+  const tokens = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map((s) => s.slice(0, 64));
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const token of tokens) {
+    const key = token.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(token);
+  }
+  return out.slice(0, 10);
+}
+
 export function StepMarketPreferences({ value, onChange }: Props) {
   const t = useTranslations("Onboarding.step3");
+  const [otherInput, setOtherInput] = useState<string>(() => value.otherMarkets.join(", "));
 
   return (
     <div className="space-y-6">
@@ -93,6 +114,28 @@ export function StepMarketPreferences({ value, onChange }: Props) {
           labelFor={(v) => t(MARKET_KEY[v])}
         />
         <p className="mt-1.5 text-xs text-muted-foreground">{t("marketsHint")}</p>
+
+        <div className="mt-4">
+          <label
+            htmlFor="other-markets"
+            className="mb-1.5 block text-sm font-medium text-foreground"
+          >
+            {t("otherMarketsLabel")}
+          </label>
+          <input
+            id="other-markets"
+            type="text"
+            value={otherInput}
+            placeholder={t("otherMarketsPlaceholder")}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setOtherInput(raw);
+              onChange({ ...value, otherMarkets: parseOtherMarkets(raw) });
+            }}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
+          <p className="mt-1.5 text-xs text-muted-foreground">{t("otherMarketsHint")}</p>
+        </div>
       </div>
 
       <div>
@@ -114,5 +157,5 @@ export function StepMarketPreferences({ value, onChange }: Props) {
 }
 
 export function isStep3Valid(v: Step3Values): boolean {
-  return v.marketsOfInterest.length >= 1;
+  return v.marketsOfInterest.length + v.otherMarkets.length >= 1;
 }

@@ -65,6 +65,7 @@ export function WizardShell({ initialProfile }: Props) {
   const initialStep3 = useMemo<Step3Values>(
     () => ({
       marketsOfInterest: initialProfile.marketsOfInterest ?? [],
+      otherMarkets: initialProfile.otherMarkets ?? [],
       conceptFamiliarity: initialProfile.conceptFamiliarity ?? [],
     }),
     [initialProfile]

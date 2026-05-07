@@ -14,7 +14,7 @@ const EXPERIENCE = ["none", "beginner", "intermediate", "advanced"] as const;
 const HORIZON = ["short", "medium", "long"] as const;
 const RISK_BEHAVIOR = ["sell_all", "sell_some", "hold", "buy_more"] as const;
 const GOAL = ["retirement", "growth", "preservation", "specific"] as const;
-const MARKETS = ["MX", "US", "EU", "LATAM", "CRYPTO"] as const;
+const MARKETS = ["MX", "US", "EU", "LATAM", "AR", "CRYPTO"] as const;
 const CONCEPTS = ["markowitz", "sharpe", "volatility", "beta", "frontier"] as const;
 
 function deriveRiskTolerance(behavior: (typeof RISK_BEHAVIOR)[number]): string {
@@ -23,8 +23,12 @@ function deriveRiskTolerance(behavior: (typeof RISK_BEHAVIOR)[number]): string {
   return "moderate";
 }
 
-type Serialized = Omit<UserProfile, "marketsOfInterest" | "conceptFamiliarity"> & {
+type Serialized = Omit<
+  UserProfile,
+  "marketsOfInterest" | "otherMarkets" | "conceptFamiliarity"
+> & {
   marketsOfInterest: string[] | null;
+  otherMarkets: string[] | null;
   conceptFamiliarity: string[] | null;
 };
 
@@ -32,6 +36,7 @@ function serialize(row: UserProfile): Serialized {
   return {
     ...row,
     marketsOfInterest: row.marketsOfInterest ? JSON.parse(row.marketsOfInterest) : null,
+    otherMarkets: row.otherMarkets ? JSON.parse(row.otherMarkets) : null,
     conceptFamiliarity: row.conceptFamiliarity ? JSON.parse(row.conceptFamiliarity) : null,
   };
 }
@@ -68,10 +73,16 @@ const step2Schema = z.object({
   goal: z.enum(GOAL),
 });
 
-const step3Schema = z.object({
-  marketsOfInterest: z.array(z.enum(MARKETS)).min(1),
-  conceptFamiliarity: z.array(z.enum(CONCEPTS)),
-});
+const step3Schema = z
+  .object({
+    marketsOfInterest: z.array(z.enum(MARKETS)),
+    otherMarkets: z.array(z.string().trim().min(1).max(64)).max(10).default([]),
+    conceptFamiliarity: z.array(z.enum(CONCEPTS)),
+  })
+  .refine((v) => v.marketsOfInterest.length + v.otherMarkets.length >= 1, {
+    message: "Pick at least one market",
+    path: ["marketsOfInterest"],
+  });
 
 async function patchStep(
   userId: string,
@@ -125,6 +136,7 @@ app.patch("/step/3", zValidator("json", step3Schema), async (c) => {
   const body = c.req.valid("json");
   const row = await patchStep(user.id, 3, {
     marketsOfInterest: JSON.stringify(body.marketsOfInterest),
+    otherMarkets: JSON.stringify(body.otherMarkets),
     conceptFamiliarity: JSON.stringify(body.conceptFamiliarity),
   });
   if (!row) return c.json({ error: "Profile not initialized" }, 404);
@@ -146,9 +158,10 @@ app.post("/complete", async (c) => {
     row.horizon,
     row.riskBehavior,
     row.goal,
-    row.marketsOfInterest,
   ];
-  if (required.some((v) => v == null || v === "")) {
+  const markets = row.marketsOfInterest ? (JSON.parse(row.marketsOfInterest) as string[]) : [];
+  const others = row.otherMarkets ? (JSON.parse(row.otherMarkets) as string[]) : [];
+  if (required.some((v) => v == null || v === "") || markets.length + others.length === 0) {
     return c.json({ error: "Onboarding incomplete" }, 400);
   }
 

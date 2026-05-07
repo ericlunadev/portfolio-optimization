@@ -180,6 +180,7 @@ export const userProfile = sqliteTable("user_profile", {
 
   // Step 3 — Market preferences (JSON-encoded arrays)
   marketsOfInterest: text("markets_of_interest"),
+  otherMarkets: text("other_markets"),
   conceptFamiliarity: text("concept_familiarity"),
 
   // Progress
