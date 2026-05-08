@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middleware/error.js";
+import { assertWalletLedgerInvariant } from "./lib/billing/reconcile.js";
 
 // Import routes
 import auth from "./modules/auth/routes.js";
@@ -12,6 +13,7 @@ import tasks from "./modules/tasks/routes.js";
 import historical from "./modules/historical/routes.js";
 import simulations from "./modules/simulations/routes.js";
 import onboarding from "./modules/onboarding/routes.js";
+import billing from "./modules/billing/routes.js";
 
 const app = new Hono();
 
@@ -40,6 +42,7 @@ app.route("/api/tasks", tasks);
 app.route("/api/historical", historical);
 app.route("/api/simulations", simulations);
 app.route("/api/onboarding", onboarding);
+app.route("/api/billing", billing);
 
 // Start server
 const port = env.PORT;
@@ -51,5 +54,11 @@ serve({
   fetch: app.fetch,
   port,
 });
+
+if (process.env.NODE_ENV !== "production") {
+  assertWalletLedgerInvariant().catch((err) => {
+    console.error("[billing] reconcile check failed to run:", err);
+  });
+}
 
 export default app;

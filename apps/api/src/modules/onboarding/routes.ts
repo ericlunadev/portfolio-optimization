@@ -5,6 +5,9 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { userProfile, type UserProfile } from "../../db/schema.js";
 import { authMiddleware } from "../../middleware/auth.js";
+import { grantCredits } from "../../lib/billing/spend.js";
+
+const SIGNUP_GRANT_CREDITS = 3;
 
 const app = new Hono();
 
@@ -169,6 +172,14 @@ app.post("/complete", async (c) => {
     .update(userProfile)
     .set({ completedAt: new Date(), updatedAt: sql`(unixepoch())` })
     .where(eq(userProfile.userId, user.id));
+
+  // Idempotent: re-completing onboarding won't re-grant credits.
+  await grantCredits({
+    userId: user.id,
+    credits: SIGNUP_GRANT_CREDITS,
+    reason: "grant",
+    idempotencyKey: `signup-grant:${user.id}`,
+  });
 
   const updated = await db.query.userProfile.findFirst({
     where: eq(userProfile.userId, user.id),

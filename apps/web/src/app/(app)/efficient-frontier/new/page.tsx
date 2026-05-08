@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimization } from "@/hooks/useOptimization";
 import { useSaveSimulation } from "@/hooks/useSimulations";
-import { OptimizationStrategy, OPTIMIZATION_STRATEGIES, SimulationParams } from "@/lib/api";
+import { ApiError, OptimizationStrategy, OPTIMIZATION_STRATEGIES, SimulationParams } from "@/lib/api";
+import Link from "next/link";
 import { DateRangePicker, DateRange } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
 import { ConstraintsPanel } from "@/components/forms/ConstraintsPanel";
@@ -31,6 +32,7 @@ const INITIAL_ASSETS: AssetRow[] = Array.from({ length: 2 }, () => ({
 export default function NewOptimizationPage() {
   const t = useTranslations("NewOptimization");
   const tCommon = useTranslations("Common");
+  const tBilling = useTranslations("Billing");
   const router = useRouter();
   const { data: session, isPending: isSessionPending } = authClient.useSession();
   const isSignedIn = !!session?.user;
@@ -161,6 +163,36 @@ export default function NewOptimizationPage() {
   }
 
   if (isSubmitted) {
+    const isInsufficientCredits =
+      optimizationError instanceof ApiError && optimizationError.isInsufficientCredits();
+
+    if (isInsufficientCredits) {
+      return (
+        <div className="mx-auto max-w-md space-y-4 pt-16 text-center">
+          <h2 className="font-display text-xl">{tBilling("outOfCreditsTitle")}</h2>
+          <p className="text-muted-foreground">{tBilling("outOfCreditsBody")}</p>
+          <div className="flex justify-center gap-3">
+            <Link
+              href="/billing"
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:brightness-110"
+            >
+              {tBilling("outOfCreditsCta")}
+            </Link>
+            <button
+              onClick={() => {
+                hasSavedRef.current = false;
+                saveSimulation.reset();
+                setIsSubmitted(false);
+              }}
+              className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium hover:bg-accent"
+            >
+              {t("backToConfig")}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     const errorMessage = optimizationError
       ? t("errorOptimize")
       : saveSimulation.isError

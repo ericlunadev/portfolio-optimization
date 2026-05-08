@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
+import { CreditsChip } from "@/components/billing/CreditsChip";
 
 export function Header() {
   const t = useTranslations("Header");
@@ -43,6 +44,7 @@ export function Header() {
             <span className="text-foreground/80">{tBrand("fullName")}</span>
           </h1>
           <div className="flex items-center gap-2 md:gap-3">
+            <CreditsChip />
             <LocaleSwitcher />
           {isPending ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />

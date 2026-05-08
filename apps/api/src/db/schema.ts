@@ -216,6 +216,66 @@ export const simulations = sqliteTable("simulations", {
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
+// ==================== BILLING ====================
+
+export const walletBalance = sqliteTable("wallet_balance", {
+  userId: text("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  credits: integer("credits").notNull().default(0),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+export const creditPackages = sqliteTable("credit_packages", {
+  id: text("id").primaryKey(),
+  credits: integer("credits").notNull(),
+  priceMinor: integer("price_minor").notNull(),
+  currency: text("currency").notNull(),
+  rail: text("rail").notNull(),
+  stripePriceId: text("stripe_price_id"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+});
+
+export const payments = sqliteTable(
+  "payments",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id),
+    packageId: text("package_id").references(() => creditPackages.id),
+    rail: text("rail").notNull(),
+    externalId: text("external_id").unique(),
+    status: text("status").notNull().default("pending"),
+    amountMinor: integer("amount_minor").notNull(),
+    currency: text("currency").notNull(),
+    creditsPurchased: integer("credits_purchased").notNull(),
+    metadata: text("metadata"),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+    completedAt: integer("completed_at", { mode: "timestamp" }),
+  },
+  (t) => [index("payments_user_idx").on(t.userId)]
+);
+
+export const creditLedger = sqliteTable(
+  "credit_ledger",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    delta: integer("delta").notNull(),
+    reason: text("reason").notNull(), // 'purchase' | 'spend' | 'grant' | 'reversal'
+    paymentId: text("payment_id").references(() => payments.id),
+    simulationId: text("simulation_id").references(() => simulations.id),
+    idempotencyKey: text("idempotency_key").unique(),
+    balanceAfter: integer("balance_after").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  },
+  (t) => [index("ledger_user_idx").on(t.userId), index("ledger_created_idx").on(t.createdAt)]
+);
+
 // ==================== RELATIONS ====================
 
 export const userRelations = relations(user, ({ many }) => ({
@@ -283,6 +343,40 @@ export const userProfileRelations = relations(userProfile, ({ one }) => ({
   }),
 }));
 
+export const walletBalanceRelations = relations(walletBalance, ({ one }) => ({
+  user: one(user, {
+    fields: [walletBalance.userId],
+    references: [user.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one, many }) => ({
+  user: one(user, {
+    fields: [payments.userId],
+    references: [user.id],
+  }),
+  package: one(creditPackages, {
+    fields: [payments.packageId],
+    references: [creditPackages.id],
+  }),
+  ledgerRows: many(creditLedger),
+}));
+
+export const creditLedgerRelations = relations(creditLedger, ({ one }) => ({
+  user: one(user, {
+    fields: [creditLedger.userId],
+    references: [user.id],
+  }),
+  payment: one(payments, {
+    fields: [creditLedger.paymentId],
+    references: [payments.id],
+  }),
+  simulation: one(simulations, {
+    fields: [creditLedger.simulationId],
+    references: [simulations.id],
+  }),
+}));
+
 // ==================== TYPES ====================
 
 export type User = typeof user.$inferSelect;
@@ -311,3 +405,11 @@ export type NewSimulation = typeof simulations.$inferInsert;
 
 export type UserProfile = typeof userProfile.$inferSelect;
 export type NewUserProfile = typeof userProfile.$inferInsert;
+
+export type WalletBalance = typeof walletBalance.$inferSelect;
+export type CreditPackage = typeof creditPackages.$inferSelect;
+export type NewCreditPackage = typeof creditPackages.$inferInsert;
+export type Payment = typeof payments.$inferSelect;
+export type NewPayment = typeof payments.$inferInsert;
+export type CreditLedgerRow = typeof creditLedger.$inferSelect;
+export type NewCreditLedgerRow = typeof creditLedger.$inferInsert;

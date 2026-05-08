@@ -12,6 +12,7 @@
     "home": "Home",
     "efficientFrontier": "Efficient Frontier",
     "academia": "Academy",
+    "billing": "Billing",
     "ariaLabel": "Main navigation"
   },
   "Header": {
@@ -196,7 +197,6 @@
     "tableExpReturn": "Exp. Return",
     "tableVolatility": "Volatility",
     "tableWeight": "Weight",
-    "calcStepsTitle": "Calculation Process (Debug)",
     "compareReturnLabel": "Return",
     "compareVolatilityLabel": "Volatility",
     "compareOptimal": "Optimal",
@@ -692,5 +692,43 @@
     "step6FormulaDesc": "Portfolio variance = weighted sum of all covariances",
     "diversificationBenefitLabel": "Diversification benefit:",
     "diversificationBenefitText": " When assets are not perfectly correlated (ρ < 1), portfolio volatility is lower than the weighted average of individual volatilities. This is the power of diversification."
+  },
+  "Billing": {
+    "pageTitle": "Balance & credits",
+    "pageSubtitle": "Each optimization run costs 1 credit. Buy packs to keep running analyses.",
+    "walletLabel": "Current balance",
+    "creditsUnit": "credits",
+    "walletHint": "Credits never expire.",
+    "buyTitle": "Buy credits",
+    "ledgerTitle": "History",
+    "loadingPackages": "Loading packages…",
+    "noPackages": "No packages available yet. Check back soon.",
+    "perCreditCost": "${cost} per credit",
+    "salesFinal": "All sales are final. Credits are non-refundable and non-transferable.",
+    "salesFinalAck": "I understand this purchase is final and non-refundable.",
+    "usdOnlyNote": "We charge in USD. If your card is from another country, your bank handles the FX.",
+    "buyButton": "Pay with card",
+    "errorCheckout": "We couldn't start checkout. Please try again.",
+    "errorEmailNotVerified": "Please verify your email before buying credits.",
+    "loadingLedger": "Loading history…",
+    "emptyLedger": "No activity yet.",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "colDate": "Date",
+    "colType": "Type",
+    "colDelta": "Change",
+    "colBalanceAfter": "Balance",
+    "reason": {
+      "purchase": "Purchase",
+      "spend": "Optimization",
+      "grant": "Grant",
+      "reversal": "Reversal"
+    },
+    "statusSuccess": "Payment received. Credits will land in a few seconds.",
+    "statusCancelled": "Payment cancelled. No charge was made.",
+    "outOfCreditsTitle": "Out of credits",
+    "outOfCreditsBody": "You're out of credits to run this optimization.",
+    "outOfCreditsCta": "Buy credits",
+    "chipAria": "Credit balance"
   }
 }

@@ -59,6 +59,9 @@ importers:
       resend:
         specifier: ^6.12.2
         version: 6.12.2(@react-email/render@2.0.8(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
+      stripe:
+        specifier: ^22.1.1
+        version: 22.1.1(@types/node@22.19.7)
       yahoo-finance2:
         specifier: ^3.11.2
         version: 3.11.2
@@ -4638,6 +4641,15 @@ packages:
   strip-outer@1.0.1:
     resolution: {integrity: sha512-k55yxKHwaXnpYGsOzg4Vl8+tDrWylxDEpknGjhTiZB8dFRU5rTo9CAzeycivxV3s+zlTKwrs6WxMxR95n26kwg==}
     engines: {node: '>=0.10.0'}
+
+  stripe@22.1.1:
+    resolution: {integrity: sha512-cmodIYP27tBkJ8G7DuGgWw0PFuemlFZbuF3Wwr1TrjFjUa3T7NIgCe6TVwX8BO2ynu+xtTuDGfHafNDCPt9lXA==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
 
   styled-jsx@5.1.1:
     resolution: {integrity: sha512-pW7uC1l4mBZ8ugbiZrcIsiIvVx1UmTfw7UkC3Um2tmfUq9Bhk8IiyEIPl6F8agHgjzku6j0xQEZbfA5uSgSaCw==}
@@ -9329,6 +9341,10 @@ snapshots:
   strip-outer@1.0.1:
     dependencies:
       escape-string-regexp: 1.0.5
+
+  stripe@22.1.1(@types/node@22.19.7):
+    optionalDependencies:
+      '@types/node': 22.19.7
 
   styled-jsx@5.1.1(@babel/core@7.28.6)(react@18.3.1):
     dependencies:

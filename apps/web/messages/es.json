@@ -12,6 +12,7 @@
     "home": "Inicio",
     "efficientFrontier": "Frontera Eficiente",
     "academia": "Academia",
+    "billing": "Saldo",
     "ariaLabel": "Navegación principal"
   },
   "Header": {
@@ -196,7 +197,6 @@
     "tableExpReturn": "Rend. Esperado",
     "tableVolatility": "Volatilidad",
     "tableWeight": "Peso",
-    "calcStepsTitle": "Proceso de Cálculo (Debug)",
     "compareReturnLabel": "Rendimiento",
     "compareVolatilityLabel": "Volatilidad",
     "compareOptimal": "Óptimo",
@@ -692,5 +692,43 @@
     "step6FormulaDesc": "Varianza del portafolio = suma ponderada de todas las covarianzas",
     "diversificationBenefitLabel": "Beneficio de la diversificación:",
     "diversificationBenefitText": " Cuando los activos no están perfectamente correlacionados (ρ < 1), la volatilidad del portafolio es menor que el promedio ponderado de las volatilidades individuales. Esto es el poder de la diversificación."
+  },
+  "Billing": {
+    "pageTitle": "Saldo y créditos",
+    "pageSubtitle": "Cada optimización consume 1 crédito. Compra paquetes para seguir corriendo análisis.",
+    "walletLabel": "Saldo actual",
+    "creditsUnit": "créditos",
+    "walletHint": "Tus créditos no expiran.",
+    "buyTitle": "Comprar créditos",
+    "ledgerTitle": "Historial",
+    "loadingPackages": "Cargando paquetes…",
+    "noPackages": "Aún no hay paquetes disponibles. Vuelve pronto.",
+    "perCreditCost": "${cost} por crédito",
+    "salesFinal": "Todas las ventas son finales. Los créditos no son reembolsables ni transferibles.",
+    "salesFinalAck": "Acepto que la compra es final y no reembolsable.",
+    "usdOnlyNote": "Cobramos en USD. Si tu tarjeta es de otro país, tu banco se encarga del cambio.",
+    "buyButton": "Comprar con tarjeta",
+    "errorCheckout": "No pudimos iniciar el pago. Inténtalo de nuevo.",
+    "errorEmailNotVerified": "Verifica tu correo electrónico antes de comprar créditos.",
+    "loadingLedger": "Cargando historial…",
+    "emptyLedger": "Aún no hay movimientos.",
+    "loadMore": "Cargar más",
+    "loadingMore": "Cargando…",
+    "colDate": "Fecha",
+    "colType": "Tipo",
+    "colDelta": "Cambio",
+    "colBalanceAfter": "Saldo",
+    "reason": {
+      "purchase": "Compra",
+      "spend": "Optimización",
+      "grant": "Bonificación",
+      "reversal": "Reverso"
+    },
+    "statusSuccess": "¡Pago recibido! Los créditos se acreditarán en unos segundos.",
+    "statusCancelled": "Pago cancelado. No se realizó ningún cargo.",
+    "outOfCreditsTitle": "Sin créditos",
+    "outOfCreditsBody": "Te quedaste sin créditos para correr esta optimización.",
+    "outOfCreditsCta": "Comprar créditos",
+    "chipAria": "Saldo de créditos"
   }
 }

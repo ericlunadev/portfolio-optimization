@@ -4,12 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { BarChart3, Home, GraduationCap } from "lucide-react";
+import { BarChart3, Home, GraduationCap, Wallet } from "lucide-react";
 
 const navItems = [
   { href: "/", labelKey: "home", icon: Home },
   { href: "/efficient-frontier", labelKey: "efficientFrontier", icon: BarChart3 },
   { href: "/academia", labelKey: "academia", icon: GraduationCap },
+  { href: "/billing", labelKey: "billing", icon: Wallet },
 ] as const;
 
 export function Sidebar() {

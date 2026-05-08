@@ -15,6 +15,7 @@ import {
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 import { authMiddleware } from "../../middleware/auth.js";
+import { meterRequest, newIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
 
 const yahooFinance = new YahooFinance();
 
@@ -43,6 +44,11 @@ optimization.post(
     })
   ),
   async (c) => {
+    const user = c.get("user");
+    const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
+    const spend = await meterRequest(user, 1, idempotencyKey);
+
+    try {
     const {
       tickers,
       strategy,
@@ -161,6 +167,10 @@ optimization.post(
         prob_neg_2y: calcProbNeg(24),
       },
     });
+    } catch (err) {
+      await reverseSpendOnError(spend, "optimize_failed");
+      throw err;
+    }
   }
 );
 
@@ -182,6 +192,11 @@ optimization.post(
     })
   ),
   async (c) => {
+    const user = c.get("user");
+    const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
+    const spend = await meterRequest(user, 1, idempotencyKey);
+
+    try {
     const {
       tickers,
       r_min,
@@ -233,6 +248,10 @@ optimization.post(
         prob_neg_2y: calcProbNeg(24),
       },
     });
+    } catch (err) {
+      await reverseSpendOnError(spend, "min_variance_failed");
+      throw err;
+    }
   }
 );
 
@@ -253,6 +272,11 @@ optimization.post(
     })
   ),
   async (c) => {
+    const user = c.get("user");
+    const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
+    const spend = await meterRequest(user, 1, idempotencyKey);
+
+    try {
     const {
       tickers,
       w_max,
@@ -309,6 +333,10 @@ optimization.post(
         prob_neg_2y: calcProbNeg(24),
       },
     });
+    } catch (err) {
+      await reverseSpendOnError(spend, "max_sharpe_failed");
+      throw err;
+    }
   }
 );
 
@@ -329,6 +357,11 @@ optimization.post(
     })
   ),
   async (c) => {
+    const user = c.get("user");
+    const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
+    const spend = await meterRequest(user, 1, idempotencyKey);
+
+    try {
     const { tickers, start_date, end_date, w_max, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");
 
     const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
@@ -348,6 +381,10 @@ optimization.post(
         weights: frontier.weights[i],
       })),
     });
+    } catch (err) {
+      await reverseSpendOnError(spend, "frontier_failed");
+      throw err;
+    }
   }
 );
 

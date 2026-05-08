@@ -14,17 +14,26 @@ function apiFetch(url: string, init?: RequestInit): Promise<Response> {
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public code?: string
   ) {
     super(message);
     this.name = "ApiError";
+  }
+
+  isInsufficientCredits(): boolean {
+    return this.status === 402;
   }
 }
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, error.detail || response.statusText);
+    throw new ApiError(
+      response.status,
+      error.detail || error.error || response.statusText,
+      error.error
+    );
   }
   return response.json();
 }
@@ -248,7 +257,59 @@ export const api = {
     const res = await apiFetch(`${API_BASE}/onboarding/complete`, { method: "POST" });
     return handleResponse<UserProfile>(res);
   },
+
+  // Billing
+  async getWallet() {
+    const res = await apiFetch(`${API_BASE}/billing/wallet`);
+    return handleResponse<{ credits: number; updatedAt: string | null }>(res);
+  },
+
+  async getPackages(rail?: "stripe" | "coinbase_commerce") {
+    const url = rail ? `${API_BASE}/billing/packages?rail=${rail}` : `${API_BASE}/billing/packages`;
+    const res = await apiFetch(url);
+    return handleResponse<CreditPackageSummary[]>(res);
+  },
+
+  async createCheckoutSession(packageId: string) {
+    const res = await apiFetch(`${API_BASE}/billing/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ packageId }),
+    });
+    return handleResponse<{ url: string }>(res);
+  },
+
+  async getLedger(cursor?: number, limit: number = 50) {
+    const params = new URLSearchParams();
+    if (cursor !== undefined) params.set("cursor", String(cursor));
+    params.set("limit", String(limit));
+    const res = await apiFetch(`${API_BASE}/billing/ledger?${params}`);
+    return handleResponse<LedgerPage>(res);
+  },
 };
+
+export interface CreditPackageSummary {
+  id: string;
+  credits: number;
+  priceMinor: number;
+  currency: string;
+  rail: "stripe" | "coinbase_commerce";
+}
+
+export interface LedgerEntry {
+  id: string;
+  delta: number;
+  reason: "purchase" | "spend" | "grant" | "reversal";
+  balanceAfter: number;
+  paymentId: string | null;
+  simulationId: string | null;
+  createdAt: string | null;
+}
+
+export interface LedgerPage {
+  items: LedgerEntry[];
+  nextCursor: number | null;
+}
 
 // Optimization Strategy Types
 export type OptimizationStrategy =
@@ -311,26 +372,6 @@ export interface OptimizationResultWithStrategy {
     prob_neg_3m: number;
     prob_neg_1y: number;
     prob_neg_2y: number;
-  };
-  // Debug matrices and calculation steps
-  debug?: {
-    covarianceMatrix: number[][];
-    correlationMatrix: number[][];
-    calculationSteps: {
-      dailyReturns: { ticker: string; returns: number[] }[];
-      tickerStats: {
-        ticker: string;
-        meanDailyReturn: number;
-        dailyVolatility: number;
-        annualizedReturn: number;
-        annualizedVolatility: number;
-      }[];
-      pairwiseCorrelations: {
-        ticker1: string;
-        ticker2: string;
-        correlation: number;
-      }[];
-    };
   };
 }
 

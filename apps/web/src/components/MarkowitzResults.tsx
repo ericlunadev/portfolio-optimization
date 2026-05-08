@@ -21,7 +21,6 @@ import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
-import { CalculationSteps } from "@/components/debug/CalculationSteps";
 import { cn, formatPercent } from "@/lib/utils";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useTranslations } from "next-intl";
@@ -519,17 +518,6 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
             </div>
           )}
 
-          {result.debug && (
-            <div className="glass-card p-4 md:p-5">
-              <h3 className="mb-4 font-display text-lg">
-                {t("calcStepsTitle")}
-              </h3>
-              <CalculationSteps
-                debug={result.debug}
-                tickers={result.weights.map((w) => w.fund_name)}
-              />
-            </div>
-          )}
         </Tabs.Content>
       </Tabs.Root>
     </div>

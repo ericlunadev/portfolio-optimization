@@ -32,6 +32,10 @@ const envSchema = z.object({
   EMAIL_FROM: z
     .string()
     .default("Portfolio Optimization <onboarding@resend.dev>"),
+
+  // Billing (Stripe)
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);
