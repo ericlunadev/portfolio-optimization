@@ -207,6 +207,23 @@
     "horizon1y": "1 Año",
     "horizon2y": "2 Años"
   },
+  "AdvisorCta": {
+    "title": "¿Dudas con estos resultados?",
+    "subtitle": "Agendá una llamada de 30 min con nuestro asesor financiero.",
+    "button": "Agendar llamada",
+    "modalTitle": "Agendá una llamada con nuestro asesor",
+    "modalBody": "Una sesión 1 a 1 de 30 min para revisar tu portafolio y resolver tus dudas. La reserva cuesta {cost} créditos.",
+    "modalBalance": "Tu saldo: {balance} créditos",
+    "confirm": "Gastar {cost} créditos y reservar",
+    "cancel": "Cancelar",
+    "insufficientTitle": "No te alcanzan los créditos",
+    "insufficientBody": "Necesitás {cost} créditos para agendar una llamada. Tenés {balance}.",
+    "goToBilling": "Comprar créditos",
+    "successTitle": "¡Listo!",
+    "successBody": "Elegí el horario que mejor te funcione. El link sigue válido aunque cierres este diálogo.",
+    "openBookingLink": "Abrir página de reserva",
+    "errorGeneric": "No pudimos iniciar la reserva. Intentá de nuevo."
+  },
   "SimulationSummary": {
     "title": "Parámetros de Simulación",
     "dateRange": "Rango de Fechas",

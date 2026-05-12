@@ -14,7 +14,8 @@ import {
 } from "../../db/schema.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
-import { grantCredits } from "../../lib/billing/spend.js";
+import { grantCredits, spendCredit } from "../../lib/billing/spend.js";
+import { newIdempotencyKey } from "../../lib/billing/metering.js";
 import { getStripe, getWebhookSecret } from "./stripe.js";
 import {
   createCharge,
@@ -489,5 +490,23 @@ app.get(
     });
   }
 );
+
+// POST /api/billing/advisor-call — spend credits, reveal the booking URL.
+// Idempotent on the Idempotency-Key header so a double-click does not double-charge.
+app.post("/advisor-call", async (c) => {
+  const user = c.get("user");
+  const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
+
+  await spendCredit({
+    userId: user.id,
+    idempotencyKey,
+    cost: env.ADVISOR_CALL_COST_CREDITS,
+  });
+
+  return c.json({
+    bookingUrl: env.ADVISOR_BOOKING_URL,
+    costCredits: env.ADVISOR_CALL_COST_CREDITS,
+  });
+});
 
 export default app;

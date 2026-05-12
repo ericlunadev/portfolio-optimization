@@ -40,6 +40,12 @@ const envSchema = z.object({
   // Billing (Coinbase Commerce)
   COINBASE_COMMERCE_API_KEY: z.string().optional(),
   COINBASE_COMMERCE_WEBHOOK_SECRET: z.string().optional(),
+
+  // Financial advisor booking
+  ADVISOR_BOOKING_URL: z
+    .string()
+    .default("https://cal.com/REPLACE_ME/advisor-30min"),
+  ADVISOR_CALL_COST_CREDITS: z.coerce.number().int().positive().default(100),
 });
 
 export const env = envSchema.parse(process.env);

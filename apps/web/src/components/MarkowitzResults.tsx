@@ -21,6 +21,7 @@ import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
+import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
 import { cn, formatPercent } from "@/lib/utils";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useTranslations } from "next-intl";
@@ -520,6 +521,8 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
 
         </Tabs.Content>
       </Tabs.Root>
+
+      <AdvisorCallCta />
     </div>
   );
 }

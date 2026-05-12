@@ -207,6 +207,23 @@
     "horizon1y": "1 Year",
     "horizon2y": "2 Years"
   },
+  "AdvisorCta": {
+    "title": "Questions about these results?",
+    "subtitle": "Book a 30-min call with our financial advisor.",
+    "button": "Book a call",
+    "modalTitle": "Book a call with our advisor",
+    "modalBody": "A 30-min one-on-one session to walk through your portfolio and answer any questions. Booking costs {cost} credits.",
+    "modalBalance": "Your balance: {balance} credits",
+    "confirm": "Spend {cost} credits & book",
+    "cancel": "Cancel",
+    "insufficientTitle": "Not enough credits",
+    "insufficientBody": "You need {cost} credits to book a call. You currently have {balance}.",
+    "goToBilling": "Buy more credits",
+    "successTitle": "You're all set",
+    "successBody": "Pick a time that works for you. The link is also valid if you close this dialog.",
+    "openBookingLink": "Open booking page",
+    "errorGeneric": "Could not start the booking. Please try again."
+  },
   "SimulationSummary": {
     "title": "Simulation Parameters",
     "dateRange": "Date Range",

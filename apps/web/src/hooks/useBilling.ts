@@ -45,3 +45,13 @@ export function useInvalidateWallet() {
   const qc = useQueryClient();
   return () => qc.invalidateQueries({ queryKey: ["billing"] });
 }
+
+export function useBookAdvisorCall() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (idempotencyKey: string) => api.bookAdvisorCall(idempotencyKey),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["billing"] });
+    },
+  });
+}

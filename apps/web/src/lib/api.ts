@@ -295,6 +295,14 @@ export const api = {
     const res = await apiFetch(`${API_BASE}/billing/ledger?${params}`);
     return handleResponse<LedgerPage>(res);
   },
+
+  async bookAdvisorCall(idempotencyKey: string) {
+    const res = await apiFetch(`${API_BASE}/billing/advisor-call`, {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+    });
+    return handleResponse<{ bookingUrl: string; costCredits: number }>(res);
+  },
 };
 
 export interface CreditPackageSummary {
