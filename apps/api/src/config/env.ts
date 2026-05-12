@@ -36,6 +36,10 @@ const envSchema = z.object({
   // Billing (Stripe)
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+
+  // Billing (Coinbase Commerce)
+  COINBASE_COMMERCE_API_KEY: z.string().optional(),
+  COINBASE_COMMERCE_WEBHOOK_SECRET: z.string().optional(),
 });
 
 export const env = envSchema.parse(process.env);

@@ -16,6 +16,14 @@ import { authMiddleware } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
 import { grantCredits } from "../../lib/billing/spend.js";
 import { getStripe, getWebhookSecret } from "./stripe.js";
+import {
+  createCharge,
+  isCoinbaseConfigured,
+  verifyWebhookSignature as verifyCoinbaseSignature,
+  type CoinbaseCharge,
+  type CoinbaseEvent,
+  type CoinbaseWebhookEnvelope,
+} from "./coinbase.js";
 
 const app = new Hono();
 
@@ -148,6 +156,107 @@ async function markPaymentStatus(externalId: string, status: "failed" | "expired
     .where(and(eq(payments.externalId, externalId), eq(payments.status, "pending")));
 }
 
+// Coinbase Commerce webhook. Signature: HMAC-SHA256 hex of raw body, header
+// X-CC-Webhook-Signature. Idempotent via the same ledger idempotencyKey trick.
+app.post("/webhooks/coinbase", async (c) => {
+  if (!isCoinbaseConfigured()) {
+    console.error("[billing] Coinbase webhook hit but COINBASE_COMMERCE_API_KEY not configured");
+    return c.json({ error: "Coinbase not configured" }, 503);
+  }
+
+  const signature = c.req.header("x-cc-webhook-signature");
+  const rawBody = await c.req.text();
+
+  if (!verifyCoinbaseSignature(rawBody, signature)) {
+    console.error("[billing] Coinbase webhook signature verification failed");
+    return c.json({ error: "Invalid signature" }, 400);
+  }
+
+  let envelope: CoinbaseWebhookEnvelope;
+  try {
+    envelope = JSON.parse(rawBody) as CoinbaseWebhookEnvelope;
+  } catch (err) {
+    console.error("[billing] Coinbase webhook body not JSON:", err);
+    return c.json({ error: "Invalid body" }, 400);
+  }
+
+  try {
+    await handleCoinbaseEvent(envelope.event);
+  } catch (err) {
+    console.error(`[billing] Coinbase handler for ${envelope.event?.type} threw:`, err);
+    // 500 → Coinbase retries (up to 3 days), preferable to silently dropping.
+    return c.json({ error: "Handler failed" }, 500);
+  }
+
+  return c.json({ received: true });
+});
+
+async function handleCoinbaseEvent(event: CoinbaseEvent): Promise<void> {
+  switch (event.type) {
+    case "charge:confirmed": {
+      await fulfillCoinbaseCharge(event.data);
+      return;
+    }
+    case "charge:resolved": {
+      // Already credited at confirmed; resolved fires after re-org safety window.
+      return;
+    }
+    case "charge:failed": {
+      await markPaymentStatus(event.data.id, "failed");
+      return;
+    }
+    case "charge:delayed": {
+      // Underpayment / late payment past the window. Treat as expired for v1;
+      // operator can manually credit from the Coinbase dashboard if desired.
+      await markPaymentStatus(event.data.id, "expired");
+      return;
+    }
+    default:
+      console.log(`[billing] Coinbase event ignored: ${event.type}`);
+      return;
+  }
+}
+
+async function fulfillCoinbaseCharge(charge: CoinbaseCharge): Promise<void> {
+  const userId = charge.metadata?.userId as string | undefined;
+  const packageId = charge.metadata?.packageId as string | undefined;
+  if (!userId || !packageId) {
+    console.error(`[billing] charge ${charge.id} missing metadata`, charge.metadata);
+    return;
+  }
+
+  const pkg = await db.query.creditPackages.findFirst({
+    where: eq(creditPackages.id, packageId),
+  });
+  if (!pkg) {
+    console.error(`[billing] charge ${charge.id} references unknown package ${packageId}`);
+    return;
+  }
+
+  const paymentRow = await db.query.payments.findFirst({
+    where: eq(payments.externalId, charge.id),
+  });
+  if (!paymentRow) {
+    console.error(`[billing] no payments row for charge ${charge.id}`);
+    return;
+  }
+
+  if (paymentRow.status !== "succeeded") {
+    await db
+      .update(payments)
+      .set({ status: "succeeded", completedAt: new Date() })
+      .where(eq(payments.id, paymentRow.id));
+  }
+
+  await grantCredits({
+    userId,
+    credits: pkg.credits,
+    reason: "purchase",
+    idempotencyKey: `purchase:cb:${charge.id}`,
+    paymentId: paymentRow.id,
+  });
+}
+
 // ---------- Auth-gated endpoints ----------
 
 app.use("*", authMiddleware);
@@ -265,6 +374,76 @@ app.post(
       throw new HTTPException(502, { message: "Stripe did not return a checkout URL" });
     }
     return c.json({ url: session.url });
+  }
+);
+
+// POST /api/billing/crypto/checkout — create a Coinbase Commerce charge
+app.post(
+  "/crypto/checkout",
+  zValidator(
+    "json",
+    z.object({
+      packageId: z.string().min(1),
+    })
+  ),
+  async (c) => {
+    const user = c.get("user");
+    const { packageId } = c.req.valid("json");
+
+    if (!isCoinbaseConfigured()) {
+      throw new HTTPException(503, { message: "Coinbase not configured" });
+    }
+
+    if (!user.emailVerified) {
+      throw new HTTPException(403, { message: "EMAIL_NOT_VERIFIED" });
+    }
+
+    const pkg = await db.query.creditPackages.findFirst({
+      where: and(
+        eq(creditPackages.id, packageId),
+        eq(creditPackages.isActive, true),
+        eq(creditPackages.rail, "coinbase_commerce")
+      ),
+    });
+    if (!pkg) {
+      throw new HTTPException(404, { message: "Package not found" });
+    }
+
+    const paymentId = randomUUID();
+    const amountUsd = (pkg.priceMinor / 100).toFixed(2);
+
+    let charge: CoinbaseCharge;
+    try {
+      charge = await createCharge({
+        name: `${pkg.credits} créditos`,
+        description: `${pkg.credits} corridas de optimización`,
+        amountUsd,
+        metadata: {
+          userId: user.id,
+          packageId: pkg.id,
+          paymentId,
+        },
+        redirectUrl: `${env.FRONTEND_URL}/billing?status=success`,
+        cancelUrl: `${env.FRONTEND_URL}/billing?status=cancelled`,
+      });
+    } catch (err) {
+      console.error("[billing] Coinbase createCharge failed:", err);
+      throw new HTTPException(502, { message: "Coinbase did not return a charge" });
+    }
+
+    await db.insert(payments).values({
+      id: paymentId,
+      userId: user.id,
+      packageId: pkg.id,
+      rail: "coinbase_commerce",
+      externalId: charge.id,
+      status: "pending",
+      amountMinor: pkg.priceMinor,
+      currency: pkg.currency,
+      creditsPurchased: pkg.credits,
+    });
+
+    return c.json({ url: charge.hosted_url });
   }
 );
 

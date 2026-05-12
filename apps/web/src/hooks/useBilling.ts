@@ -25,6 +25,12 @@ export function useCreateCheckout() {
   });
 }
 
+export function useCreateCryptoCheckout() {
+  return useMutation({
+    mutationFn: (packageId: string) => api.createCryptoCheckoutSession(packageId),
+  });
+}
+
 export function useLedger() {
   return useInfiniteQuery({
     queryKey: ["billing", "ledger"],

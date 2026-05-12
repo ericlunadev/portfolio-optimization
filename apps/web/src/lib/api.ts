@@ -279,6 +279,15 @@ export const api = {
     return handleResponse<{ url: string }>(res);
   },
 
+  async createCryptoCheckoutSession(packageId: string) {
+    const res = await apiFetch(`${API_BASE}/billing/crypto/checkout`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ packageId }),
+    });
+    return handleResponse<{ url: string }>(res);
+  },
+
   async getLedger(cursor?: number, limit: number = 50) {
     const params = new URLSearchParams();
     if (cursor !== undefined) params.set("cursor", String(cursor));

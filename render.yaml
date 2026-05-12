@@ -36,3 +36,7 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: COINBASE_COMMERCE_API_KEY
+        sync: false
+      - key: COINBASE_COMMERCE_WEBHOOK_SECRET
+        sync: false
