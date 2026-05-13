@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import {
   useEfficientFrontierTickers,
-  useNegReturnProbability,
   usePortfolioCumulativeReturnsTickers,
   useRollingVolatilityTickers,
 } from "@/hooks/useOptimization";
@@ -16,7 +15,6 @@ import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
 import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsChart";
-import { ProbNegReturnChart } from "@/components/charts/ProbNegReturnChart";
 import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
@@ -100,12 +98,6 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
     selectedTickers,
     optimalWeights,
     undefined
-  );
-
-  const { data: negReturnData } = useNegReturnProbability(
-    result.expected_return,
-    result.volatility,
-    36
   );
 
   const { data: rollingVolData } = useRollingVolatilityTickers(
@@ -440,21 +432,6 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
             </div>
           )}
 
-          {negReturnData && (
-            <div className="glass-card p-4 md:p-5">
-              <div className="mb-4">
-                <h3 className="font-display text-lg">
-                  {t("probNegTitle")}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  {t("probNegSubtitle")}
-                </p>
-              </div>
-              <ChartReveal placeholderClassName="h-[220px] sm:h-[260px] md:h-[300px]">
-                <ProbNegReturnChart data={negReturnData.points} />
-              </ChartReveal>
-            </div>
-          )}
         </Tabs.Content>
 
         <Tabs.Content value="data" className="space-y-6">

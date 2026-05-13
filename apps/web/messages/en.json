@@ -190,8 +190,6 @@
     "negRiskDistribution": "Negative Risk Distribution",
     "cumulativeReturnsTitle": "Cumulative Returns",
     "cumulativeReturnsSubtitle": "Relative evolution of each asset and the portfolio",
-    "probNegTitle": "Probability of Negative Return",
-    "probNegSubtitle": "Downside risk by time horizon",
     "expReturnsAndVolTitle": "Expected Returns and Volatility",
     "tableAsset": "Asset",
     "tableExpReturn": "Exp. Return",
@@ -260,17 +258,6 @@
   },
   "RollingVolatilityChart": {
     "title": "Historical Volatility (12 months)"
-  },
-  "ProbNegReturnChart": {
-    "axisMonths": "Months",
-    "tooltipMonths": "{value} months",
-    "seriesProbability": "Probability",
-    "emptyMessage": "The probability of a negative return is essentially zero",
-    "emptyThreshold": "(< 0.01%)",
-    "horizon1m": "1m",
-    "horizon3m": "3m",
-    "horizon1y": "1y",
-    "horizon2y": "2y"
   },
   "PortfolioWeightsChart": {
     "title": "Portfolio Weights",

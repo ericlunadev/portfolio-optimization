@@ -144,14 +144,6 @@ export function usePortfolioCumulativeReturnsTickers(
   });
 }
 
-export function useNegReturnProbability(rAnn: number, volAnn: number, months: number = 36) {
-  return useQuery({
-    queryKey: ["neg-return-prob", rAnn, volAnn, months],
-    queryFn: () => api.getNegReturnProbability(rAnn, volAnn, months),
-    enabled: volAnn > 0,
-  });
-}
-
 export function useRollingVolatilityTickers(
   tickers: string[],
   window: number = 252,
