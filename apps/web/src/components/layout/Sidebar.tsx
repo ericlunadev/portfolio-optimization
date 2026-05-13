@@ -51,12 +51,6 @@ export function Sidebar() {
           );
         })}
       </nav>
-
-      <div className="p-4 mx-3 mb-3 rounded-lg bg-accent/50 border border-border/30">
-        <p className="text-[11px] text-muted-foreground leading-relaxed">
-          {tBrand("tagline")}
-        </p>
-      </div>
     </aside>
   );
 }
