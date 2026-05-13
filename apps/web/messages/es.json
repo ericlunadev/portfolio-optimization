@@ -635,7 +635,7 @@
       },
       "allocation": {
         "label": "Tu perfil",
-        "title": "¿Cuánto riesgo aguantás?",
+        "title": "¿Cuánto riesgo toleras?",
         "tagline": "Antes del ticker, el mix entre crecimiento y seguridad.",
         "summary": "Definí tu asset allocation: el porcentaje de tu capital en renta variable (crecimiento) vs. renta fija (estabilidad).",
         "bullet1": "Conservador (20/80): prioridad a la preservación del capital.",
