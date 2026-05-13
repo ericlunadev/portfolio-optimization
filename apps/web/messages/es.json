@@ -731,7 +731,6 @@
     "buyButton": "Comprar con tarjeta",
     "buyButtonCrypto": "Pagar con cripto",
     "errorCheckout": "No pudimos iniciar el pago. Inténtalo de nuevo.",
-    "errorEmailNotVerified": "Verifica tu correo electrónico antes de comprar créditos.",
     "loadingLedger": "Cargando historial…",
     "emptyLedger": "Aún no hay movimientos.",
     "loadMore": "Cargar más",

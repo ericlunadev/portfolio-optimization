@@ -731,7 +731,6 @@
     "buyButton": "Pay with card",
     "buyButtonCrypto": "Pay with crypto",
     "errorCheckout": "We couldn't start checkout. Please try again.",
-    "errorEmailNotVerified": "Please verify your email before buying credits.",
     "loadingLedger": "Loading history…",
     "emptyLedger": "No activity yet.",
     "loadMore": "Load more",
