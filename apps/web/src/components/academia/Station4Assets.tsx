@@ -5,11 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import { StationFrame } from "./StationFrame";
 import { getStation } from "./lessons";
+import { InfoTooltip } from "@/components/ui/InfoTooltip";
 import { cn } from "@/lib/utils";
 
 interface Candidate {
   ticker: string;
-  nameKey: "alphaName" | "betaName" | "deltaName";
   moat: number; // 0-100
   valuation: number; // 0-100 (100 = very cheap)
   balance: number; // 0-100
@@ -21,7 +21,6 @@ interface Candidate {
 const CANDIDATES: Candidate[] = [
   {
     ticker: "ALPHA",
-    nameKey: "alphaName",
     moat: 82,
     valuation: 55,
     balance: 75,
@@ -31,7 +30,6 @@ const CANDIDATES: Candidate[] = [
   },
   {
     ticker: "BETA",
-    nameKey: "betaName",
     moat: 70,
     valuation: 28,
     balance: 68,
@@ -41,7 +39,6 @@ const CANDIDATES: Candidate[] = [
   },
   {
     ticker: "DELTA",
-    nameKey: "deltaName",
     moat: 35,
     valuation: 82,
     balance: 42,
@@ -190,7 +187,12 @@ export function Station4Assets({ id }: { id: string }) {
                 <div className="text-xs uppercase tracking-widest text-muted-foreground">
                   {t("fundamentalKicker")}
                 </div>
-                <h3 className="font-display text-xl">{t("fundamentalTitle")}</h3>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="font-display text-xl">{t("fundamentalTitle")}</h3>
+                  <InfoTooltip
+                    content={`ALPHA — ${t("alphaName")}\nBETA — ${t("betaName")}\nDELTA — ${t("deltaName")}`}
+                  />
+                </div>
               </div>
               <span
                 className={cn(
@@ -216,9 +218,6 @@ export function Station4Assets({ id }: { id: string }) {
                 <Gauge value={candidate.balance} label={t("balanceLabel")} />
               </motion.div>
             </AnimatePresence>
-            <p className="text-xs text-muted-foreground italic">
-              {t(candidate.nameKey)}
-            </p>
           </motion.div>
 
           {/* Technical */}
