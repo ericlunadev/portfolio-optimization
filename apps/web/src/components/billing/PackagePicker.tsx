@@ -8,7 +8,6 @@ import {
   useCreateCheckout,
   useCreateCryptoCheckout,
 } from "@/hooks/useBilling";
-import { ApiError } from "@/lib/api";
 import { SalesFinalNotice } from "./SalesFinalNotice";
 
 type Rail = "stripe" | "coinbase_commerce";
@@ -44,11 +43,7 @@ export function PackagePicker() {
       window.location.href = url;
     } catch (err) {
       console.error(err);
-      if (err instanceof ApiError && err.code === "EMAIL_NOT_VERIFIED") {
-        setErrorMessage(t("errorEmailNotVerified"));
-      } else {
-        setErrorMessage(t("errorCheckout"));
-      }
+      setErrorMessage(t("errorCheckout"));
     }
   };
 

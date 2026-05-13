@@ -321,10 +321,6 @@ app.post(
       throw new HTTPException(503, { message: "Stripe not configured" });
     }
 
-    if (!user.emailVerified) {
-      throw new HTTPException(403, { message: "EMAIL_NOT_VERIFIED" });
-    }
-
     const pkg = await db.query.creditPackages.findFirst({
       where: and(
         eq(creditPackages.id, packageId),
@@ -393,10 +389,6 @@ app.post(
 
     if (!isCoinbaseConfigured()) {
       throw new HTTPException(503, { message: "Coinbase not configured" });
-    }
-
-    if (!user.emailVerified) {
-      throw new HTTPException(403, { message: "EMAIL_NOT_VERIFIED" });
     }
 
     const pkg = await db.query.creditPackages.findFirst({
