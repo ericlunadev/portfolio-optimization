@@ -37,7 +37,7 @@ export function Header() {
   return (
     <>
       <EmailVerificationBanner />
-      <header className="border-b border-border/50 bg-card/20 backdrop-blur-sm px-4 py-3 md:px-8">
+      <header className="relative z-30 border-b border-border/50 bg-card/20 backdrop-blur-sm px-4 py-3 md:px-8">
         <div className="flex items-center justify-between gap-3 md:justify-end">
           <h1 className="font-display text-lg tracking-tight md:hidden">
             <span className="text-gradient-gold">{tBrand("shortName")}</span>{" "}
