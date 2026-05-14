@@ -1,5 +1,5 @@
 import YahooFinance from "yahoo-finance2";
-import { eq, desc } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { funds, prices, backgroundTasks } from "../../db/schema.js";
 
@@ -32,6 +32,16 @@ export async function startYahooUpdate(taskId: string, onProgress: ProgressCallb
     let updated = 0;
     let errors: string[] = [];
 
+    const lastPriceRows = await db
+      .select({
+        fundId: prices.fundId,
+        lastDate: sql<string>`max(${prices.date})`.as("last_date"),
+      })
+      .from(prices)
+      .where(inArray(prices.fundId, fundsWithTickers.map((f) => f.id)))
+      .groupBy(prices.fundId);
+    const lastDateByFundId = new Map(lastPriceRows.map((r) => [r.fundId, r.lastDate]));
+
     for (const fund of fundsWithTickers) {
       // Check if task was cancelled
       const task = await db.query.backgroundTasks.findFirst({
@@ -45,13 +55,8 @@ export async function startYahooUpdate(taskId: string, onProgress: ProgressCallb
         const ticker = fund.yahooTicker!;
         onProgress((processed / total) * 100, `Updating ${fund.name}...`);
 
-        // Get last price date for this fund
-        const lastPrice = await db.query.prices.findFirst({
-          where: eq(prices.fundId, fund.id),
-          orderBy: [desc(prices.date)],
-        });
-
-        const startDate = lastPrice ? new Date(lastPrice.date) : new Date("2020-01-01");
+        const lastDate = lastDateByFundId.get(fund.id);
+        const startDate = lastDate ? new Date(lastDate) : new Date("2020-01-01");
         startDate.setDate(startDate.getDate() + 1); // Start from day after last price
 
         const endDate = new Date();

@@ -22,7 +22,7 @@ import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityCha
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
-import { cn, formatPercent } from "@/lib/utils";
+import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useTranslations } from "next-intl";
 import { TrendingUp, Activity, Sparkles, ShieldAlert } from "lucide-react";
@@ -45,20 +45,15 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
     ? tStrategies(`${currentStrategy.value}.label`)
     : t("fallbackStrategy");
 
-  const startDate = useMemo(() => {
-    const month = String(params.dateRange.startMonth).padStart(2, "0");
-    return `${params.dateRange.startYear}-${month}-01`;
-  }, [params.dateRange.startMonth, params.dateRange.startYear]);
-
-  const endDate = useMemo(() => {
-    const month = String(params.dateRange.endMonth).padStart(2, "0");
-    const lastDay = new Date(
-      params.dateRange.endYear,
-      params.dateRange.endMonth,
-      0
-    ).getDate();
-    return `${params.dateRange.endYear}-${month}-${String(lastDay).padStart(2, "0")}`;
-  }, [params.dateRange.endMonth, params.dateRange.endYear]);
+  const startMonth = String(params.dateRange.startMonth).padStart(2, "0");
+  const startDate = `${params.dateRange.startYear}-${startMonth}-01`;
+  const endMonth = String(params.dateRange.endMonth).padStart(2, "0");
+  const lastDay = new Date(
+    params.dateRange.endYear,
+    params.dateRange.endMonth,
+    0
+  ).getDate();
+  const endDate = `${params.dateRange.endYear}-${endMonth}-${String(lastDay).padStart(2, "0")}`;
 
   const hasAnyAllocation = useMemo(
     () =>
@@ -113,12 +108,6 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
     252,
     startDate,
     endDate
-  );
-
-  const { data: userCumulativeData } = usePortfolioCumulativeReturnsTickers(
-    hasAnyAllocation && isAllocationValid ? selectedTickers : [],
-    userWeights,
-    undefined
   );
 
   const userPortfolioStats = useMemo(() => {
@@ -195,15 +184,24 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
         : s
     );
 
-    if (userCumulativeData?.series) {
-      const userPortfolioSeries = userCumulativeData.series.find(
-        (s) => s.name === PORTFOLIO_API_NAME
+    if (
+      hasAnyAllocation &&
+      isAllocationValid &&
+      userWeights.length === selectedTickers.length &&
+      cumulativeData?.series
+    ) {
+      const tickerSeries = selectedTickers.map((ticker) =>
+        cumulativeData.series.find((s) => s.name === ticker)
       );
-      if (userPortfolioSeries) {
-        allSeries.push({
-          name: userPortfolioLabel,
-          data: userPortfolioSeries.data,
+      if (tickerSeries.every((s): s is NonNullable<typeof s> => s !== undefined)) {
+        const userPortfolioData = tickerSeries[0].data.map((firstPoint, i) => {
+          let cumRet = 0;
+          tickerSeries.forEach((s, idx) => {
+            cumRet += (userWeights[idx] ?? 0) * (s.data[i]?.value ?? 0);
+          });
+          return { date: firstPoint.date, value: cumRet };
         });
+        allSeries.push({ name: userPortfolioLabel, data: userPortfolioData });
       }
     }
 
@@ -232,7 +230,15 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
     });
 
     return { data, series: seriesNames };
-  }, [cumulativeData, userCumulativeData, optimalPortfolioLabel, userPortfolioLabel]);
+  }, [
+    cumulativeData,
+    hasAnyAllocation,
+    isAllocationValid,
+    selectedTickers,
+    userWeights,
+    optimalPortfolioLabel,
+    userPortfolioLabel,
+  ]);
 
   const assetVolatilityData = useMemo(
     () =>
@@ -324,7 +330,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
               label={t("sharpeRatio")}
               value={
                 result.sharpe_ratio != null
-                  ? result.sharpe_ratio.toFixed(2)
+                  ? formatNumber(result.sharpe_ratio, 2)
                   : "N/A"
               }
               accent="emerald"

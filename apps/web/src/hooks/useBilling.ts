@@ -9,6 +9,7 @@ export function useWallet(enabled: boolean = true) {
     queryFn: () => api.getWallet(),
     enabled,
     refetchOnWindowFocus: true,
+    staleTime: 30_000,
   });
 }
 

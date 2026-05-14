@@ -12,3 +12,7 @@ export function formatPercent(value: number, decimals: number = 2): string {
 export function formatNumber(value: number, decimals: number = 2): string {
   return value.toFixed(decimals);
 }
+
+export function formatUsdCents(cents: number, decimals: number = 2): string {
+  return `$${(cents / 100).toFixed(decimals)} USD`;
+}
