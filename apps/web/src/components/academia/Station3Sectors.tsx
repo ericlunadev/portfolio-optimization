@@ -18,6 +18,13 @@ const PHASE_LEADERS: Record<Phase, [string, string, string]> = {
   recession: ["sectorStaples", "sectorHealthcare", "sectorUtilities"],
 };
 
+const PHASE_ROTATION: Record<Phase, number> = {
+  early: -20,
+  mid: 0,
+  late: 20,
+  recession: 40,
+};
+
 const SECTOR_KEYS = [
   "sectorTechnology",
   "sectorDiscretionary",
@@ -47,8 +54,7 @@ export function Station3Sectors({ id }: { id: string }) {
   const leaderKeys = PHASE_LEADERS[phase];
   const leaderNames = leaderKeys.map((k) => t(k));
 
-  const rotation =
-    phase === "mid" ? 0 : phase === "early" ? -20 : phase === "late" ? 20 : 40;
+  const rotation = PHASE_ROTATION[phase];
 
   return (
     <StationFrame station={station} id={id}>

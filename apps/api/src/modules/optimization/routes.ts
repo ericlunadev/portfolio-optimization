@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import YahooFinance from "yahoo-finance2";
 import {
   findMinVariancePortfolio,
   calculateEfficientFrontier,
@@ -16,8 +15,8 @@ import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { meterRequest, newIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
-
-const yahooFinance = new YahooFinance();
+import { defaultLookbackPeriod } from "../../lib/dates.js";
+import { fetchTickerPrices } from "../../lib/yahoo.js";
 
 const optimization = new Hono();
 
@@ -402,32 +401,8 @@ optimization.post(
   async (c) => {
     const { tickers, weights } = c.req.valid("json");
 
-    // Fetch historical data from Yahoo Finance
-    const pricesByTicker = new Map<string, { date: string; close: number }[]>();
-
-    for (const ticker of tickers) {
-      try {
-        const data = await yahooFinance.chart(ticker, {
-          period1: new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
-          period2: new Date().toISOString().split("T")[0],
-          interval: "1d",
-        });
-
-        if (data.quotes) {
-          pricesByTicker.set(
-            ticker,
-            data.quotes
-              .filter((q) => q.close !== null)
-              .map((q) => ({
-                date: new Date(q.date).toISOString().split("T")[0],
-                close: q.close!,
-              }))
-          );
-        }
-      } catch (error) {
-        console.error(`Error fetching ${ticker}:`, error);
-      }
-    }
+    const { period1, period2 } = defaultLookbackPeriod();
+    const pricesByTicker = await fetchTickerPrices(tickers, period1, period2);
 
     // Find common dates
     const allDates = new Set<string>();
@@ -541,35 +516,12 @@ optimization.post(
   async (c) => {
     const { tickers, window, start_date, end_date } = c.req.valid("json");
 
-    const pricesByTicker = new Map<string, { date: string; close: number }[]>();
-
-    const period1 = start_date || new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const period2 = end_date || new Date().toISOString().split("T")[0];
-
-    // Fetch daily data for each ticker
-    for (const ticker of tickers) {
-      try {
-        const data = await yahooFinance.chart(ticker, {
-          period1,
-          period2,
-          interval: "1d",
-        });
-
-        if (data.quotes) {
-          pricesByTicker.set(
-            ticker,
-            data.quotes
-              .filter((q) => q.close !== null)
-              .map((q) => ({
-                date: new Date(q.date).toISOString().split("T")[0],
-                close: q.close!,
-              }))
-          );
-        }
-      } catch (error) {
-        console.error(`Error fetching ${ticker}:`, error);
-      }
-    }
+    const defaults = defaultLookbackPeriod();
+    const pricesByTicker = await fetchTickerPrices(
+      tickers,
+      start_date || defaults.period1,
+      end_date || defaults.period2
+    );
 
     // Calculate rolling volatility for each ticker
     const series = tickers.map((ticker) => {
@@ -606,35 +558,12 @@ async function getTickerAssumptions(tickers: string[], startDate?: string, endDa
   volatilities: number[];
   corrMatrix: number[][];
 }> {
-  const pricesByTicker = new Map<string, { date: string; close: number }[]>();
-
-  const period1 = startDate || new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-  const period2 = endDate || new Date().toISOString().split("T")[0];
-
-  // Fetch daily data for each ticker within the specified date range
-  for (const ticker of tickers) {
-    try {
-      const data = await yahooFinance.chart(ticker, {
-        period1,
-        period2,
-        interval: "1d",
-      });
-
-      if (data.quotes) {
-        pricesByTicker.set(
-          ticker,
-          data.quotes
-            .filter((q) => q.close !== null)
-            .map((q) => ({
-              date: new Date(q.date).toISOString().split("T")[0],
-              close: q.close!,
-            }))
-        );
-      }
-    } catch (error) {
-      console.error(`Error fetching ${ticker}:`, error);
-    }
-  }
+  const defaults = defaultLookbackPeriod();
+  const pricesByTicker = await fetchTickerPrices(
+    tickers,
+    startDate || defaults.period1,
+    endDate || defaults.period2
+  );
 
   // Calculate daily log returns for each ticker
   const dailyReturnsByTicker: number[][] = [];
