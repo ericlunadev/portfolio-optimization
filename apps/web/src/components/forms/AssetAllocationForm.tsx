@@ -132,7 +132,7 @@ function AssetRowInput({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onFocus={() => search.length > 0 && setShowResults(true)}
-              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-10 text-sm"
+              className="w-full rounded-md border border-input bg-background py-2 pl-10 pr-10 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0"
             />
             {isSearching && (
               <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -180,7 +180,7 @@ function AssetRowInput({
             const val = e.target.value;
             onAllocationChange(val === "" ? null : Number(val));
           }}
-          className="w-full rounded-md border border-input bg-background px-2 py-2 pr-6 text-right text-sm sm:px-3 sm:pr-8"
+          className="w-full rounded-md border border-input bg-background px-2 py-2 pr-6 text-right text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 sm:px-3 sm:pr-8"
         />
         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground sm:right-3">
           %
