@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { cn } from "@/lib/utils";
+import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import { SimulationParams, OPTIMIZATION_STRATEGIES } from "@/lib/api";
 
 interface SimulationParamsSummaryProps {
@@ -69,7 +69,7 @@ export function SimulationParamsSummary({
               <div>
                 <dt className="text-muted-foreground">{t("riskFreeRate")}</dt>
                 <dd className="font-medium">
-                  {(params.riskFreeRate * 100).toFixed(3)}%
+                  {formatPercent(params.riskFreeRate, 3)}
                 </dd>
               </div>
             )}
@@ -79,7 +79,7 @@ export function SimulationParamsSummary({
               <div>
                 <dt className="text-muted-foreground">{t("targetReturn")}</dt>
                 <dd className="font-medium">
-                  {(params.targetReturn * 100).toFixed(1)}%
+                  {formatPercent(params.targetReturn, 1)}
                 </dd>
               </div>
             )}
@@ -89,7 +89,7 @@ export function SimulationParamsSummary({
               <div>
                 <dt className="text-muted-foreground">{t("targetRisk")}</dt>
                 <dd className="font-medium">
-                  {(params.targetRisk * 100).toFixed(1)}%
+                  {formatPercent(params.targetRisk, 1)}
                 </dd>
               </div>
             )}
@@ -113,7 +113,7 @@ export function SimulationParamsSummary({
               <div>
                 <dt className="text-muted-foreground">{t("maxLeverage")}</dt>
                 <dd className="font-medium">
-                  {(params.maxLeverage * 100).toFixed(0)}% ({params.maxLeverage.toFixed(1)}x)
+                  {formatPercent(params.maxLeverage, 0)} ({formatNumber(params.maxLeverage, 1)}x)
                 </dd>
               </div>
             )}

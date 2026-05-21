@@ -194,8 +194,6 @@
     "negRiskDistribution": "Distribución de Riesgo Negativo",
     "cumulativeReturnsTitle": "Rendimientos Acumulados",
     "cumulativeReturnsSubtitle": "Evolución relativa de cada activo y del portafolio",
-    "probNegTitle": "Probabilidad de Rendimiento Negativo",
-    "probNegSubtitle": "Riesgo a la baja según el horizonte temporal",
     "expReturnsAndVolTitle": "Rendimientos Esperados y Volatilidad",
     "tableAsset": "Activo",
     "tableExpReturn": "Rend. Esperado",
@@ -264,17 +262,6 @@
   },
   "RollingVolatilityChart": {
     "title": "Volatilidad Histórica (12 meses)"
-  },
-  "ProbNegReturnChart": {
-    "axisMonths": "Meses",
-    "tooltipMonths": "{value} meses",
-    "seriesProbability": "Probabilidad",
-    "emptyMessage": "La probabilidad de rendimiento negativo es prácticamente nula",
-    "emptyThreshold": "(< 0.01%)",
-    "horizon1m": "1m",
-    "horizon3m": "3m",
-    "horizon1y": "1a",
-    "horizon2y": "2a"
   },
   "PortfolioWeightsChart": {
     "title": "Pesos del Portafolio",

@@ -5,6 +5,7 @@ import { and, eq, desc } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { simulations } from "../../db/schema.js";
 import { authMiddleware } from "../../middleware/auth.js";
+import { toISOStringOrNow } from "../../lib/dates.js";
 
 const app = new Hono();
 
@@ -33,7 +34,7 @@ app.get("/", async (c) => {
       volatility: result.volatility ?? 0,
       sharpeRatio: result.sharpe_ratio ?? 0,
       pinned: row.pinned,
-      createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
+      createdAt: toISOStringOrNow(row.createdAt),
     };
   });
 
@@ -58,7 +59,7 @@ app.get("/:id", async (c) => {
     name: row.name,
     params: JSON.parse(row.params),
     result: JSON.parse(row.result),
-    createdAt: row.createdAt?.toISOString() ?? new Date().toISOString(),
+    createdAt: toISOStringOrNow(row.createdAt),
   });
 });
 
@@ -98,7 +99,7 @@ app.post("/", zValidator("json", createSchema), async (c) => {
       name: row!.name,
       params: JSON.parse(row!.params),
       result: JSON.parse(row!.result),
-      createdAt: row!.createdAt?.toISOString() ?? new Date().toISOString(),
+      createdAt: toISOStringOrNow(row!.createdAt),
     },
     201
   );
@@ -119,28 +120,25 @@ app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
 
-  const row = await db.query.simulations.findFirst({
-    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
-  });
-
-  if (!row) {
-    return c.json({ error: "Simulation not found" }, 404);
-  }
-
   const updates: { name?: string | null; pinned?: boolean } = {};
   if (body.name !== undefined) updates.name = body.name?.trim() || null;
   if (body.pinned !== undefined) updates.pinned = body.pinned;
 
-  await db
+  const updated = await db
     .update(simulations)
     .set(updates)
-    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)));
+    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)))
+    .returning({
+      id: simulations.id,
+      name: simulations.name,
+      pinned: simulations.pinned,
+    });
 
-  return c.json({
-    id,
-    name: updates.name ?? row.name,
-    pinned: updates.pinned ?? row.pinned,
-  });
+  if (updated.length === 0) {
+    return c.json({ error: "Simulation not found" }, 404);
+  }
+
+  return c.json(updated[0]);
 });
 
 // DELETE /api/simulations/:id - Delete a simulation owned by the current user
@@ -148,17 +146,14 @@ app.delete("/:id", async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
 
-  const row = await db.query.simulations.findFirst({
-    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
-  });
+  const deleted = await db
+    .delete(simulations)
+    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)))
+    .returning({ id: simulations.id });
 
-  if (!row) {
+  if (deleted.length === 0) {
     return c.json({ error: "Simulation not found" }, 404);
   }
-
-  await db
-    .delete(simulations)
-    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)));
 
   return c.json({ success: true });
 });

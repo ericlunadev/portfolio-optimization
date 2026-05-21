@@ -8,7 +8,7 @@ import {
   useDeleteSimulation,
   useTogglePinnedSimulation,
 } from "@/hooks/useSimulations";
-import { formatPercent, cn } from "@/lib/utils";
+import { formatNumber, formatPercent, cn } from "@/lib/utils";
 import {
   Trash2,
   BarChart3,
@@ -232,7 +232,7 @@ function SimulationCard({
             </div>
             <div>
               <div className="text-muted-foreground">{t("colSharpe")}</div>
-              <div className="font-medium">{sim.sharpeRatio.toFixed(2)}</div>
+              <div className="font-medium">{formatNumber(sim.sharpeRatio, 2)}</div>
             </div>
           </div>
 
@@ -317,7 +317,7 @@ function SimulationCard({
         </div>
         <div>
           <span className="text-muted-foreground">{t("colSharpeShort")} </span>
-          <span className="font-medium">{sim.sharpeRatio.toFixed(2)}</span>
+          <span className="font-medium">{formatNumber(sim.sharpeRatio, 2)}</span>
         </div>
       </div>
     </div>

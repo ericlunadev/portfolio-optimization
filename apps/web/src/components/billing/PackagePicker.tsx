@@ -9,12 +9,9 @@ import {
   useCreateCryptoCheckout,
 } from "@/hooks/useBilling";
 import { SalesFinalNotice } from "./SalesFinalNotice";
+import { formatUsdCents } from "@/lib/utils";
 
 type Rail = "stripe" | "coinbase_commerce";
-
-function formatUsd(cents: number): string {
-  return `$${(cents / 100).toFixed(2)} USD`;
-}
 
 export function PackagePicker() {
   const t = useTranslations("Billing");
@@ -109,7 +106,7 @@ export function PackagePicker() {
                   {pkg.credits}{" "}
                   <span className="text-sm text-muted-foreground">{t("creditsUnit")}</span>
                 </div>
-                <div className="mt-1 text-sm text-foreground/80">{formatUsd(pkg.priceMinor)}</div>
+                <div className="mt-1 text-sm text-foreground/80">{formatUsdCents(pkg.priceMinor)}</div>
                 <div className="mt-2 text-xs text-muted-foreground">
                   {t("perCreditCost", {
                     cost: ((pkg.priceMinor / 100) / pkg.credits).toFixed(2),

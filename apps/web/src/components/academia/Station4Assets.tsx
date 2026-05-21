@@ -126,12 +126,8 @@ export function Station4Assets({ id }: { id: string }) {
     [candidate.priceSeed, candidate.trend],
   );
 
-  const trendLabel =
-    candidate.trend === "up"
-      ? t("trendUp")
-      : candidate.trend === "down"
-        ? t("trendDown")
-        : t("trendSideways");
+  const TREND_LABEL_KEY = { up: "trendUp", down: "trendDown", sideways: "trendSideways" } as const;
+  const trendLabel = t(TREND_LABEL_KEY[candidate.trend]);
 
   const rsiState =
     candidate.rsi >= 70
@@ -140,13 +136,14 @@ export function Station4Assets({ id }: { id: string }) {
         ? t("rsiOversold")
         : t("rsiNeutral");
 
-  const verdict = passesBoth
-    ? t("verdictPassBoth")
+  const verdictKey = passesBoth
+    ? "verdictPassBoth"
     : passesFundamental
-      ? t("verdictPassFundamental")
+      ? "verdictPassFundamental"
       : passesTechnical
-        ? t("verdictPassTechnical")
-        : t("verdictFail");
+        ? "verdictPassTechnical"
+        : "verdictFail";
+  const verdict = t(verdictKey);
 
   return (
     <StationFrame station={station} id={id}>
