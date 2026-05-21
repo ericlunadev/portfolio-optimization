@@ -1,11 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useSimulations, useDeleteSimulation } from "@/hooks/useSimulations";
+import {
+  useSimulations,
+  useDeleteSimulation,
+  useTogglePinnedSimulation,
+} from "@/hooks/useSimulations";
 import { formatPercent, cn } from "@/lib/utils";
-import { Trash2, BarChart3, ChevronRight, Plus } from "lucide-react";
+import {
+  Trash2,
+  BarChart3,
+  ChevronRight,
+  Plus,
+  Pin,
+  PinOff,
+  MoreVertical,
+} from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
 
@@ -19,6 +31,7 @@ export default function EfficientFrontierPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const deleteSimulation = useDeleteSimulation();
+  const togglePinned = useTogglePinnedSimulation();
 
   if (isSessionPending) {
     return (
@@ -106,6 +119,9 @@ export default function EfficientFrontierPage() {
             key={sim.id}
             sim={sim}
             onDelete={() => handleDelete(sim.id)}
+            onTogglePin={() =>
+              togglePinned.mutate({ id: sim.id, pinned: !sim.pinned })
+            }
             isConfirmingDelete={deletingId === sim.id}
             isDeleting={deleteSimulation.isPending && deletingId === sim.id}
           />
@@ -118,6 +134,7 @@ export default function EfficientFrontierPage() {
 function SimulationCard({
   sim,
   onDelete,
+  onTogglePin,
   isConfirmingDelete,
   isDeleting,
 }: {
@@ -129,15 +146,30 @@ function SimulationCard({
     expectedReturn: number;
     volatility: number;
     sharpeRatio: number;
+    pinned: boolean;
     createdAt: string;
   };
   onDelete: () => void;
+  onTogglePin: () => void;
   isConfirmingDelete: boolean;
   isDeleting: boolean;
 }) {
   const t = useTranslations("EfficientFrontierList");
   const tStrategies = useTranslations("Strategies");
   const formattedDate = formatCreatedAt(sim.createdAt);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
 
   const tickerStr =
     sim.tickers.length <= 4
@@ -155,6 +187,12 @@ function SimulationCard({
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
+              {sim.pinned && (
+                <Pin
+                  className="h-3.5 w-3.5 shrink-0 fill-primary text-primary"
+                  aria-label={t("pinnedLabel")}
+                />
+              )}
               <h3 className="truncate text-sm font-medium group-hover:text-primary transition-colors">
                 {displayName}
               </h3>
@@ -201,23 +239,69 @@ function SimulationCard({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
         </Link>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            onDelete();
-          }}
-          disabled={isDeleting}
-          className={cn(
-            "shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors",
-            isConfirmingDelete
-              ? "bg-red-900/20 text-red-400"
-              : "hover:bg-muted hover:text-foreground"
+        <div ref={menuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setMenuOpen((open) => !open);
+            }}
+            aria-label={t("moreActions")}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className={cn(
+              "rounded-md p-1.5 text-muted-foreground transition-colors",
+              isConfirmingDelete
+                ? "bg-red-900/20 text-red-400"
+                : "hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  onTogglePin();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              >
+                {sim.pinned ? (
+                  <PinOff className="h-4 w-4" />
+                ) : (
+                  <Pin className="h-4 w-4" />
+                )}
+                {sim.pinned ? t("unpinAction") : t("pinAction")}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={isDeleting}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onDelete();
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                  isConfirmingDelete && "text-red-400"
+                )}
+              >
+                <Trash2 className="h-4 w-4" />
+                {isConfirmingDelete ? t("deleteConfirm") : t("deleteAction")}
+              </button>
+            </div>
           )}
-          title={isConfirmingDelete ? t("deleteConfirm") : t("deleteAction")}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        </div>
       </div>
 
       <div className="flex gap-4 border-t border-border/50 px-4 py-2 text-xs sm:hidden">

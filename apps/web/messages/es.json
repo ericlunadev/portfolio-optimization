@@ -85,7 +85,11 @@
     "colVolatilityShort": "Vol:",
     "colSharpeShort": "Sharpe:",
     "deleteConfirm": "Confirmar eliminación",
-    "deleteAction": "Eliminar simulación"
+    "deleteAction": "Eliminar simulación",
+    "pinAction": "Anclar",
+    "unpinAction": "Desanclar",
+    "pinnedLabel": "Anclado",
+    "moreActions": "Más acciones"
   },
   "SimulationDetail": {
     "loadingSimulation": "Cargando simulación...",
