@@ -1,7 +1,12 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, SimulationParams, OptimizationResultWithStrategy } from "@/lib/api";
+import {
+  api,
+  SimulationParams,
+  OptimizationResultWithStrategy,
+  SimulationListItem,
+} from "@/lib/api";
 
 export function useSimulations(enabled: boolean = true) {
   return useQuery({
@@ -47,6 +52,41 @@ export function useUpdateSimulationName() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["simulations"] });
       queryClient.invalidateQueries({ queryKey: ["simulation", variables.id] });
+    },
+  });
+}
+
+export function useTogglePinnedSimulation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) =>
+      api.updateSimulationPinned(id, pinned),
+    onMutate: async ({ id, pinned }) => {
+      await queryClient.cancelQueries({ queryKey: ["simulations"] });
+      const previous = queryClient.getQueryData<SimulationListItem[]>([
+        "simulations",
+      ]);
+      if (previous) {
+        const next = previous
+          .map((sim) => (sim.id === id ? { ...sim, pinned } : sim))
+          .sort((a, b) => {
+            if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+            return (
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            );
+          });
+        queryClient.setQueryData(["simulations"], next);
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["simulations"], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["simulations"] });
     },
   });
 }

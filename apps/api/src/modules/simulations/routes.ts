@@ -20,7 +20,7 @@ app.get("/", async (c) => {
     .select()
     .from(simulations)
     .where(eq(simulations.userId, user.id))
-    .orderBy(desc(simulations.createdAt));
+    .orderBy(desc(simulations.pinned), desc(simulations.createdAt));
 
   const items = rows.map((row) => {
     const params = JSON.parse(row.params);
@@ -33,6 +33,7 @@ app.get("/", async (c) => {
       expectedReturn: result.expected_return ?? 0,
       volatility: result.volatility ?? 0,
       sharpeRatio: result.sharpe_ratio ?? 0,
+      pinned: row.pinned,
       createdAt: toISOStringOrNow(row.createdAt),
     };
   });
@@ -104,29 +105,40 @@ app.post("/", zValidator("json", createSchema), async (c) => {
   );
 });
 
-// PATCH /api/simulations/:id - Rename a simulation owned by the current user
-const patchSchema = z.object({
-  name: z.string().max(200).nullable(),
-});
+// PATCH /api/simulations/:id - Update name and/or pinned state of a simulation
+const patchSchema = z
+  .object({
+    name: z.string().max(200).nullable().optional(),
+    pinned: z.boolean().optional(),
+  })
+  .refine((v) => v.name !== undefined || v.pinned !== undefined, {
+    message: "name or pinned required",
+  });
 
 app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
   const body = c.req.valid("json");
 
-  const name = body.name?.trim() || null;
+  const updates: { name?: string | null; pinned?: boolean } = {};
+  if (body.name !== undefined) updates.name = body.name?.trim() || null;
+  if (body.pinned !== undefined) updates.pinned = body.pinned;
 
   const updated = await db
     .update(simulations)
-    .set({ name })
+    .set(updates)
     .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)))
-    .returning({ id: simulations.id });
+    .returning({
+      id: simulations.id,
+      name: simulations.name,
+      pinned: simulations.pinned,
+    });
 
   if (updated.length === 0) {
     return c.json({ error: "Simulation not found" }, 404);
   }
 
-  return c.json({ id, name });
+  return c.json(updated[0]);
 });
 
 // DELETE /api/simulations/:id - Delete a simulation owned by the current user

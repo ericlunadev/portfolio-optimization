@@ -1,0 +1,1 @@
+ALTER TABLE `simulations` ADD `pinned` integer DEFAULT false NOT NULL;
