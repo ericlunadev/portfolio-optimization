@@ -228,7 +228,16 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     });
-    return handleResponse<{ id: string; name: string | null }>(res);
+    return handleResponse<{ id: string; name: string | null; pinned: boolean }>(res);
+  },
+
+  async updateSimulationPinned(id: string, pinned: boolean) {
+    const res = await apiFetch(`${API_BASE}/simulations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pinned }),
+    });
+    return handleResponse<{ id: string; name: string | null; pinned: boolean }>(res);
   },
 
   async updateSimulation(
@@ -496,6 +505,7 @@ export interface SimulationListItem {
   volatility: number;
   sharpeRatio: number;
   params: SimulationParams;
+  pinned: boolean;
   createdAt: string;
 }
 

@@ -89,7 +89,11 @@
     "rerunAction": "Re-run with today's date",
     "rerunConfirm": "Confirm re-run",
     "rerunAlreadyCurrent": "Already up to date",
-    "rerunInProgress": "Re-running..."
+    "rerunInProgress": "Re-running...",
+    "pinAction": "Pin",
+    "unpinAction": "Unpin",
+    "pinnedLabel": "Pinned",
+    "moreActions": "More actions"
   },
   "SimulationDetail": {
     "loadingSimulation": "Loading simulation...",

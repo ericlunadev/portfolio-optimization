@@ -1,17 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   useSimulations,
   useDeleteSimulation,
+  useTogglePinnedSimulation,
   useRerunSimulation,
   isDateRangeCurrent,
 } from "@/hooks/useSimulations";
 import { SimulationListItem } from "@/lib/api";
 import { formatNumber, formatPercent, cn } from "@/lib/utils";
-import { Trash2, BarChart3, ChevronRight, Plus, RefreshCw, Loader2 } from "lucide-react";
+import {
+  Trash2,
+  BarChart3,
+  ChevronRight,
+  Plus,
+  Pin,
+  PinOff,
+  MoreVertical,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
 
@@ -26,6 +37,7 @@ export default function EfficientFrontierPage() {
   const [rerunningId, setRerunningId] = useState<string | null>(null);
 
   const deleteSimulation = useDeleteSimulation();
+  const togglePinned = useTogglePinnedSimulation();
   const rerunSimulation = useRerunSimulation();
 
   if (isSessionPending) {
@@ -129,6 +141,9 @@ export default function EfficientFrontierPage() {
             key={sim.id}
             sim={sim}
             onDelete={() => handleDelete(sim.id)}
+            onTogglePin={() =>
+              togglePinned.mutate({ id: sim.id, pinned: !sim.pinned })
+            }
             isConfirmingDelete={deletingId === sim.id}
             isDeleting={deleteSimulation.isPending && deletingId === sim.id}
             onRerun={() => handleRerun(sim)}
@@ -144,6 +159,7 @@ export default function EfficientFrontierPage() {
 function SimulationCard({
   sim,
   onDelete,
+  onTogglePin,
   isConfirmingDelete,
   isDeleting,
   onRerun,
@@ -152,6 +168,7 @@ function SimulationCard({
 }: {
   sim: SimulationListItem;
   onDelete: () => void;
+  onTogglePin: () => void;
   isConfirmingDelete: boolean;
   isDeleting: boolean;
   onRerun: () => void;
@@ -163,6 +180,19 @@ function SimulationCard({
   const formattedDate = formatCreatedAt(sim.createdAt);
   const alreadyCurrent = isDateRangeCurrent(sim.params.dateRange);
   const rerunDisabled = isRerunning || alreadyCurrent;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
 
   const tickerStr =
     sim.tickers.length <= 4
@@ -180,6 +210,12 @@ function SimulationCard({
         >
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
+              {sim.pinned && (
+                <Pin
+                  className="h-3.5 w-3.5 shrink-0 fill-primary text-primary"
+                  aria-label={t("pinnedLabel")}
+                />
+              )}
               <h3 className="truncate text-sm font-medium group-hover:text-primary transition-colors">
                 {displayName}
               </h3>
@@ -226,61 +262,102 @@ function SimulationCard({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
         </Link>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            if (!rerunDisabled) onRerun();
-          }}
-          disabled={rerunDisabled}
-          className={cn(
-            "shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors",
-            isConfirmingRerun
-              ? "bg-primary/15 text-primary"
-              : "hover:bg-muted hover:text-foreground",
-            rerunDisabled && !isRerunning && "opacity-40 cursor-not-allowed"
-          )}
-          title={
-            alreadyCurrent
-              ? t("rerunAlreadyCurrent")
-              : isRerunning
-                ? t("rerunInProgress")
+        <div ref={menuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              setMenuOpen((open) => !open);
+            }}
+            aria-label={t("moreActions")}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className={cn(
+              "rounded-md p-1.5 text-muted-foreground transition-colors",
+              isConfirmingDelete
+                ? "bg-red-900/20 text-red-400"
                 : isConfirmingRerun
-                  ? t("rerunConfirm")
-                  : t("rerunAction")
-          }
-          aria-label={
-            alreadyCurrent
-              ? t("rerunAlreadyCurrent")
-              : isConfirmingRerun
-                ? t("rerunConfirm")
-                : t("rerunAction")
-          }
-        >
-          {isRerunning ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
+                  ? "bg-primary/15 text-primary"
+                  : "hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <MoreVertical className="h-4 w-4" />
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  onTogglePin();
+                }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              >
+                {sim.pinned ? (
+                  <PinOff className="h-4 w-4" />
+                ) : (
+                  <Pin className="h-4 w-4" />
+                )}
+                {sim.pinned ? t("unpinAction") : t("pinAction")}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={rerunDisabled}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (rerunDisabled) return;
+                  setMenuOpen(false);
+                  onRerun();
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                  isConfirmingRerun && "text-primary",
+                  rerunDisabled && !isRerunning && "opacity-40 cursor-not-allowed hover:bg-popover"
+                )}
+                title={alreadyCurrent ? t("rerunAlreadyCurrent") : undefined}
+              >
+                {isRerunning ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {alreadyCurrent
+                  ? t("rerunAlreadyCurrent")
+                  : isRerunning
+                    ? t("rerunInProgress")
+                    : isConfirmingRerun
+                      ? t("rerunConfirm")
+                      : t("rerunAction")}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={isDeleting}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  onDelete();
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                  isConfirmingDelete && "text-red-400"
+                )}
+              >
+                <Trash2 className="h-4 w-4" />
+                {isConfirmingDelete ? t("deleteConfirm") : t("deleteAction")}
+              </button>
+            </div>
           )}
-        </button>
-
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            onDelete();
-          }}
-          disabled={isDeleting}
-          className={cn(
-            "shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors",
-            isConfirmingDelete
-              ? "bg-red-900/20 text-red-400"
-              : "hover:bg-muted hover:text-foreground"
-          )}
-          title={isConfirmingDelete ? t("deleteConfirm") : t("deleteAction")}
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
+        </div>
       </div>
 
       <div className="flex gap-4 border-t border-border/50 px-4 py-2 text-xs sm:hidden">

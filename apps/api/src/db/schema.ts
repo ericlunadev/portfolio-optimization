@@ -213,6 +213,7 @@ export const simulations = sqliteTable("simulations", {
   name: text("name"),
   params: text("params").notNull(), // JSON string with SimulationParams
   result: text("result").notNull(), // JSON string with OptimizationResultWithStrategy
+  pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
   createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 

@@ -89,7 +89,11 @@
     "rerunAction": "Volver a ejecutar con la fecha de hoy",
     "rerunConfirm": "Confirmar re-ejecución",
     "rerunAlreadyCurrent": "Ya está actualizada",
-    "rerunInProgress": "Re-ejecutando..."
+    "rerunInProgress": "Re-ejecutando...",
+    "pinAction": "Anclar",
+    "unpinAction": "Desanclar",
+    "pinnedLabel": "Anclado",
+    "moreActions": "Más acciones"
   },
   "SimulationDetail": {
     "loadingSimulation": "Cargando simulación...",
