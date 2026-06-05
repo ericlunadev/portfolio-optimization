@@ -7,7 +7,10 @@ import {
   useSimulations,
   useDeleteSimulation,
   useTogglePinnedSimulation,
+  useRerunSimulation,
+  isDateRangeCurrent,
 } from "@/hooks/useSimulations";
+import { SimulationListItem } from "@/lib/api";
 import { formatNumber, formatPercent, cn } from "@/lib/utils";
 import {
   Trash2,
@@ -17,6 +20,8 @@ import {
   Pin,
   PinOff,
   MoreVertical,
+  RefreshCw,
+  Loader2,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
@@ -29,9 +34,11 @@ export default function EfficientFrontierPage() {
 
   const { data: simulations, isLoading } = useSimulations(isSignedIn);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rerunningId, setRerunningId] = useState<string | null>(null);
 
   const deleteSimulation = useDeleteSimulation();
   const togglePinned = useTogglePinnedSimulation();
+  const rerunSimulation = useRerunSimulation();
 
   if (isSessionPending) {
     return (
@@ -59,6 +66,21 @@ export default function EfficientFrontierPage() {
       setDeletingId(id);
       setTimeout(
         () => setDeletingId((prev) => (prev === id ? null : prev)),
+        3000
+      );
+    }
+  }
+
+  function handleRerun(sim: SimulationListItem) {
+    if (rerunningId === sim.id) {
+      rerunSimulation.mutate(
+        { id: sim.id, params: sim.params },
+        { onSuccess: () => setRerunningId(null) }
+      );
+    } else {
+      setRerunningId(sim.id);
+      setTimeout(
+        () => setRerunningId((prev) => (prev === sim.id ? null : prev)),
         3000
       );
     }
@@ -124,6 +146,9 @@ export default function EfficientFrontierPage() {
             }
             isConfirmingDelete={deletingId === sim.id}
             isDeleting={deleteSimulation.isPending && deletingId === sim.id}
+            onRerun={() => handleRerun(sim)}
+            isConfirmingRerun={rerunningId === sim.id}
+            isRerunning={rerunSimulation.isPending && rerunningId === sim.id}
           />
         ))}
       </div>
@@ -137,26 +162,24 @@ function SimulationCard({
   onTogglePin,
   isConfirmingDelete,
   isDeleting,
+  onRerun,
+  isConfirmingRerun,
+  isRerunning,
 }: {
-  sim: {
-    id: string;
-    name: string | null;
-    tickers: string[];
-    strategy: string;
-    expectedReturn: number;
-    volatility: number;
-    sharpeRatio: number;
-    pinned: boolean;
-    createdAt: string;
-  };
+  sim: SimulationListItem;
   onDelete: () => void;
   onTogglePin: () => void;
   isConfirmingDelete: boolean;
   isDeleting: boolean;
+  onRerun: () => void;
+  isConfirmingRerun: boolean;
+  isRerunning: boolean;
 }) {
   const t = useTranslations("EfficientFrontierList");
   const tStrategies = useTranslations("Strategies");
   const formattedDate = formatCreatedAt(sim.createdAt);
+  const alreadyCurrent = isDateRangeCurrent(sim.params.dateRange);
+  const rerunDisabled = isRerunning || alreadyCurrent;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -254,7 +277,9 @@ function SimulationCard({
               "rounded-md p-1.5 text-muted-foreground transition-colors",
               isConfirmingDelete
                 ? "bg-red-900/20 text-red-400"
-                : "hover:bg-muted hover:text-foreground"
+                : isConfirmingRerun
+                  ? "bg-primary/15 text-primary"
+                  : "hover:bg-muted hover:text-foreground"
             )}
           >
             <MoreVertical className="h-4 w-4" />
@@ -262,7 +287,7 @@ function SimulationCard({
           {menuOpen && (
             <div
               role="menu"
-              className="absolute right-0 top-full z-20 mt-1 w-40 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+              className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
             >
               <button
                 type="button"
@@ -281,6 +306,37 @@ function SimulationCard({
                   <Pin className="h-4 w-4" />
                 )}
                 {sim.pinned ? t("unpinAction") : t("pinAction")}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                disabled={rerunDisabled}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (rerunDisabled) return;
+                  setMenuOpen(false);
+                  onRerun();
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                  isConfirmingRerun && "text-primary",
+                  rerunDisabled && !isRerunning && "opacity-40 cursor-not-allowed hover:bg-popover"
+                )}
+                title={alreadyCurrent ? t("rerunAlreadyCurrent") : undefined}
+              >
+                {isRerunning ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                {alreadyCurrent
+                  ? t("rerunAlreadyCurrent")
+                  : isRerunning
+                    ? t("rerunInProgress")
+                    : isConfirmingRerun
+                      ? t("rerunConfirm")
+                      : t("rerunAction")}
               </button>
               <button
                 type="button"

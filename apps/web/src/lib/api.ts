@@ -240,6 +240,19 @@ export const api = {
     return handleResponse<{ id: string; name: string | null; pinned: boolean }>(res);
   },
 
+  async updateSimulation(
+    id: string,
+    params: SimulationParams,
+    result: OptimizationResultWithStrategy
+  ) {
+    const res = await apiFetch(`${API_BASE}/simulations/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ params, result }),
+    });
+    return handleResponse<SavedSimulation>(res);
+  },
+
   async deleteSimulation(id: string) {
     const res = await apiFetch(`${API_BASE}/simulations/${id}`, {
       method: "DELETE",
@@ -491,6 +504,7 @@ export interface SimulationListItem {
   expectedReturn: number;
   volatility: number;
   sharpeRatio: number;
+  params: SimulationParams;
   pinned: boolean;
   createdAt: string;
 }
