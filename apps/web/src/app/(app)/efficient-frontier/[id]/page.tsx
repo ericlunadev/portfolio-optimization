@@ -3,8 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Pencil, Check, X } from "lucide-react";
-import { useSimulation, useUpdateSimulationName } from "@/hooks/useSimulations";
+import { Pencil, Check, X, RefreshCw, Loader2 } from "lucide-react";
+import {
+  useSimulation,
+  useUpdateSimulationName,
+  useRerunSimulation,
+  isDateRangeCurrent,
+} from "@/hooks/useSimulations";
 import { MarkowitzResults } from "@/components/MarkowitzResults";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
@@ -20,9 +25,11 @@ export default function SimulationDetailPage() {
   const isSignedIn = !!session?.user;
   const { data: simulation, isLoading } = useSimulation(isSignedIn ? params.id : null);
   const updateName = useUpdateSimulationName();
+  const rerunSimulation = useRerunSimulation();
 
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState("");
+  const [isConfirmingRerun, setIsConfirmingRerun] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -105,6 +112,23 @@ export default function SimulationDetailPage() {
     );
   }
 
+  const alreadyCurrent = isDateRangeCurrent(simulation.params.dateRange);
+  const isRerunning = rerunSimulation.isPending;
+  const rerunDisabled = isRerunning || alreadyCurrent;
+
+  function handleRerun() {
+    if (!simulation || rerunDisabled) return;
+    if (isConfirmingRerun) {
+      rerunSimulation.mutate(
+        { id: simulation.id, params: simulation.params },
+        { onSuccess: () => setIsConfirmingRerun(false) }
+      );
+    } else {
+      setIsConfirmingRerun(true);
+      setTimeout(() => setIsConfirmingRerun(false), 3000);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3 md:gap-4">
@@ -166,6 +190,37 @@ export default function SimulationDetailPage() {
               className="shrink-0 rounded-lg border border-border/50 bg-card/60 p-2 text-muted-foreground transition-all hover:bg-accent hover:border-border hover:text-foreground"
             >
               <Pencil className="h-4 w-4" />
+            </button>
+            <button
+              onClick={handleRerun}
+              disabled={rerunDisabled}
+              title={
+                alreadyCurrent
+                  ? t("rerunAlreadyCurrent")
+                  : isRerunning
+                    ? t("rerunInProgress")
+                    : isConfirmingRerun
+                      ? t("rerunConfirm")
+                      : t("rerunAction")
+              }
+              aria-label={
+                alreadyCurrent
+                  ? t("rerunAlreadyCurrent")
+                  : isConfirmingRerun
+                    ? t("rerunConfirm")
+                    : t("rerunAction")
+              }
+              className={cn(
+                "shrink-0 rounded-lg border border-border/50 bg-card/60 p-2 text-muted-foreground transition-all hover:bg-accent hover:border-border hover:text-foreground",
+                isConfirmingRerun && "border-primary/40 bg-primary/15 text-primary hover:bg-primary/20",
+                rerunDisabled && !isRerunning && "opacity-40 cursor-not-allowed hover:bg-card/60 hover:border-border/50 hover:text-muted-foreground"
+              )}
+            >
+              {isRerunning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
             </button>
           </div>
         )}

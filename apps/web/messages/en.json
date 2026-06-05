@@ -85,7 +85,11 @@
     "colVolatilityShort": "Vol:",
     "colSharpeShort": "Sharpe:",
     "deleteConfirm": "Confirm deletion",
-    "deleteAction": "Delete simulation"
+    "deleteAction": "Delete simulation",
+    "rerunAction": "Re-run with today's date",
+    "rerunConfirm": "Confirm re-run",
+    "rerunAlreadyCurrent": "Already up to date",
+    "rerunInProgress": "Re-running..."
   },
   "SimulationDetail": {
     "loadingSimulation": "Loading simulation...",
@@ -94,7 +98,11 @@
     "signInDescription": "Optimizations are private. Sign in to see yours.",
     "renameAction": "Rename",
     "renameSave": "Save",
-    "renameCancel": "Cancel"
+    "renameCancel": "Cancel",
+    "rerunAction": "Re-run with today's date",
+    "rerunConfirm": "Confirm re-run",
+    "rerunAlreadyCurrent": "Already up to date",
+    "rerunInProgress": "Re-running..."
   },
   "NewOptimization": {
     "signInTitle": "Sign in to create an optimization",

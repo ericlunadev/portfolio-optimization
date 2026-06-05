@@ -3,9 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useSimulations, useDeleteSimulation } from "@/hooks/useSimulations";
+import {
+  useSimulations,
+  useDeleteSimulation,
+  useRerunSimulation,
+  isDateRangeCurrent,
+} from "@/hooks/useSimulations";
+import { SimulationListItem } from "@/lib/api";
 import { formatNumber, formatPercent, cn } from "@/lib/utils";
-import { Trash2, BarChart3, ChevronRight, Plus } from "lucide-react";
+import { Trash2, BarChart3, ChevronRight, Plus, RefreshCw, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
 
@@ -17,8 +23,10 @@ export default function EfficientFrontierPage() {
 
   const { data: simulations, isLoading } = useSimulations(isSignedIn);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rerunningId, setRerunningId] = useState<string | null>(null);
 
   const deleteSimulation = useDeleteSimulation();
+  const rerunSimulation = useRerunSimulation();
 
   if (isSessionPending) {
     return (
@@ -46,6 +54,21 @@ export default function EfficientFrontierPage() {
       setDeletingId(id);
       setTimeout(
         () => setDeletingId((prev) => (prev === id ? null : prev)),
+        3000
+      );
+    }
+  }
+
+  function handleRerun(sim: SimulationListItem) {
+    if (rerunningId === sim.id) {
+      rerunSimulation.mutate(
+        { id: sim.id, params: sim.params },
+        { onSuccess: () => setRerunningId(null) }
+      );
+    } else {
+      setRerunningId(sim.id);
+      setTimeout(
+        () => setRerunningId((prev) => (prev === sim.id ? null : prev)),
         3000
       );
     }
@@ -108,6 +131,9 @@ export default function EfficientFrontierPage() {
             onDelete={() => handleDelete(sim.id)}
             isConfirmingDelete={deletingId === sim.id}
             isDeleting={deleteSimulation.isPending && deletingId === sim.id}
+            onRerun={() => handleRerun(sim)}
+            isConfirmingRerun={rerunningId === sim.id}
+            isRerunning={rerunSimulation.isPending && rerunningId === sim.id}
           />
         ))}
       </div>
@@ -120,24 +146,23 @@ function SimulationCard({
   onDelete,
   isConfirmingDelete,
   isDeleting,
+  onRerun,
+  isConfirmingRerun,
+  isRerunning,
 }: {
-  sim: {
-    id: string;
-    name: string | null;
-    tickers: string[];
-    strategy: string;
-    expectedReturn: number;
-    volatility: number;
-    sharpeRatio: number;
-    createdAt: string;
-  };
+  sim: SimulationListItem;
   onDelete: () => void;
   isConfirmingDelete: boolean;
   isDeleting: boolean;
+  onRerun: () => void;
+  isConfirmingRerun: boolean;
+  isRerunning: boolean;
 }) {
   const t = useTranslations("EfficientFrontierList");
   const tStrategies = useTranslations("Strategies");
   const formattedDate = formatCreatedAt(sim.createdAt);
+  const alreadyCurrent = isDateRangeCurrent(sim.params.dateRange);
+  const rerunDisabled = isRerunning || alreadyCurrent;
 
   const tickerStr =
     sim.tickers.length <= 4
@@ -200,6 +225,44 @@ function SimulationCard({
 
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
         </Link>
+
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            if (!rerunDisabled) onRerun();
+          }}
+          disabled={rerunDisabled}
+          className={cn(
+            "shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors",
+            isConfirmingRerun
+              ? "bg-primary/15 text-primary"
+              : "hover:bg-muted hover:text-foreground",
+            rerunDisabled && !isRerunning && "opacity-40 cursor-not-allowed"
+          )}
+          title={
+            alreadyCurrent
+              ? t("rerunAlreadyCurrent")
+              : isRerunning
+                ? t("rerunInProgress")
+                : isConfirmingRerun
+                  ? t("rerunConfirm")
+                  : t("rerunAction")
+          }
+          aria-label={
+            alreadyCurrent
+              ? t("rerunAlreadyCurrent")
+              : isConfirmingRerun
+                ? t("rerunConfirm")
+                : t("rerunAction")
+          }
+        >
+          {isRerunning ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4" />
+          )}
+        </button>
 
         <button
           onClick={(e) => {

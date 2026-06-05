@@ -33,6 +33,7 @@ app.get("/", async (c) => {
       expectedReturn: result.expected_return ?? 0,
       volatility: result.volatility ?? 0,
       sharpeRatio: result.sharpe_ratio ?? 0,
+      params,
       createdAt: toISOStringOrNow(row.createdAt),
     };
   });
@@ -127,6 +128,46 @@ app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   }
 
   return c.json({ id, name });
+});
+
+// PUT /api/simulations/:id - Replace params + result on an existing simulation (used by re-run)
+const putSchema = z.object({
+  params: z.object({}).passthrough(),
+  result: z.object({}).passthrough(),
+});
+
+app.put("/:id", zValidator("json", putSchema), async (c) => {
+  const { id } = c.req.param();
+  const user = c.get("user");
+  const body = c.req.valid("json");
+
+  const params = body.params as Record<string, unknown>;
+  const result = body.result as Record<string, unknown>;
+
+  const updated = await db
+    .update(simulations)
+    .set({
+      params: JSON.stringify(params),
+      result: JSON.stringify(result),
+    })
+    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)))
+    .returning({ id: simulations.id });
+
+  if (updated.length === 0) {
+    return c.json({ error: "Simulation not found" }, 404);
+  }
+
+  const row = await db.query.simulations.findFirst({
+    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
+  });
+
+  return c.json({
+    id: row!.id,
+    name: row!.name,
+    params: JSON.parse(row!.params),
+    result: JSON.parse(row!.result),
+    createdAt: toISOStringOrNow(row!.createdAt),
+  });
 });
 
 // DELETE /api/simulations/:id - Delete a simulation owned by the current user
