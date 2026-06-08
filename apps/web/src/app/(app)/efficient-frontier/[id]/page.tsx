@@ -109,7 +109,7 @@ export default function SimulationDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-3 md:gap-4">
         <button
-          onClick={() => router.push("/efficient-frontier")}
+          onClick={() => router.back()}
           className="shrink-0 rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border md:px-4"
         >
           ← {tCommon("back")}
