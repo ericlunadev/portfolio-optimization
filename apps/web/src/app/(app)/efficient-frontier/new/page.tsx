@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useMemo, useRef, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimization } from "@/hooks/useOptimization";
 import { useSaveSimulation } from "@/hooks/useSimulations";
 import { ApiError, OptimizationStrategy, OPTIMIZATION_STRATEGIES, SimulationParams } from "@/lib/api";
 import Link from "next/link";
-import { DateRangePicker, DateRange } from "@/components/forms/DateRangePicker";
+import { DateRangePicker } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
 import { ConstraintsPanel } from "@/components/forms/ConstraintsPanel";
 import * as Popover from "@radix-ui/react-popover";
@@ -16,48 +16,78 @@ import { cn } from "@/lib/utils";
 import { LessonButton } from "@/components/academia/LessonButton";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
-
-function generateId() {
-  return Math.random().toString(36).slice(2, 9);
-}
+import { decodeFormState, encodeFormState } from "@/lib/optimization-url";
 
 const currentYear = new Date().getFullYear();
 
-const INITIAL_ASSETS: AssetRow[] = Array.from({ length: 2 }, () => ({
-  id: generateId(),
-  ticker: "",
-  allocation: null,
-}));
-
-export default function NewOptimizationPage() {
+function NewOptimizationForm() {
   const t = useTranslations("NewOptimization");
   const tCommon = useTranslations("Common");
   const tBilling = useTranslations("Billing");
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, isPending: isSessionPending } = authClient.useSession();
   const isSignedIn = !!session?.user;
+
+  // Restore the full form from URL query params on mount, so navigating back
+  // from the results page (or opening a shared link) rehydrates every field.
+  const [initialState] = useState(() =>
+    decodeFormState(new URLSearchParams(searchParams.toString()), currentYear)
+  );
+
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [showFrontier, setShowFrontier] = useState(true);
-  const [assetConstraints, setAssetConstraints] = useState(false);
-  const [wMax, setWMax] = useState(0.4);
-  const [enforceFullInvestment, setEnforceFullInvestment] = useState(true);
-  const [allowShortSelling, setAllowShortSelling] = useState(false);
-  const [useLeverage, setUseLeverage] = useState(false);
-  const [maxLeverage, setMaxLeverage] = useState(1.5);
-  const [strategy, setStrategy] = useState<OptimizationStrategy>("max-sharpe");
-  const [targetReturn, setTargetReturn] = useState(0.10);
-  const [targetRisk, setTargetRisk] = useState(0.15);
-  const [riskFreeRate, setRiskFreeRate] = useState(0.05);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    startMonth: 1,
-    startYear: currentYear - 5,
-    endMonth: 12,
-    endYear: currentYear,
-  });
-  const [assets, setAssets] = useState<AssetRow[]>(INITIAL_ASSETS);
+  const [showFrontier, setShowFrontier] = useState(initialState.showFrontier);
+  const [assetConstraints, setAssetConstraints] = useState(initialState.assetConstraints);
+  const [wMax, setWMax] = useState(initialState.wMax);
+  const [enforceFullInvestment, setEnforceFullInvestment] = useState(initialState.enforceFullInvestment);
+  const [allowShortSelling, setAllowShortSelling] = useState(initialState.allowShortSelling);
+  const [useLeverage, setUseLeverage] = useState(initialState.useLeverage);
+  const [maxLeverage, setMaxLeverage] = useState(initialState.maxLeverage);
+  const [strategy, setStrategy] = useState<OptimizationStrategy>(initialState.strategy);
+  const [targetReturn, setTargetReturn] = useState(initialState.targetReturn);
+  const [targetRisk, setTargetRisk] = useState(initialState.targetRisk);
+  const [riskFreeRate, setRiskFreeRate] = useState(initialState.riskFreeRate);
+  const [dateRange, setDateRange] = useState(initialState.dateRange);
+  const [assets, setAssets] = useState<AssetRow[]>(initialState.assets);
 
   const saveSimulation = useSaveSimulation();
   const hasSavedRef = useRef(false);
+
+  // Mirror every form field into the URL query string. Using
+  // history.replaceState (which Next.js syncs with its router) keeps the
+  // current history entry up to date without a scroll jump or server roundtrip,
+  // so the entry we leave behind when navigating to the results page already
+  // carries the full form state for back/forward restoration.
+  const queryString = useMemo(
+    () =>
+      encodeFormState(
+        {
+          assets,
+          dateRange,
+          strategy,
+          targetReturn,
+          targetRisk,
+          riskFreeRate,
+          enforceFullInvestment,
+          allowShortSelling,
+          useLeverage,
+          maxLeverage,
+          assetConstraints,
+          wMax,
+          showFrontier,
+        },
+        currentYear
+      ).toString(),
+    [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, showFrontier]
+  );
+
+  useEffect(() => {
+    if (isSubmitted) return;
+    const url = queryString
+      ? `${window.location.pathname}?${queryString}`
+      : window.location.pathname;
+    window.history.replaceState(window.history.state, "", url);
+  }, [queryString, isSubmitted]);
 
   const currentSimulationParams = useMemo((): SimulationParams => ({
     tickers: assets.map((a) => a.ticker).filter(Boolean),
@@ -635,5 +665,14 @@ export default function NewOptimizationPage() {
         </button>
       </div>
     </div>
+  );
+}
+
+export default function NewOptimizationPage() {
+  // useSearchParams (read in NewOptimizationForm) requires a Suspense boundary.
+  return (
+    <Suspense fallback={null}>
+      <NewOptimizationForm />
+    </Suspense>
   );
 }
