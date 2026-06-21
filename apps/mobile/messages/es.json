@@ -1,0 +1,28 @@
+{
+  "common": {
+    "appName": "Optimización de Portafolio",
+    "retry": "Reintentar",
+    "loading": "Cargando…"
+  },
+  "tabs": {
+    "home": "Inicio",
+    "optimizer": "Optimizador"
+  },
+  "home": {
+    "title": "Optimización de Portafolio",
+    "subtitle": "Optimización de portafolios de Markowitz en tu bolsillo.",
+    "apiStatusLabel": "Estado de la API",
+    "apiOnline": "En línea",
+    "apiOffline": "Sin conexión",
+    "apiChecking": "Comprobando…"
+  },
+  "optimizer": {
+    "title": "Optimizador",
+    "comingSoon": "La optimización de portafolios llegará pronto a móvil.",
+    "description": "Calcula pesos óptimos con optimización de media-varianza una vez que el inicio de sesión esté disponible."
+  },
+  "notFound": {
+    "title": "Esta pantalla no existe.",
+    "goHome": "Ir al inicio"
+  }
+}

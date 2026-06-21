@@ -10,6 +10,7 @@
     "clean": "turbo run clean",
     "dev:api": "turbo run dev --filter=api",
     "dev:web": "turbo run dev --filter=web",
+    "dev:mobile": "turbo run dev --filter=mobile",
     "build:api": "turbo run build --filter=api",
     "build:web": "turbo run build --filter=web"
   },
