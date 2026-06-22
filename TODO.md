@@ -10,3 +10,10 @@ Implement EODHD
 - Build out the optimizer flow against POST /api/optimization/optimize
 - Persist the user's locale choice and add a locale switcher
 
+## CI / tooling
+- Add ESLint configs for apps/api and apps/web (neither is currently linted),
+  then switch the CI `lint` job from `pnpm --filter=mobile lint` to `pnpm lint`
+  so the whole monorepo is covered
+- Add tests (vitest) for apps/api and apps/web; the CI test step already runs
+  them (currently passes with --passWithNoTests)
+
