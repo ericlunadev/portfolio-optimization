@@ -4,10 +4,11 @@ A Markowitz portfolio optimization application with a FastAPI backend and Next.j
 
 ## Architecture
 
-This is a Turborepo monorepo with two main applications:
+This is a Turborepo monorepo with three applications:
 
-- **`apps/api`** - FastAPI REST API backend
+- **`apps/api`** - Hono REST API backend
 - **`apps/web`** - Next.js React frontend
+- **`apps/mobile`** - Expo (React Native) mobile app
 
 ## Features
 
@@ -62,8 +63,9 @@ Edit `apps/api/.env` with your OAuth credentials if you want authentication.
 pnpm dev
 
 # Or start individually:
-pnpm dev:api  # FastAPI on http://localhost:8000
-pnpm dev:web  # Next.js on http://localhost:3000
+pnpm dev:api     # API on http://localhost:8000
+pnpm dev:web     # Next.js on http://localhost:3000
+pnpm dev:mobile  # Expo dev server (see apps/mobile/README.md)
 ```
 
 ## Project Structure
@@ -82,12 +84,21 @@ portfolio-optimization/
 │   │   ├── tests/
 │   │   └── pyproject.toml
 │   │
-│   └── web/                    # Next.js frontend
+│   ├── web/                    # Next.js frontend
+│   │   ├── src/
+│   │   │   ├── app/           # Pages (App Router)
+│   │   │   ├── components/    # React components
+│   │   │   ├── hooks/         # Custom hooks
+│   │   │   └── lib/           # Utilities
+│   │   └── package.json
+│   │
+│   └── mobile/                 # Expo (React Native) app
 │       ├── src/
-│       │   ├── app/           # Pages (App Router)
-│       │   ├── components/    # React components
+│       │   ├── app/           # expo-router routes
+│       │   ├── components/    # React Native components
 │       │   ├── hooks/         # Custom hooks
-│       │   └── lib/           # Utilities
+│       │   ├── i18n/          # Localization (es/en)
+│       │   └── lib/           # API client & utilities
 │       └── package.json
 │
 ├── data/                       # Original data files

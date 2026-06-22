@@ -1,0 +1,28 @@
+{
+  "common": {
+    "appName": "Portfolio Optimization",
+    "retry": "Retry",
+    "loading": "Loading…"
+  },
+  "tabs": {
+    "home": "Home",
+    "optimizer": "Optimizer"
+  },
+  "home": {
+    "title": "Portfolio Optimization",
+    "subtitle": "Markowitz portfolio optimization in your pocket.",
+    "apiStatusLabel": "API status",
+    "apiOnline": "Online",
+    "apiOffline": "Offline",
+    "apiChecking": "Checking…"
+  },
+  "optimizer": {
+    "title": "Optimizer",
+    "comingSoon": "Portfolio optimization is coming soon to mobile.",
+    "description": "Compute optimal weights with mean-variance optimization once sign-in is available."
+  },
+  "notFound": {
+    "title": "This screen does not exist.",
+    "goHome": "Go to home"
+  }
+}
