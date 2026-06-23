@@ -36,7 +36,7 @@ jobs:
         run: pnpm exec turbo run test -- --passWithNoTests
 
   lint:
-    name: Lint mobile
+    name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,8 +53,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # apps/mobile is the only workspace with an ESLint config wired up.
-      # See TODO: add ESLint configs for apps/api and apps/web, then switch
-      # this to `pnpm lint` to cover the whole monorepo.
-      - name: Lint mobile
-        run: pnpm --filter=mobile lint
+      # Lints the whole monorepo: apps/api (typescript-eslint flat config),
+      # apps/web (next lint / eslint-config-next), and apps/mobile (eslint-config-expo).
+      - name: Lint
+        run: pnpm lint

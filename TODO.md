@@ -11,9 +11,11 @@ Implement EODHD
 - Persist the user's locale choice and add a locale switcher
 
 ## CI / tooling
-- Add ESLint configs for apps/api and apps/web (neither is currently linted),
-  then switch the CI `lint` job from `pnpm --filter=mobile lint` to `pnpm lint`
-  so the whole monorepo is covered
-- Add tests (vitest) for apps/api and apps/web; the CI test step already runs
-  them (currently passes with --passWithNoTests)
+- [x] Add ESLint configs for apps/api (typescript-eslint flat config) and
+  apps/web (eslint-config-next via .eslintrc.json, pinned to ESLint 8 since
+  eslint-config-next@14 is incompatible with ESLint 9). CI `lint` job now runs
+  `pnpm lint` across the whole monorepo (api + web + mobile).
+- [x] Add vitest tests for apps/api (src/lib/dates) and apps/web (src/lib/utils).
+  The `test` script now runs `vitest run` (deterministic, no watch hang in CI);
+  `test:watch` was added for local watch mode.
 

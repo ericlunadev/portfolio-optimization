@@ -3,6 +3,16 @@ import YahooFinance from "yahoo-finance2";
 
 const yahooFinance = new YahooFinance();
 
+// Minimal shape of the quote objects returned by Yahoo Finance search; the
+// library types these loosely, so we narrow to the fields we actually read.
+interface YahooSearchQuote {
+  symbol?: string;
+  quoteType?: string;
+  shortname?: string;
+  longname?: string;
+  exchange?: string;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const q = searchParams.get("q");
@@ -14,12 +24,11 @@ export async function GET(request: NextRequest) {
   try {
     const results = await yahooFinance.search(q, { quotesCount: 10 }, { validateResult: false });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const tickers = (results as any).quotes
-      .filter((quote: { symbol?: string; quoteType?: string }) =>
-        quote.symbol && (quote.quoteType === "EQUITY" || quote.quoteType === "ETF")
+    const tickers = (results as { quotes: YahooSearchQuote[] }).quotes
+      .filter(
+        (quote) => quote.symbol && (quote.quoteType === "EQUITY" || quote.quoteType === "ETF")
       )
-      .map((quote: { symbol: string; shortname?: string; longname?: string; exchange?: string; quoteType?: string }) => ({
+      .map((quote) => ({
         symbol: quote.symbol,
         name: quote.shortname || quote.longname || quote.symbol,
         exchange: quote.exchange || "",
