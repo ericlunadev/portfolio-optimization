@@ -13,7 +13,14 @@ Implement EODHD
   expo-secure-store and replayed as a Cookie header on API calls. The optimizer
   tab is gated behind the session. Requires OAuth client IDs/secrets and the
   app's redirect URI registered with each provider.
-- Build out the optimizer flow against POST /api/optimization/optimize
+- [x] Build out the optimizer flow against POST /api/optimization/optimize.
+  Optimizer tab now has a working form: ticker search (debounced, via
+  /api/historical/search) with chips, the 6 strategies, conditional
+  risk-free-rate / target-return / target-risk inputs, full-investment and
+  short-selling toggles, then renders results (expected return, volatility,
+  Sharpe, 1Y/2Y loss probability, and an allocation table). Deferred to later:
+  date-range picker, leverage / max-weight constraints, efficient-frontier and
+  chart visualizations, and a credits-specific (402) message.
 - Persist the user's locale choice and add a locale switcher
 
 ## CI / tooling
