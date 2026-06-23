@@ -16,13 +16,14 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
+    "@better-auth/expo": "^1.6.20",
     "@hono/node-server": "^1.13.7",
     "@hono/node-ws": "^1.0.4",
     "@hono/zod-validator": "^0.4.1",
     "@libsql/client": "^0.17.0",
     "@react-email/components": "^1.0.12",
     "@react-email/render": "^2.0.8",
-    "better-auth": "^1.6.2",
+    "better-auth": "^1.6.20",
     "date-fns": "^4.1.0",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.6.16",

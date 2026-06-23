@@ -2,8 +2,9 @@ import { api } from '@/lib/api/client';
 
 /**
  * Mirrors `POST /api/optimization/optimize` in `apps/api`. These endpoints
- * require an authenticated BetterAuth session, which is not yet wired into the
- * mobile app (see README "Next steps").
+ * require an authenticated BetterAuth session; the session cookie is attached
+ * automatically by the API client (`src/lib/api/client.ts`) once the user has
+ * signed in via the optimizer screen.
  */
 
 export type OptimizationStrategy =

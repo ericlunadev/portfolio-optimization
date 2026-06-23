@@ -19,7 +19,18 @@
   "optimizer": {
     "title": "Optimizador",
     "comingSoon": "La optimización de portafolios llegará pronto a móvil.",
-    "description": "Calcula pesos óptimos con optimización de media-varianza una vez que el inicio de sesión esté disponible."
+    "description": "Todo listo. El flujo de optimización de media-varianza llegará pronto."
+  },
+  "auth": {
+    "title": "Iniciar sesión",
+    "subtitle": "Inicia sesión para desbloquear el optimizador de portafolios.",
+    "continueWithGoogle": "Continuar con Google",
+    "continueWithGithub": "Continuar con GitHub",
+    "continueWithMicrosoft": "Continuar con Microsoft",
+    "signingIn": "Iniciando sesión…",
+    "error": "No se pudo iniciar sesión. Inténtalo de nuevo.",
+    "signedInAs": "Sesión iniciada como",
+    "signOut": "Cerrar sesión"
   },
   "notFound": {
     "title": "Esta pantalla no existe.",
