@@ -226,14 +226,6 @@ function projectOntoConstraints(
 }
 
 /**
- * Project onto probability simplex using Duchi et al. algorithm
- * Ensures sum(w) = 1 and w >= 0
- */
-function projectOntoSimplex(v: number[]): number[] {
-  return projectOntoScaledSimplex(v, 1.0);
-}
-
-/**
  * Project onto scaled simplex using Duchi et al. algorithm
  * Ensures sum(w) = target and w >= 0
  */

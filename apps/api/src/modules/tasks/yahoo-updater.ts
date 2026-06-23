@@ -1,7 +1,7 @@
 import YahooFinance from "yahoo-finance2";
 import { eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { funds, prices, backgroundTasks } from "../../db/schema.js";
+import { prices, backgroundTasks } from "../../db/schema.js";
 
 const yahooFinance = new YahooFinance();
 
@@ -30,7 +30,7 @@ export async function startYahooUpdate(taskId: string, onProgress: ProgressCallb
 
     let processed = 0;
     let updated = 0;
-    let errors: string[] = [];
+    const errors: string[] = [];
 
     const lastPriceRows = await db
       .select({
