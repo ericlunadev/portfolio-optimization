@@ -22,11 +22,17 @@ export const i18n = new I18n({ es, en });
 i18n.defaultLocale = DEFAULT_LOCALE;
 i18n.enableFallback = true;
 
-function resolveDeviceLocale(): Locale {
+/** Best-effort locale from the device settings, falling back to the default. */
+export function resolveDeviceLocale(): Locale {
   const deviceLanguage = getLocales()[0]?.languageCode;
   return SUPPORTED_LOCALES.includes(deviceLanguage as Locale)
     ? (deviceLanguage as Locale)
     : DEFAULT_LOCALE;
+}
+
+/** Narrow an arbitrary string to a supported locale, or `null`. */
+export function asSupportedLocale(value: string | null | undefined): Locale | null {
+  return value && SUPPORTED_LOCALES.includes(value as Locale) ? (value as Locale) : null;
 }
 
 i18n.locale = resolveDeviceLocale();
