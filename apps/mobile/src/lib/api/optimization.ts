@@ -29,11 +29,35 @@ export type OptimizeRequest = {
   max_leverage?: number;
 };
 
-export type OptimizationResult = {
-  weights: number[];
-  return: number;
+/** Per-asset allocation row returned by the optimizer. */
+export type OptimizationWeight = {
+  fund_id: number;
+  fund_name: string;
+  /** Allocation as a fraction of the portfolio (0–1). */
+  weight: number;
+  /** Annualized expected return for the asset (0–1). */
+  exp_ret: number;
+  /** Annualized volatility for the asset (0–1). */
   volatility: number;
-  success: boolean;
+};
+
+/** Risk statistics derived from the optimal portfolio's return/volatility. */
+export type OptimizationStats = {
+  ci_95_low: number;
+  ci_95_high: number;
+  prob_neg_1m: number;
+  prob_neg_3m: number;
+  prob_neg_1y: number;
+  prob_neg_2y: number;
+};
+
+export type OptimizationResult = {
+  weights: OptimizationWeight[];
+  expected_return: number;
+  volatility: number;
+  sharpe_ratio: number;
+  strategy: OptimizationStrategy;
+  stats: OptimizationStats;
 };
 
 export function optimizePortfolio(payload: OptimizeRequest) {
