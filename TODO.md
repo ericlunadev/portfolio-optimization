@@ -6,7 +6,13 @@ Email flows (wired with Resend; need to set RESEND_API_KEY in apps/api/.env and 
 Implement EODHD
 
 ## Mobile app (apps/mobile)
-- Wire BetterAuth sign-in (Google / GitHub / Microsoft) to unlock the optimizer
+- [x] Wire BetterAuth sign-in (Google / GitHub / Microsoft) to unlock the
+  optimizer. Uses the `@better-auth/expo` plugin (server + client): social
+  sign-in opens the system browser and redirects back via the
+  `portfoliooptimization://` scheme; the session token is stored in
+  expo-secure-store and replayed as a Cookie header on API calls. The optimizer
+  tab is gated behind the session. Requires OAuth client IDs/secrets and the
+  app's redirect URI registered with each provider.
 - Build out the optimizer flow against POST /api/optimization/optimize
 - Persist the user's locale choice and add a locale switcher
 

@@ -19,7 +19,18 @@
   "optimizer": {
     "title": "Optimizer",
     "comingSoon": "Portfolio optimization is coming soon to mobile.",
-    "description": "Compute optimal weights with mean-variance optimization once sign-in is available."
+    "description": "You're all set. The mean-variance optimization flow is coming soon."
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Sign in to unlock the portfolio optimizer.",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithGithub": "Continue with GitHub",
+    "continueWithMicrosoft": "Continue with Microsoft",
+    "signingIn": "Signing in…",
+    "error": "Sign-in failed. Please try again.",
+    "signedInAs": "Signed in as",
+    "signOut": "Sign out"
   },
   "notFound": {
     "title": "This screen does not exist.",

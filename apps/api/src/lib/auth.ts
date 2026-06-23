@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { expo } from "@better-auth/expo";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "../db/index.js";
 import { env } from "../config/env.js";
@@ -19,6 +20,9 @@ export const auth = betterAuth({
   baseURL: env.BACKEND_URL,
   basePath: "/api/auth",
   secret: env.BETTER_AUTH_SECRET,
+  // The Expo plugin lets the React Native app (apps/mobile) drive OAuth and
+  // session handling via the app's deep-link scheme instead of browser cookies.
+  plugins: [expo()],
   emailAndPassword: {
     enabled: true,
     sendResetPassword: async ({ user, token }, request) => {
@@ -70,7 +74,13 @@ export const auth = betterAuth({
         }
       : {}),
   },
-  trustedOrigins: [env.FRONTEND_URL],
+  trustedOrigins: [
+    env.FRONTEND_URL,
+    // Native app deep-link scheme for OAuth redirects.
+    env.MOBILE_APP_SCHEME,
+    // Expo Go / dev client tunnels used during local development.
+    ...(isProduction ? [] : ["exp://", "exp://*", "exp://**"]),
+  ],
   advanced: {
     defaultCookieAttributes: isProduction
       ? {

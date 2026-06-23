@@ -6,7 +6,7 @@
  * secrets. Configure them in `.env` (see `.env.example`).
  */
 
-const DEFAULT_API_URL = 'http://localhost:8000';
+const DEFAULT_API_URL = 'http://localhost:8001';
 
 export const Env = {
   /** Base URL of the Portfolio Optimization API (`apps/api`). */

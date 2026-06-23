@@ -3,6 +3,7 @@
  * API (`apps/api`). Keep transport concerns (base URL, headers, error shaping)
  * here so feature-level API modules stay declarative.
  */
+import { authClient } from '@/lib/auth-client';
 import { Env } from '@/lib/env';
 
 export class ApiError extends Error {
@@ -23,16 +24,21 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { body, headers, ...rest } = options;
 
+  // React Native's fetch does not persist cookies, so the BetterAuth Expo
+  // client stores the session token (in SecureStore) and exposes it here. We
+  // forward it as the `Cookie` header for the API's session middleware.
+  const sessionCookie = authClient.getCookie();
+
   const response = await fetch(`${Env.apiUrl}${path}`, {
     ...rest,
     headers: {
       Accept: 'application/json',
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(sessionCookie ? { Cookie: sessionCookie } : {}),
       ...headers,
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
-    // Send BetterAuth session cookies once authentication is wired up.
-    credentials: 'include',
+    credentials: 'omit',
   });
 
   if (!response.ok) {

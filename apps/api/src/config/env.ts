@@ -27,6 +27,10 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().default("http://localhost:3000"),
   BACKEND_URL: z.string().default("http://localhost:8001"),
 
+  // Mobile app deep-link scheme, trusted for BetterAuth OAuth redirects back
+  // into the Expo app (must match `scheme` in apps/mobile/app.json).
+  MOBILE_APP_SCHEME: z.string().default("portfoliooptimization://"),
+
   // Email (Resend)
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z

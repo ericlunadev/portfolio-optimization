@@ -25,8 +25,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Builds the API (tsup) and web (next build); both type-check as part of
-      # their build, so this gates compilation and types for apps/api + apps/web.
+      # Bundles the API (tsup, esbuild) and builds web (next build). next build
+      # type-checks apps/web. The API is bundle-only: .d.ts emission is disabled
+      # because better-auth's inferred `auth` type is not portable to a
+      # declaration file under pnpm (TS2742). Type-check the API locally with
+      # `pnpm --filter api typecheck`.
       - name: Build
         run: pnpm build
 
