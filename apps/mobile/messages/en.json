@@ -7,6 +7,7 @@
   "tabs": {
     "home": "Home",
     "optimizer": "Optimizer",
+    "history": "History",
     "billing": "Credits"
   },
   "home": {
@@ -54,6 +55,38 @@
       "target-risk": { "label": "Target Risk", "description": "Maximum return for a specific risk level" },
       "knee-point": { "label": "Inflection Point", "description": "Point of maximum curvature on the frontier" }
     }
+  },
+  "history": {
+    "pageTitle": "History",
+    "pageSubtitle": "Your saved optimizations. Pull to refresh.",
+    "colReturn": "Return",
+    "colVolatility": "Volatility",
+    "colSharpe": "Sharpe",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "rerun": "Re-run",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "deleteConfirmTitle": "Delete optimization",
+    "deleteConfirmBody": "This permanently removes the saved optimization.",
+    "rerunErrorTitle": "Re-run failed",
+    "rerunErrorBody": "We couldn't re-run this optimization. Please try again.",
+    "emptyTitle": "No saved optimizations yet",
+    "emptyHint": "Run an optimization and tap “Save to history” to keep it here.",
+    "loadError": "We couldn't load your optimizations. Please try again.",
+    "detailTitle": "Optimization",
+    "notFound": "Optimization not found.",
+    "rename": "Rename",
+    "renameSave": "Save name",
+    "renameCancel": "Cancel rename",
+    "namePlaceholder": "Name this optimization",
+    "rerunAction": "Re-run with latest data",
+    "rerunInProgress": "Re-running…",
+    "saved": "Saved to history",
+    "viewSaved": "View",
+    "saving": "Saving…",
+    "saveAction": "Save to history",
+    "saveError": "We couldn't save this optimization. Please try again."
   },
   "auth": {
     "title": "Sign in",

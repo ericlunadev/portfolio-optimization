@@ -15,6 +15,7 @@ export default function RootLayout() {
     <AppProviders>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="simulation/[id]" options={{ title: '' }} />
         <Stack.Screen name="+not-found" options={{ title: '' }} />
       </Stack>
       <StatusBar style="auto" />
