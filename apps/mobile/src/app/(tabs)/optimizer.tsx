@@ -1,18 +1,23 @@
 import { useMutation } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SocialSignIn } from '@/components/auth/social-sign-in';
+import { AdvisorCta } from '@/components/billing/advisor-cta';
+import { CreditsChip } from '@/components/billing/credits-chip';
 import { OptimizationResults } from '@/components/optimizer/optimization-results';
 import { OptimizerForm } from '@/components/optimizer/optimizer-form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useRefreshBilling } from '@/hooks/use-billing';
 import { useOptimizerForm } from '@/hooks/use-optimizer-form';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslations } from '@/hooks/use-translations';
 import { authClient, useSession } from '@/lib/auth-client';
+import { ApiError } from '@/lib/api/client';
 import { optimizePortfolio } from '@/lib/api/optimization';
 
 export default function OptimizerScreen() {
@@ -49,10 +54,19 @@ function SignedInOptimizer({ userName }: { userName: string }) {
   const [view, setView] = useState<'form' | 'results'>('form');
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  const refreshBilling = useRefreshBilling();
   const optimize = useMutation({ mutationFn: optimizePortfolio });
 
+  // A successful run spent 1 credit; a 402 means the wallet is empty.
+  const outOfCredits = optimize.error instanceof ApiError && optimize.error.status === 402;
+
   const handleSubmit = () => {
-    optimize.mutate(form.buildRequest(), { onSuccess: () => setView('results') });
+    optimize.mutate(form.buildRequest(), {
+      onSuccess: () => {
+        setView('results');
+        refreshBilling();
+      },
+    });
   };
 
   const handleSignOut = async () => {
@@ -80,19 +94,22 @@ function SignedInOptimizer({ userName }: { userName: string }) {
                 {t('auth.signedInAs')} {userName}
               </ThemedText>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              disabled={isSigningOut}
-              onPress={handleSignOut}
-              hitSlop={Spacing.two}>
-              {isSigningOut ? (
-                <ActivityIndicator color={theme.textSecondary} />
-              ) : (
-                <ThemedText type="link" themeColor="tint">
-                  {t('auth.signOut')}
-                </ThemedText>
-              )}
-            </Pressable>
+            <View style={styles.headerActions}>
+              <CreditsChip />
+              <Pressable
+                accessibilityRole="button"
+                disabled={isSigningOut}
+                onPress={handleSignOut}
+                hitSlop={Spacing.two}>
+                {isSigningOut ? (
+                  <ActivityIndicator color={theme.textSecondary} />
+                ) : (
+                  <ThemedText type="link" themeColor="tint">
+                    {t('auth.signOut')}
+                  </ThemedText>
+                )}
+              </Pressable>
+            </View>
           </View>
 
           {view === 'results' && optimize.data ? (
@@ -106,10 +123,26 @@ function SignedInOptimizer({ userName }: { userName: string }) {
                 </Pressable>
               </View>
               <OptimizationResults result={optimize.data} />
+              <AdvisorCta />
             </View>
           ) : (
             <View style={styles.formWrapper}>
-              {optimize.isError ? (
+              {outOfCredits ? (
+                <ThemedView type="backgroundElement" style={styles.outOfCredits}>
+                  <ThemedText type="smallBold">{t('billing.outOfCreditsTitle')}</ThemedText>
+                  <ThemedText type="small" themeColor="textSecondary">
+                    {t('billing.outOfCreditsBody')}
+                  </ThemedText>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.navigate('/billing')}
+                    hitSlop={Spacing.two}>
+                    <ThemedText type="link" themeColor="tint">
+                      {t('billing.outOfCreditsCta')}
+                    </ThemedText>
+                  </Pressable>
+                </ThemedView>
+              ) : optimize.isError ? (
                 <ThemedText type="small" themeColor="negative">
                   {t('optimizer.error')}
                 </ThemedText>
@@ -150,12 +183,21 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.one,
   },
+  headerActions: {
+    alignItems: 'flex-end',
+    gap: Spacing.two,
+  },
   title: {
     fontSize: 32,
     lineHeight: 38,
   },
   formWrapper: {
     gap: Spacing.three,
+  },
+  outOfCredits: {
+    borderRadius: Spacing.three,
+    padding: Spacing.three,
+    gap: Spacing.one,
   },
   resultsWrapper: {
     gap: Spacing.four,

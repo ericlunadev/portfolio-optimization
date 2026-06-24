@@ -6,7 +6,8 @@
   },
   "tabs": {
     "home": "Home",
-    "optimizer": "Optimizer"
+    "optimizer": "Optimizer",
+    "billing": "Credits"
   },
   "home": {
     "title": "Portfolio Optimization",
@@ -64,6 +65,47 @@
     "error": "Sign-in failed. Please try again.",
     "signedInAs": "Signed in as",
     "signOut": "Sign out"
+  },
+  "billing": {
+    "pageTitle": "Balance & credits",
+    "pageSubtitle": "Each optimization run costs 1 credit. Buy packs to keep running analyses.",
+    "walletLabel": "Current balance",
+    "creditsUnit": "credits",
+    "walletHint": "Credits never expire.",
+    "chipAria": "Credit balance",
+    "buyTitle": "Buy credits",
+    "railCard": "Card",
+    "railCrypto": "Crypto",
+    "perCreditCost": "$%{cost} per credit",
+    "salesFinalAck": "I understand this purchase is final and non-refundable.",
+    "usdOnlyNote": "We charge in USD. If your card is from another country, your bank handles the FX.",
+    "cryptoNote": "Pay with USDC or USDT. The amount is set in USD; the payment network handles the 1:1 settlement.",
+    "buyButton": "Pay with card",
+    "buyButtonCrypto": "Pay with crypto",
+    "loadingPackages": "Loading packages…",
+    "noPackages": "No packages available yet. Check back soon.",
+    "errorCheckout": "We couldn't start checkout. Please try again.",
+    "ledgerTitle": "History",
+    "emptyLedger": "No activity yet.",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "colType": "Type",
+    "colDelta": "Change",
+    "colBalanceAfter": "Balance",
+    "reason": {
+      "purchase": "Purchase",
+      "spend": "Optimization",
+      "grant": "Grant",
+      "reversal": "Reversal"
+    },
+    "outOfCreditsTitle": "Out of credits",
+    "outOfCreditsBody": "You're out of credits to run this optimization.",
+    "outOfCreditsCta": "Buy credits",
+    "advisorTitle": "Questions about these results?",
+    "advisorSubtitle": "Book a 30-min call with our financial advisor.",
+    "advisorButton": "Book a call",
+    "advisorInsufficient": "You don't have enough credits to book a call.",
+    "advisorError": "Could not start the booking. Please try again."
   },
   "notFound": {
     "title": "This screen does not exist.",
