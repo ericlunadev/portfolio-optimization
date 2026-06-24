@@ -1,7 +1,7 @@
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SocialSignIn } from '@/components/auth/social-sign-in';
+import { AuthPanel } from '@/components/auth/auth-panel';
 import { LedgerList } from '@/components/billing/ledger-list';
 import { PackagePicker } from '@/components/billing/package-picker';
 import { WalletCard } from '@/components/billing/wallet-card';
@@ -29,8 +29,8 @@ export default function BillingScreen() {
   if (!session) {
     return (
       <ThemedView style={styles.container}>
-        <SafeAreaView edges={['bottom']} style={styles.centered}>
-          <SocialSignIn />
+        <SafeAreaView edges={['bottom']} style={styles.flex}>
+          <AuthPanel />
         </SafeAreaView>
       </ThemedView>
     );

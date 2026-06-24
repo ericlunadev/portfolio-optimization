@@ -21,9 +21,12 @@ const PROVIDERS: ProviderConfig[] = [
 ];
 
 /**
- * Social sign-in panel (Google / GitHub / Microsoft). Sign-in opens the system
+ * Social sign-in buttons (Google / GitHub / Microsoft). Sign-in opens the system
  * browser via the BetterAuth Expo plugin and redirects back into the app, after
  * which `useSession()` updates reactively and the caller reveals gated content.
+ *
+ * The shared "Sign in" header lives in `AuthPanel`, which composes these buttons
+ * below the email/password form — so this component renders only the providers.
  */
 export function SocialSignIn() {
   const t = useTranslations();
@@ -52,13 +55,6 @@ export function SocialSignIn() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.copy}>
-        <ThemedText type="subtitle">{t('auth.title')}</ThemedText>
-        <ThemedText type="default" themeColor="textSecondary" style={styles.subtitle}>
-          {t('auth.subtitle')}
-        </ThemedText>
-      </View>
-
       <View style={styles.buttons}>
         {PROVIDERS.map(({ provider, icon, labelKey }) => {
           const isPending = pendingProvider === provider;
@@ -99,15 +95,7 @@ export function SocialSignIn() {
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    maxWidth: 360,
     gap: Spacing.four,
-  },
-  copy: {
-    gap: Spacing.two,
-    alignItems: 'center',
-  },
-  subtitle: {
-    textAlign: 'center',
   },
   buttons: {
     gap: Spacing.two,

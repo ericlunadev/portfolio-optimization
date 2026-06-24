@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SocialSignIn } from '@/components/auth/social-sign-in';
+import { AuthPanel } from '@/components/auth/auth-panel';
 import { useSimulationTitle } from '@/components/history/simulation-card';
 import { OptimizationResults } from '@/components/optimizer/optimization-results';
 import { ThemedText } from '@/components/themed-text';
@@ -59,8 +59,8 @@ export default function SimulationDetailScreen() {
     return (
       <ThemedView style={styles.container}>
         <Stack.Screen options={headerOptions} />
-        <SafeAreaView edges={['bottom']} style={styles.centered}>
-          <SocialSignIn />
+        <SafeAreaView edges={['bottom']} style={styles.flex}>
+          <AuthPanel />
         </SafeAreaView>
       </ThemedView>
     );

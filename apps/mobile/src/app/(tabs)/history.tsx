@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { ActivityIndicator, Alert, FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SocialSignIn } from '@/components/auth/social-sign-in';
+import { AuthPanel } from '@/components/auth/auth-panel';
 import { SimulationCard } from '@/components/history/simulation-card';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -35,8 +35,8 @@ export default function HistoryScreen() {
   if (!session) {
     return (
       <ThemedView style={styles.container}>
-        <SafeAreaView edges={['bottom']} style={styles.centered}>
-          <SocialSignIn />
+        <SafeAreaView edges={['bottom']} style={styles.flex}>
+          <AuthPanel />
         </SafeAreaView>
       </ThemedView>
     );
