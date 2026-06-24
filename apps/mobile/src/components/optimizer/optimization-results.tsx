@@ -1,5 +1,8 @@
 import { StyleSheet, View } from 'react-native';
 
+import { ChartCard } from '@/components/optimizer/charts/chart-card';
+import { RiskReturnScatter } from '@/components/optimizer/charts/risk-return-scatter';
+import { WeightsBarChart } from '@/components/optimizer/charts/weights-bar-chart';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -35,6 +38,14 @@ export function OptimizationResults({ result }: OptimizationResultsProps) {
           hint={`${t('optimizer.probNeg2y')}: ${formatPercent(result.stats.prob_neg_2y)}`}
         />
       </View>
+
+      <ChartCard title={t('optimizer.chartRiskReturnTitle')} footer={<ScatterLegend />}>
+        {(width) => <RiskReturnScatter result={result} width={width} />}
+      </ChartCard>
+
+      <ChartCard title={t('optimizer.chartAllocationTitle')}>
+        {(width) => <WeightsBarChart weights={result.weights} width={width} />}
+      </ChartCard>
 
       <View style={styles.section}>
         <ThemedText type="smallBold" themeColor="textSecondary">
@@ -77,6 +88,28 @@ export function OptimizationResults({ result }: OptimizationResultsProps) {
   );
 }
 
+/** Marker legend for the risk/return scatter (colors match the chart). */
+function ScatterLegend() {
+  const t = useTranslations();
+  const theme = useTheme();
+  return (
+    <View style={styles.legend}>
+      <View style={styles.legendItem}>
+        <View style={[styles.legendDiamond, { backgroundColor: theme.positive }]} />
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('optimizer.legendOptimal')}
+        </ThemedText>
+      </View>
+      <View style={styles.legendItem}>
+        <View style={[styles.legendDot, { backgroundColor: theme.tint }]} />
+        <ThemedText type="small" themeColor="textSecondary">
+          {t('optimizer.legendAssets')}
+        </ThemedText>
+      </View>
+    </View>
+  );
+}
+
 function StatCard({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -111,6 +144,26 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: Spacing.two,
+  },
+  legend: {
+    flexDirection: 'row',
+    gap: Spacing.four,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  legendDiamond: {
+    width: 9,
+    height: 9,
+    borderRadius: 1,
+    transform: [{ rotate: '45deg' }],
   },
   tableHeader: {
     flexDirection: 'row',

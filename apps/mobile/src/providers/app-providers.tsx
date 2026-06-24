@@ -1,11 +1,29 @@
 import { QueryClientProvider } from '@tanstack/react-query';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, ThemeProvider } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors } from '@/constants/theme';
 import { queryClient } from '@/lib/query-client';
 import { LocaleProvider } from '@/providers/locale-provider';
+
+/**
+ * Navigation theme pinned to the brand (the web app is dark-only). Extends
+ * React Navigation's DarkTheme so default surfaces (screen backgrounds, cards)
+ * use the brand navy and gold instead of the stock near-black/blue.
+ */
+const BrandNavigationTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    primary: Colors.dark.tint,
+    background: Colors.dark.background,
+    card: Colors.dark.background,
+    text: Colors.dark.text,
+    border: Colors.dark.border,
+    notification: Colors.dark.negative,
+  },
+};
 
 /**
  * App-wide providers, kept out of the root layout so screens stay focused on
@@ -22,16 +40,12 @@ type AppProvidersProps = {
 };
 
 export function AppProviders({ children }: AppProvidersProps) {
-  const colorScheme = useColorScheme();
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <LocaleProvider>
-            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-              {children}
-            </ThemeProvider>
+            <ThemeProvider value={BrandNavigationTheme}>{children}</ThemeProvider>
           </LocaleProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

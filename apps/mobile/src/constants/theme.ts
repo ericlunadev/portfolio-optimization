@@ -7,32 +7,36 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+/**
+ * Brand palette, ported from the web app (`apps/web/src/styles/globals.css`):
+ * a dark navy canvas, warm off-white text, and a gold primary accent. The web
+ * app is dark-only, so the mobile app matches it — both schemes resolve to the
+ * same brand colors and `useTheme` pins to dark (see `use-theme.ts`).
+ */
+const Brand = {
+  /** Warm off-white — web `--foreground`. */
+  text: '#E7E6E4',
+  /** Near-black navy canvas — web `--background`. */
+  background: '#0B0B0F',
+  /** Card / elevated surface — web `--card`. */
+  backgroundElement: '#111217',
+  /** Selected / hover surface — web `--accent`. */
+  backgroundSelected: '#23252F',
+  /** Muted copy — web `--muted-foreground`. */
+  textSecondary: '#75798A',
+  /** Gold primary accent — web `--primary`. */
+  tint: '#D7A042',
+  /** Hairlines & dividers — web `--border`. */
+  border: '#262831',
+  /** Positive returns (gains). */
+  positive: '#4ADE80',
+  /** Negative returns (losses) — web `--destructive`. */
+  negative: '#E25050',
+} as const;
+
 export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-    /** Brand / accent color, shared with the web splash screen. */
-    tint: '#208AEF',
-    border: '#E0E1E6',
-    /** Positive returns (gains). */
-    positive: '#137333',
-    /** Negative returns (losses). */
-    negative: '#C5221F',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-    tint: '#3C9DFF',
-    border: '#2E3135',
-    positive: '#4ADE80',
-    negative: '#F87171',
-  },
+  light: Brand,
+  dark: Brand,
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
@@ -61,6 +65,24 @@ export const Fonts = Platform.select({
     mono: 'var(--font-mono)',
   },
 });
+
+/**
+ * Brand typefaces, matching the web app: Instrument Serif for display/headings
+ * and Manrope for body copy. The family strings are the export names from the
+ * `@expo-google-fonts/*` packages; the matching weights are loaded in the root
+ * layout via `useFonts`. With custom fonts, weight must be selected by family
+ * (not `fontWeight`), so each weight is its own family.
+ */
+export const FontFamily = {
+  /** Instrument Serif (400) — display headings. */
+  serif: 'InstrumentSerif_400Regular',
+  /** Manrope 500 — default body. */
+  body: 'Manrope_500Medium',
+  /** Manrope 600 — emphasized body. */
+  bodySemibold: 'Manrope_600SemiBold',
+  /** Manrope 700 — bold body. */
+  bodyBold: 'Manrope_700Bold',
+} as const;
 
 export const Spacing = {
   half: 2,

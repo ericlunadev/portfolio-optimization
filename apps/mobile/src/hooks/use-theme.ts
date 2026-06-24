@@ -4,11 +4,12 @@
  */
 
 import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 
+/**
+ * Returns the active theme colors. The brand (ported from the dark-only web
+ * app) is dark, so we pin to the dark palette regardless of the device color
+ * scheme — both entries are the same brand palette anyway.
+ */
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
-
-  return Colors[theme];
+  return Colors.dark;
 }

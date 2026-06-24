@@ -73,6 +73,10 @@
     "colExpReturn": "Exp. return",
     "colVolatility": "Volatility",
     "colWeight": "Weight",
+    "chartRiskReturnTitle": "Risk / Return",
+    "chartAllocationTitle": "Allocation",
+    "legendOptimal": "Optimal",
+    "legendAssets": "Assets",
     "strategies": {
       "max-sharpe": {
         "label": "Max Sharpe (Optimal)",
