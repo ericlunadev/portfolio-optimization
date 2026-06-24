@@ -28,6 +28,30 @@ Implement EODHD
   `LocaleSwitcher` lives in the tab header (`headerRight`), so it's reachable
   from every tab without a drawer.
 
+## Mobile parity (web → mobile gaps)
+
+The mobile app is currently a thin subset of web (~25–30%): social auth, a basic
+optimizer, and the locale switcher. Ordered by priority:
+
+- Billing / credits on mobile. The optimize endpoint charges credits
+  (`meterRequest`, 402 on empty wallet), but mobile has no wallet or checkout —
+  a fresh user can't optimize and has no way to see their balance or buy
+  credits. At minimum: show the wallet balance and a credits-specific (402)
+  message; ideally Stripe / Coinbase checkout (`/api/billing/*`).
+- Align auth across clients. Web's UI only does email/password; mobile only does
+  social — so accounts created on one client can't sign in on the other. Add
+  email/password sign-in (+ verify email, password reset) to mobile and/or
+  social buttons to web.
+- Saved optimizations / history on mobile (`/api/simulations`): list, view,
+  rename, pin, rerun, delete. The optimizer is currently fire-and-forget.
+- Onboarding wizard on mobile (`/api/onboarding`): localization, investor
+  profile, market preferences — web gates the app behind this.
+- Richer optimizer results on mobile: charts (efficient frontier, weights bar,
+  cumulative returns, asset & rolling volatility) and the user-vs-optimal
+  comparison; plus date-range, leverage, and per-asset w_max form inputs.
+- Financial advisor booking on mobile (`POST /api/billing/advisor-call`).
+- Academia / education stations on mobile.
+
 ## CI / tooling
 - [x] Add ESLint configs for apps/api (typescript-eslint flat config) and
   apps/web (eslint-config-next via .eslintrc.json, pinned to ESLint 8 since
