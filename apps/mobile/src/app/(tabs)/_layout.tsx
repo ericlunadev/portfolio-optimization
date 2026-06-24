@@ -1,8 +1,13 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
+import { LocaleSwitcher } from '@/components/locale-switcher';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslations } from '@/hooks/use-translations';
+
+function renderLocaleSwitcher() {
+  return <LocaleSwitcher />;
+}
 
 export default function TabsLayout() {
   const theme = useTheme();
@@ -15,6 +20,7 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: theme.textSecondary,
         headerStyle: { backgroundColor: theme.background },
         headerTintColor: theme.text,
+        headerRight: renderLocaleSwitcher,
         tabBarStyle: { backgroundColor: theme.background, borderTopColor: theme.border },
       }}>
       <Tabs.Screen

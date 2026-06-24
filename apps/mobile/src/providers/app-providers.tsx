@@ -5,6 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { queryClient } from '@/lib/query-client';
+import { LocaleProvider } from '@/providers/locale-provider';
 
 /**
  * App-wide providers, kept out of the root layout so screens stay focused on
@@ -27,9 +28,11 @@ export function AppProviders({ children }: AppProvidersProps) {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            {children}
-          </ThemeProvider>
+          <LocaleProvider>
+            <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+              {children}
+            </ThemeProvider>
+          </LocaleProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>

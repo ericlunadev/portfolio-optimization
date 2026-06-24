@@ -21,7 +21,12 @@ Implement EODHD
   Sharpe, 1Y/2Y loss probability, and an allocation table). Deferred to later:
   date-range picker, leverage / max-weight constraints, efficient-frontier and
   chart visualizations, and a credits-specific (402) message.
-- Persist the user's locale choice and add a locale switcher
+- [x] Persist the user's locale choice and add a locale switcher. A
+  `LocaleProvider` holds the active locale in React state (so `useTranslations`
+  re-renders all consumers); the choice persists via expo-secure-store and
+  hydrates on launch, falling back to the device locale. An ES/EN
+  `LocaleSwitcher` lives in the tab header (`headerRight`), so it's reachable
+  from every tab without a drawer.
 
 ## CI / tooling
 - [x] Add ESLint configs for apps/api (typescript-eslint flat config) and
