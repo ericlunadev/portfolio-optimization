@@ -60,6 +60,13 @@ function TabsNavigator() {
           tabBarIcon: ({ color, size }) => <Ionicons name="wallet" color={color} size={size} />,
         }}
       />
+      <Tabs.Screen
+        name="academia"
+        options={{
+          title: t('tabs.academia'),
+          tabBarIcon: ({ color, size }) => <Ionicons name="school" color={color} size={size} />,
+        }}
+      />
     </Tabs>
   );
 }
