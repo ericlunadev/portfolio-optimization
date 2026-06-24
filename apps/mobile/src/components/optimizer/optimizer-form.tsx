@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 
+import { DateRangeInput } from '@/components/optimizer/date-range-input';
 import { StrategyPicker } from '@/components/optimizer/strategy-picker';
 import { TickerSearch } from '@/components/optimizer/ticker-search';
 import { ThemedText } from '@/components/themed-text';
@@ -71,6 +72,59 @@ export function OptimizerForm({ form, isSubmitting, onSubmit }: OptimizerFormPro
         />
       </Section>
 
+      <Section title={t('optimizer.dateRangeLabel')}>
+        <ToggleRow
+          label={t('optimizer.useDateRange')}
+          value={form.useDateRange}
+          onValueChange={form.setUseDateRange}
+        />
+        {form.useDateRange ? (
+          <DateRangeInput
+            startMonth={form.startMonth}
+            startYear={form.startYear}
+            endMonth={form.endMonth}
+            endYear={form.endYear}
+            onChangeStartMonth={form.setStartMonth}
+            onChangeStartYear={form.setStartYear}
+            onChangeEndMonth={form.setEndMonth}
+            onChangeEndYear={form.setEndYear}
+            invalid={form.dateRangeInvalid}
+          />
+        ) : null}
+      </Section>
+
+      <Section title={t('optimizer.leverageLabel')}>
+        <ToggleRow
+          label={t('optimizer.useLeverage')}
+          value={form.useLeverage}
+          onValueChange={form.setUseLeverage}
+        />
+        {form.useLeverage ? (
+          <PercentInput
+            label={t('optimizer.maxLeverage')}
+            value={form.maxLeverage}
+            onChangeText={form.setMaxLeverage}
+            placeholder="1.5"
+          />
+        ) : null}
+      </Section>
+
+      <Section title={t('optimizer.assetConstraintsLabel')}>
+        <ToggleRow
+          label={t('optimizer.useAssetConstraints')}
+          value={form.useAssetConstraints}
+          onValueChange={form.setUseAssetConstraints}
+        />
+        {form.useAssetConstraints ? (
+          <PercentInput
+            label={t('optimizer.maxWeightPerAsset')}
+            value={form.maxWeightPerAsset}
+            onChangeText={form.setMaxWeightPerAsset}
+            placeholder="40"
+          />
+        ) : null}
+      </Section>
+
       <Pressable
         accessibilityRole="button"
         disabled={submitDisabled}
@@ -104,10 +158,12 @@ function PercentInput({
   label,
   value,
   onChangeText,
+  placeholder = '0',
 }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
+  placeholder?: string;
 }) {
   const theme = useTheme();
   return (
@@ -120,7 +176,7 @@ function PercentInput({
         onChangeText={onChangeText}
         keyboardType="decimal-pad"
         inputMode="decimal"
-        placeholder="0"
+        placeholder={placeholder}
         placeholderTextColor={theme.textSecondary}
         style={[
           styles.percentInput,
