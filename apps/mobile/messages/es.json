@@ -7,6 +7,7 @@
   "tabs": {
     "home": "Inicio",
     "optimizer": "Optimizador",
+    "history": "Historial",
     "billing": "Créditos"
   },
   "home": {
@@ -54,6 +55,38 @@
       "target-risk": { "label": "Riesgo Objetivo", "description": "Máximo rendimiento para un riesgo específico" },
       "knee-point": { "label": "Punto de Inflexión", "description": "Punto de máxima curvatura en la frontera" }
     }
+  },
+  "history": {
+    "pageTitle": "Historial",
+    "pageSubtitle": "Tus optimizaciones guardadas. Desliza para actualizar.",
+    "colReturn": "Rendimiento",
+    "colVolatility": "Volatilidad",
+    "colSharpe": "Sharpe",
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "rerun": "Volver a ejecutar",
+    "delete": "Eliminar",
+    "cancel": "Cancelar",
+    "deleteConfirmTitle": "Eliminar optimización",
+    "deleteConfirmBody": "Esto elimina permanentemente la optimización guardada.",
+    "rerunErrorTitle": "Error al volver a ejecutar",
+    "rerunErrorBody": "No pudimos volver a ejecutar esta optimización. Inténtalo de nuevo.",
+    "emptyTitle": "Aún no hay optimizaciones guardadas",
+    "emptyHint": "Ejecuta una optimización y toca «Guardar en historial» para conservarla aquí.",
+    "loadError": "No pudimos cargar tus optimizaciones. Inténtalo de nuevo.",
+    "detailTitle": "Optimización",
+    "notFound": "Optimización no encontrada.",
+    "rename": "Renombrar",
+    "renameSave": "Guardar nombre",
+    "renameCancel": "Cancelar renombrado",
+    "namePlaceholder": "Nombra esta optimización",
+    "rerunAction": "Volver a ejecutar con datos recientes",
+    "rerunInProgress": "Volviendo a ejecutar…",
+    "saved": "Guardada en historial",
+    "viewSaved": "Ver",
+    "saving": "Guardando…",
+    "saveAction": "Guardar en historial",
+    "saveError": "No pudimos guardar esta optimización. Inténtalo de nuevo."
   },
   "auth": {
     "title": "Iniciar sesión",

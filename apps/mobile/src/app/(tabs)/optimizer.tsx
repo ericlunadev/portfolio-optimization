@@ -9,6 +9,7 @@ import { AdvisorCta } from '@/components/billing/advisor-cta';
 import { CreditsChip } from '@/components/billing/credits-chip';
 import { OptimizationResults } from '@/components/optimizer/optimization-results';
 import { OptimizerForm } from '@/components/optimizer/optimizer-form';
+import { SaveToHistory } from '@/components/optimizer/save-to-history';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -123,6 +124,9 @@ function SignedInOptimizer({ userName }: { userName: string }) {
                 </Pressable>
               </View>
               <OptimizationResults result={optimize.data} />
+              {optimize.variables ? (
+                <SaveToHistory params={optimize.variables} result={optimize.data} />
+              ) : null}
               <AdvisorCta />
             </View>
           ) : (

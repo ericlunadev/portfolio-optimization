@@ -51,8 +51,17 @@ optimizer, and the locale switcher. Ordered by priority:
   social — so accounts created on one client can't sign in on the other. Add
   email/password sign-in (+ verify email, password reset) to mobile and/or
   social buttons to web.
-- Saved optimizations / history on mobile (`/api/simulations`): list, view,
-  rename, pin, rerun, delete. The optimizer is currently fire-and-forget.
+- [x] Saved optimizations / history on mobile (`/api/simulations`): list, view,
+  rename, pin, rerun, delete. New "History" tab (session-gated) lists saved runs
+  (pinned first, then newest) with per-row pin/unpin, re-run, and delete (with a
+  confirm); pull-to-refresh. Tapping a row opens a stack detail route
+  (`app/simulation/[id].tsx`) with inline rename, re-run-with-latest-data, and
+  the full results table. The optimizer is no longer fire-and-forget: results
+  now show a "Save to history" action (`SaveToHistory`) that persists the run
+  and links to its detail. API in `src/lib/api/simulations.ts`, hooks in
+  `src/hooks/use-simulations.ts` (optimistic pin, rerun = re-optimize + PUT).
+  Cross-client note: web-created runs display/pin/rename/delete fine; re-running
+  one from mobile recomputes with default rates since the param shapes differ.
 - Onboarding wizard on mobile (`/api/onboarding`): localization, investor
   profile, market preferences — web gates the app behind this.
 - Richer optimizer results on mobile: charts (efficient frontier, weights bar,
