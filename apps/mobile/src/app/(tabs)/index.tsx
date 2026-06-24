@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LocaleSwitcher } from '@/components/locale-switcher';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -32,7 +33,10 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <SafeAreaView edges={['bottom']} style={styles.safeArea}>
+      <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
+        <View style={styles.topBar}>
+          <LocaleSwitcher />
+        </View>
         <View style={styles.hero}>
           <ThemedText type="title" style={styles.title}>
             {t('home.title')}
@@ -66,6 +70,10 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: Spacing.four,
     gap: Spacing.four,
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
   },
   hero: {
     flex: 1,

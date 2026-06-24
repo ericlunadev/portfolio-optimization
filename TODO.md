@@ -80,17 +80,17 @@ optimizer, and the locale switcher. Ordered by priority:
   `SelectModal` + a localized `onboarding.countries.*` map (no new dependency),
   with `expo-localization` auto-detect. API in `src/lib/api/onboarding.ts`,
   hooks in `src/hooks/use-onboarding.ts`; `onboarding` i18n namespace (es/en).
-- [~] Richer optimizer results on mobile. Phase 1 (done): added three
+- [x] Richer optimizer results on mobile. Phase 1 (done): added three
   toggle-gated form-input groups to the optimizer — date range (start/end
   month+year via the `SelectModal` picker → `start_date`/`end_date`, first/last
   day of month, leap-year safe), leverage (`max_leverage`, 1–3), and max weight
   per asset (`w_max` percent → decimal, 0<w≤1). All map onto the existing
   `/api/optimization/optimize` endpoint, only sent when their toggle is on; no
-  new dependency. **Phase 2 (deferred):** the charts (efficient frontier,
-  weights bar, cumulative returns, asset & rolling volatility) and the
-  user-vs-optimal comparison — these need `react-native-svg` (a native module
-  requiring a dev build to render) and call the metered `*-tickers` endpoints
-  (each spends a credit). Best done as one svg pass shared with Academia Phase 2.
+  new dependency. Phase 2 (done): added `react-native-svg` charts to the results
+  — a weights bar chart and a risk/return scatter (assets vs the optimal
+  portfolio), both from the existing optimize response (no extra metered call).
+  Still deferred: time-series charts (cumulative & rolling volatility) and the
+  user-vs-optimal comparison, which need the metered `*-tickers` endpoints.
 - [x] Academia / education stations on mobile (Phase 1). New "Academia" tab is a
   vertical ScrollView with an intro hero (2D treatment, no globe) and all 5
   stations (Macro, Allocation, Sectors, Assets, Portfolio) as readable lessons

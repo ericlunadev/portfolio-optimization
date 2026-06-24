@@ -1,14 +1,8 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { Tabs } from 'expo-router';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 
-import { LocaleSwitcher } from '@/components/locale-switcher';
 import { OnboardingGate } from '@/components/onboarding/onboarding-gate';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslations } from '@/hooks/use-translations';
-
-function renderLocaleSwitcher() {
-  return <LocaleSwitcher />;
-}
 
 export default function TabsLayout() {
   return (
@@ -18,55 +12,43 @@ export default function TabsLayout() {
   );
 }
 
+/**
+ * Native iOS tab bar so the app adopts the system Liquid Glass material on
+ * iOS 26 (falls back to a standard native tab bar below it). We deliberately
+ * leave `backgroundColor`/`blurEffect` unset so the OS renders its own glass;
+ * only the selected `tintColor` is branded (gold). Icons are SF Symbols.
+ */
 function TabsNavigator() {
   const theme = useTheme();
   const t = useTranslations();
 
+  // Pin each tab's content background to the brand navy so a freshly-mounted
+  // screen doesn't flash the system-default (light) background during the
+  // native tab transition on iOS 26.
+  const contentStyle = { backgroundColor: theme.background };
+
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: theme.tint,
-        tabBarInactiveTintColor: theme.textSecondary,
-        headerStyle: { backgroundColor: theme.background },
-        headerTintColor: theme.text,
-        headerRight: renderLocaleSwitcher,
-        tabBarStyle: { backgroundColor: theme.background, borderTopColor: theme.border },
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: t('tabs.home'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="optimizer"
-        options={{
-          title: t('tabs.optimizer'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="trending-up" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="history"
-        options={{
-          title: t('tabs.history'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="time" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="billing"
-        options={{
-          title: t('tabs.billing'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="wallet" color={color} size={size} />,
-        }}
-      />
-      <Tabs.Screen
-        name="academia"
-        options={{
-          title: t('tabs.academia'),
-          tabBarIcon: ({ color, size }) => <Ionicons name="school" color={color} size={size} />,
-        }}
-      />
-    </Tabs>
+    <NativeTabs tintColor={theme.tint}>
+      <NativeTabs.Trigger name="index" contentStyle={contentStyle}>
+        <NativeTabs.Trigger.Label>{t('tabs.home')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="optimizer" contentStyle={contentStyle}>
+        <NativeTabs.Trigger.Label>{t('tabs.optimizer')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="chart.line.uptrend.xyaxis" />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="history" contentStyle={contentStyle}>
+        <NativeTabs.Trigger.Label>{t('tabs.history')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'clock', selected: 'clock.fill' }} />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="billing" contentStyle={contentStyle}>
+        <NativeTabs.Trigger.Label>{t('tabs.billing')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'creditcard', selected: 'creditcard.fill' }} />
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="academia" contentStyle={contentStyle}>
+        <NativeTabs.Trigger.Label>{t('tabs.academia')}</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'graduationcap', selected: 'graduationcap.fill' }} />
+      </NativeTabs.Trigger>
+    </NativeTabs>
   );
 }
