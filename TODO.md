@@ -69,8 +69,17 @@ optimizer, and the locale switcher. Ordered by priority:
   `src/hooks/use-simulations.ts` (optimistic pin, rerun = re-optimize + PUT).
   Cross-client note: web-created runs display/pin/rename/delete fine; re-running
   one from mobile recomputes with default rates since the param shapes differ.
-- Onboarding wizard on mobile (`/api/onboarding`): localization, investor
-  profile, market preferences — web gates the app behind this.
+- [x] Onboarding wizard on mobile (`/api/onboarding`): localization, investor
+  profile, market preferences — web gates the app behind this. `OnboardingGate`
+  wraps the `(tabs)` navigator: once signed in, a profile with `completedAt ==
+  null` shows a full-screen 3-step `OnboardingWizard` (progress bar, Back/Next,
+  per-step validation) in place of the tabs; each Next PATCHes
+  `/api/onboarding/step/{1|2|3}` and the final step POSTs `/complete` (which
+  grants 3 credits, so completion also invalidates the billing query). Step
+  enums match the API/web exactly; country/currency use a searchable
+  `SelectModal` + a localized `onboarding.countries.*` map (no new dependency),
+  with `expo-localization` auto-detect. API in `src/lib/api/onboarding.ts`,
+  hooks in `src/hooks/use-onboarding.ts`; `onboarding` i18n namespace (es/en).
 - Richer optimizer results on mobile: charts (efficient frontier, weights bar,
   cumulative returns, asset & rolling volatility) and the user-vs-optimal
   comparison; plus date-range, leverage, and per-asset w_max form inputs.

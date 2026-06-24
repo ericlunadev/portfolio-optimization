@@ -2,6 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Tabs } from 'expo-router';
 
 import { LocaleSwitcher } from '@/components/locale-switcher';
+import { OnboardingGate } from '@/components/onboarding/onboarding-gate';
 import { useTheme } from '@/hooks/use-theme';
 import { useTranslations } from '@/hooks/use-translations';
 
@@ -10,6 +11,14 @@ function renderLocaleSwitcher() {
 }
 
 export default function TabsLayout() {
+  return (
+    <OnboardingGate>
+      <TabsNavigator />
+    </OnboardingGate>
+  );
+}
+
+function TabsNavigator() {
   const theme = useTheme();
   const t = useTranslations();
 
