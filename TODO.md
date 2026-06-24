@@ -18,9 +18,10 @@ Implement EODHD
   /api/historical/search) with chips, the 6 strategies, conditional
   risk-free-rate / target-return / target-risk inputs, full-investment and
   short-selling toggles, then renders results (expected return, volatility,
-  Sharpe, 1Y/2Y loss probability, and an allocation table). Deferred to later:
-  date-range picker, leverage / max-weight constraints, efficient-frontier and
-  chart visualizations, and a credits-specific (402) message.
+  Sharpe, 1Y/2Y loss probability, and an allocation table). The credits-specific
+  (402) message now ships with the billing work below. Deferred to later:
+  date-range picker, leverage / max-weight constraints, and efficient-frontier /
+  chart visualizations.
 - [x] Persist the user's locale choice and add a locale switcher. A
   `LocaleProvider` holds the active locale in React state (so `useTranslations`
   re-renders all consumers); the choice persists via expo-secure-store and
@@ -33,11 +34,19 @@ Implement EODHD
 The mobile app is currently a thin subset of web (~25–30%): social auth, a basic
 optimizer, and the locale switcher. Ordered by priority:
 
-- Billing / credits on mobile. The optimize endpoint charges credits
-  (`meterRequest`, 402 on empty wallet), but mobile has no wallet or checkout —
-  a fresh user can't optimize and has no way to see their balance or buy
-  credits. At minimum: show the wallet balance and a credits-specific (402)
-  message; ideally Stripe / Coinbase checkout (`/api/billing/*`).
+- [x] Billing / credits on mobile (`/api/billing/*`). New "Credits" tab gated
+  behind the session: `WalletCard` (balance via `GET /billing/wallet`),
+  `PackagePicker` (Card/Crypto rail tabs → `GET /billing/packages?rail=`, then
+  `POST /billing/checkout` or `/billing/crypto/checkout`, opening the hosted
+  Stripe/Coinbase flow in `expo-web-browser` and refetching on return), and a
+  paginated `LedgerList` (`GET /billing/ledger`). The optimizer header shows a
+  `CreditsChip`; a successful run refetches the balance, and a 402 surfaces an
+  "Out of credits → Buy credits" prompt instead of the generic error. Hooks in
+  `src/hooks/use-billing.ts`, API in `src/lib/api/billing.ts`.
+- [x] Financial advisor booking on mobile (`POST /api/billing/advisor-call`).
+  `AdvisorCta` card in the optimizer results books the call (with an
+  idempotency key), opens the Cal.com booking page in `expo-web-browser`, and
+  routes a 402 to the credits tab.
 - Align auth across clients. Web's UI only does email/password; mobile only does
   social — so accounts created on one client can't sign in on the other. Add
   email/password sign-in (+ verify email, password reset) to mobile and/or
@@ -49,7 +58,6 @@ optimizer, and the locale switcher. Ordered by priority:
 - Richer optimizer results on mobile: charts (efficient frontier, weights bar,
   cumulative returns, asset & rolling volatility) and the user-vs-optimal
   comparison; plus date-range, leverage, and per-asset w_max form inputs.
-- Financial advisor booking on mobile (`POST /api/billing/advisor-call`).
 - Academia / education stations on mobile.
 
 ## CI / tooling

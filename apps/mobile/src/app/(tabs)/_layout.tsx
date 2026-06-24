@@ -37,6 +37,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="trending-up" color={color} size={size} />,
         }}
       />
+      <Tabs.Screen
+        name="billing"
+        options={{
+          title: t('tabs.billing'),
+          tabBarIcon: ({ color, size }) => <Ionicons name="wallet" color={color} size={size} />,
+        }}
+      />
     </Tabs>
   );
 }

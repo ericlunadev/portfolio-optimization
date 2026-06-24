@@ -6,7 +6,8 @@
   },
   "tabs": {
     "home": "Inicio",
-    "optimizer": "Optimizador"
+    "optimizer": "Optimizador",
+    "billing": "Créditos"
   },
   "home": {
     "title": "Optimización de Portafolio",
@@ -64,6 +65,47 @@
     "error": "No se pudo iniciar sesión. Inténtalo de nuevo.",
     "signedInAs": "Sesión iniciada como",
     "signOut": "Cerrar sesión"
+  },
+  "billing": {
+    "pageTitle": "Saldo y créditos",
+    "pageSubtitle": "Cada optimización consume 1 crédito. Compra paquetes para seguir corriendo análisis.",
+    "walletLabel": "Saldo actual",
+    "creditsUnit": "créditos",
+    "walletHint": "Tus créditos no expiran.",
+    "chipAria": "Saldo de créditos",
+    "buyTitle": "Comprar créditos",
+    "railCard": "Tarjeta",
+    "railCrypto": "Cripto",
+    "perCreditCost": "$%{cost} por crédito",
+    "salesFinalAck": "Acepto que la compra es final y no reembolsable.",
+    "usdOnlyNote": "Cobramos en USD. Si tu tarjeta es de otro país, tu banco se encarga del cambio.",
+    "cryptoNote": "Pagas con USDC o USDT. El monto se fija en USD; la red de pago hace la conversión 1:1.",
+    "buyButton": "Comprar con tarjeta",
+    "buyButtonCrypto": "Pagar con cripto",
+    "loadingPackages": "Cargando paquetes…",
+    "noPackages": "Aún no hay paquetes disponibles. Vuelve pronto.",
+    "errorCheckout": "No pudimos iniciar el pago. Inténtalo de nuevo.",
+    "ledgerTitle": "Historial",
+    "emptyLedger": "Aún no hay movimientos.",
+    "loadMore": "Cargar más",
+    "loadingMore": "Cargando…",
+    "colType": "Tipo",
+    "colDelta": "Cambio",
+    "colBalanceAfter": "Saldo",
+    "reason": {
+      "purchase": "Compra",
+      "spend": "Optimización",
+      "grant": "Bonificación",
+      "reversal": "Reverso"
+    },
+    "outOfCreditsTitle": "Sin créditos",
+    "outOfCreditsBody": "Te quedaste sin créditos para correr esta optimización.",
+    "outOfCreditsCta": "Comprar créditos",
+    "advisorTitle": "¿Dudas con estos resultados?",
+    "advisorSubtitle": "Agenda una llamada de 30 min con nuestro asesor financiero.",
+    "advisorButton": "Agendar llamada",
+    "advisorInsufficient": "No tienes créditos suficientes para agendar una llamada.",
+    "advisorError": "No pudimos iniciar la reserva. Inténtalo de nuevo."
   },
   "notFound": {
     "title": "Esta pantalla no existe.",
