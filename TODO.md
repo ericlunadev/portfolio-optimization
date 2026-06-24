@@ -83,7 +83,15 @@ optimizer, and the locale switcher. Ordered by priority:
 - Richer optimizer results on mobile: charts (efficient frontier, weights bar,
   cumulative returns, asset & rolling volatility) and the user-vs-optimal
   comparison; plus date-range, leverage, and per-asset w_max form inputs.
-- Academia / education stations on mobile.
+- [x] Academia / education stations on mobile (Phase 1). New "Academia" tab is a
+  vertical ScrollView with an intro hero (2D treatment, no globe) and all 5
+  stations (Macro, Allocation, Sectors, Assets, Portfolio) as readable lessons
+  with lightweight, dependency-free RN visuals (flex-View `StatBar`s, chips, a
+  View-grid correlation heatmap). All copy ported verbatim from the web
+  `Academia.*` i18n namespace into a mobile `academia` namespace (es/en in sync).
+  No new dependency. Deferred to Phase 2: real SVG charts (donut, drawdown,
+  sector wheel, price chart, mini frontier → react-native-svg), the 3D globe,
+  and the contextual `AcademiaDrawer`/`LessonButton` — documented in code.
 
 ## CI / tooling
 - [x] Add ESLint configs for apps/api (typescript-eslint flat config) and
