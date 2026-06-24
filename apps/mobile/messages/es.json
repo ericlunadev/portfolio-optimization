@@ -48,12 +48,30 @@
     "colVolatility": "Volatilidad",
     "colWeight": "Peso",
     "strategies": {
-      "max-sharpe": { "label": "Máximo Sharpe (Óptimo)", "description": "Mejor rendimiento ajustado por riesgo" },
-      "min-risk": { "label": "Mínimo Riesgo", "description": "Menor volatilidad posible" },
-      "max-return": { "label": "Máximo Rendimiento", "description": "Mayor rendimiento esperado" },
-      "target-return": { "label": "Rendimiento Objetivo", "description": "Mínimo riesgo para un rendimiento específico" },
-      "target-risk": { "label": "Riesgo Objetivo", "description": "Máximo rendimiento para un riesgo específico" },
-      "knee-point": { "label": "Punto de Inflexión", "description": "Punto de máxima curvatura en la frontera" }
+      "max-sharpe": {
+        "label": "Máximo Sharpe (Óptimo)",
+        "description": "Mejor rendimiento ajustado por riesgo"
+      },
+      "min-risk": {
+        "label": "Mínimo Riesgo",
+        "description": "Menor volatilidad posible"
+      },
+      "max-return": {
+        "label": "Máximo Rendimiento",
+        "description": "Mayor rendimiento esperado"
+      },
+      "target-return": {
+        "label": "Rendimiento Objetivo",
+        "description": "Mínimo riesgo para un rendimiento específico"
+      },
+      "target-risk": {
+        "label": "Riesgo Objetivo",
+        "description": "Máximo rendimiento para un riesgo específico"
+      },
+      "knee-point": {
+        "label": "Punto de Inflexión",
+        "description": "Punto de máxima curvatura en la frontera"
+      }
     }
   },
   "history": {
@@ -163,5 +181,86 @@
   "notFound": {
     "title": "Esta pantalla no existe.",
     "goHome": "Ir al inicio"
+  },
+  "onboarding": {
+    "progress": "{current} de {total}",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "finish": "Finalizar",
+    "saving": "Guardando...",
+    "errorGeneric": "Algo salió mal. Intenta de nuevo.",
+    "whyLabel": "Por qué pedimos esto",
+    "close": "Cerrar",
+    "searchPlaceholder": "Buscar...",
+    "countries": {
+      "MX": "México",
+      "US": "Estados Unidos",
+      "CA": "Canadá",
+      "ES": "España",
+      "FR": "Francia",
+      "DE": "Alemania",
+      "IT": "Italia",
+      "GB": "Reino Unido",
+      "AR": "Argentina",
+      "CL": "Chile",
+      "CO": "Colombia",
+      "PE": "Perú",
+      "BR": "Brasil",
+      "UY": "Uruguay"
+    },
+    "step1": {
+      "title": "Tu localización",
+      "description": "Confirma estos datos para personalizar la app. Puedes cambiarlos en cualquier momento.",
+      "countryLabel": "País",
+      "currencyLabel": "Moneda",
+      "whyCountry": "Usamos tu país para sugerir activos locales y la tasa libre de riesgo apropiada (CETES en México, T-bills en EE.UU., etc.).",
+      "whyCurrency": "Mostramos rendimientos y montos en esta moneda."
+    },
+    "step2": {
+      "title": "Tu perfil de inversor",
+      "description": "Esto calibra el lenguaje de la app y las estrategias que recomendamos.",
+      "experienceLabel": "Experiencia invirtiendo",
+      "experienceNone": "Nunca he invertido",
+      "experienceBeginner": "Principiante",
+      "experienceIntermediate": "Intermedio",
+      "experienceAdvanced": "Avanzado",
+      "horizonLabel": "Horizonte de inversión",
+      "horizonShort": "Corto (menos de 2 años)",
+      "horizonMedium": "Medio (2 a 5 años)",
+      "horizonLong": "Largo (más de 5 años)",
+      "riskQuestion": "Si tu portafolio cayera 30% en un mes, ¿qué harías?",
+      "riskSellAll": "Vendería todo",
+      "riskSellSome": "Vendería una parte",
+      "riskHold": "No haría nada",
+      "riskBuyMore": "Compraría más",
+      "whyRisk": "Tu reacción ante una caída fuerte revela tu tolerancia real al riesgo mejor que pedirte que te clasifiques.",
+      "goalLabel": "Objetivo principal",
+      "goalRetirement": "Jubilación",
+      "goalGrowth": "Crecimiento",
+      "goalPreservation": "Preservación de capital",
+      "goalSpecific": "Meta específica"
+    },
+    "step3": {
+      "title": "Tus mercados de interés",
+      "description": "Adaptamos las sugerencias de tickers y el contenido educativo a lo que te interesa.",
+      "marketsLabel": "Mercados de interés (selecciona uno o más)",
+      "marketMX": "México",
+      "marketUS": "Estados Unidos",
+      "marketEU": "Europa",
+      "marketLATAM": "LatAm",
+      "marketAR": "Argentina",
+      "marketCRYPTO": "Cripto",
+      "marketsHint": "Elige al menos uno o escribe el tuyo abajo.",
+      "otherMarketsLabel": "Otros mercados",
+      "otherMarketsPlaceholder": "Ej.: Brasil, Chile, Asia",
+      "otherMarketsHint": "Sepáralos con comas.",
+      "conceptsLabel": "¿Con qué conceptos estás familiarizado? (opcional)",
+      "conceptMarkowitz": "Markowitz",
+      "conceptSharpe": "Sharpe",
+      "conceptVolatility": "Volatilidad",
+      "conceptBeta": "Beta",
+      "conceptFrontier": "Frontera eficiente",
+      "whyConcepts": "Si estos conceptos te son nuevos, te mostraremos tooltips explicativos y resaltaremos la sección Academia."
+    }
   }
 }
