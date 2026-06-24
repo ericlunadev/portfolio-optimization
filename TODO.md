@@ -47,10 +47,17 @@ optimizer, and the locale switcher. Ordered by priority:
   `AdvisorCta` card in the optimizer results books the call (with an
   idempotency key), opens the Cal.com booking page in `expo-web-browser`, and
   routes a 402 to the credits tab.
-- Align auth across clients. Web's UI only does email/password; mobile only does
-  social — so accounts created on one client can't sign in on the other. Add
-  email/password sign-in (+ verify email, password reset) to mobile and/or
-  social buttons to web.
+- [x] Align auth across clients. Mobile now offers email/password sign-in AND
+  sign-up alongside the social buttons, so accounts created on web (which only
+  does email/password) work on mobile. New `AuthPanel` composes an
+  `EmailPasswordForm` (`authClient.signIn.email` / `signUp.email`) + an "or"
+  divider + the existing `SocialSignIn`, and replaces the bare `<SocialSignIn/>`
+  on every gated screen (optimizer, history, billing, simulation detail). A
+  "Forgot password?" affordance triggers `authClient.requestPasswordReset` (the
+  reset link lands on the web app). The API does not set
+  `requireEmailVerification`, so sign-up auto-signs-in and shows a soft,
+  non-blocking "check your email to verify" note (no mobile verification gate).
+  Deferred: in-app email-verify / reset-token screens (both complete on web).
 - [x] Saved optimizations / history on mobile (`/api/simulations`): list, view,
   rename, pin, rerun, delete. New "History" tab (session-gated) lists saved runs
   (pinned first, then newest) with per-row pin/unpin, re-run, and delete (with a

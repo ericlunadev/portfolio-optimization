@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { SocialSignIn } from '@/components/auth/social-sign-in';
+import { AuthPanel } from '@/components/auth/auth-panel';
 import { AdvisorCta } from '@/components/billing/advisor-cta';
 import { CreditsChip } from '@/components/billing/credits-chip';
 import { OptimizationResults } from '@/components/optimizer/optimization-results';
@@ -38,8 +38,8 @@ export default function OptimizerScreen() {
   if (!session) {
     return (
       <ThemedView style={styles.container}>
-        <SafeAreaView edges={['bottom']} style={styles.centered}>
-          <SocialSignIn />
+        <SafeAreaView edges={['bottom']} style={styles.flex}>
+          <AuthPanel />
         </SafeAreaView>
       </ThemedView>
     );
