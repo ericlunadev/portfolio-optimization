@@ -202,7 +202,12 @@ function SimulationCard({
   const displayName = sim.name ?? computedName;
 
   return (
-    <div className="glass-card group transition-colors hover:border-border">
+    <div
+      className={cn(
+        "glass-card group relative transition-colors hover:border-border",
+        menuOpen && "z-30"
+      )}
+    >
       <div className="flex items-center gap-3 px-4 py-3">
         <Link
           href={`/efficient-frontier/${sim.id}`}
