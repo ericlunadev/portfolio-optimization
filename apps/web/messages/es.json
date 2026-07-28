@@ -215,7 +215,22 @@
     "horizon1m": "1 Mes",
     "horizon3m": "3 Meses",
     "horizon1y": "1 Año",
-    "horizon2y": "2 Años"
+    "horizon2y": "2 Años",
+    "exportPdf": "Exportar PDF",
+    "exportPdfPreparing": "Generando PDF...",
+    "exportPdfError": "No se pudo generar el PDF. Inténtalo de nuevo."
+  },
+  "Pdf": {
+    "documentTitle": "Reporte de Optimización de Portafolio",
+    "generatedAt": "Generado el",
+    "parametersHeading": "Parámetros de la simulación",
+    "allocationHeading": "Asignación y métricas por activo",
+    "riskHeading": "Probabilidad de rendimiento negativo",
+    "horizonHeader": "Horizonte",
+    "probabilityHeader": "Probabilidad",
+    "notAvailable": "N/D",
+    "disclaimer": "Documento informativo. Los rendimientos pasados no garantizan resultados futuros.",
+    "page": "Página {current} de {total}"
   },
   "AdvisorCta": {
     "title": "¿Dudas con estos resultados?",

@@ -30,12 +30,19 @@ interface CumulativeReturnsChartProps {
   data: DataPoint[];
   series: string[];
   highlightSeries?: string;
+  /**
+   * Mount animations rely on requestAnimationFrame, which is suspended in
+   * background tabs. Turn them off when the chart is rendered to be captured
+   * (PDF export), so it paints its final geometry immediately.
+   */
+  animate?: boolean;
 }
 
 export function CumulativeReturnsChart({
   data,
   series,
   highlightSeries,
+  animate = true,
 }: CumulativeReturnsChartProps) {
   const t = useTranslations("CumulativeReturnsChart");
   const effectiveHighlight = highlightSeries ?? t("highlightDefault");
@@ -130,7 +137,7 @@ export function CumulativeReturnsChart({
                 dataKey={s.name}
                 stroke="none"
                 fill={`url(#${s.gradientId})`}
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={900}
               />
             ))}
@@ -150,7 +157,7 @@ export function CumulativeReturnsChart({
                   strokeWidth: 2,
                 }}
                 name={s.name}
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={900}
               />
             ))}
