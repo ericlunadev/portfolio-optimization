@@ -302,3 +302,12 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }
+
+/*
+ * Off-screen charts rendered for the PDF export. Time-series and scatter charts
+ * pick their height from viewport breakpoints, which would make the exported
+ * aspect ratio depend on the user's window size. Pin it instead.
+ */
+.pdf-chart-tall .recharts-responsive-container {
+  height: 400px !important;
+}

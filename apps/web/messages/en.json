@@ -221,7 +221,22 @@
     "horizon1m": "1 Month",
     "horizon3m": "3 Months",
     "horizon1y": "1 Year",
-    "horizon2y": "2 Years"
+    "horizon2y": "2 Years",
+    "exportPdf": "Export PDF",
+    "exportPdfPreparing": "Generating PDF...",
+    "exportPdfError": "The PDF could not be generated. Please try again."
+  },
+  "Pdf": {
+    "documentTitle": "Portfolio Optimization Report",
+    "generatedAt": "Generated on",
+    "parametersHeading": "Simulation parameters",
+    "allocationHeading": "Allocation and metrics per asset",
+    "riskHeading": "Probability of a negative return",
+    "horizonHeader": "Horizon",
+    "probabilityHeader": "Probability",
+    "notAvailable": "N/A",
+    "disclaimer": "Informational document. Past performance does not guarantee future results.",
+    "page": "Page {current} of {total}"
   },
   "AdvisorCta": {
     "title": "Questions about these results?",

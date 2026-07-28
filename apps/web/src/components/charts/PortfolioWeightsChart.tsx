@@ -37,12 +37,19 @@ interface PortfolioWeightsChartProps {
   data: WeightData[];
   comparisonData?: ComparisonWeightData[];
   title?: string;
+  /**
+   * Mount animations rely on requestAnimationFrame, which is suspended in
+   * background tabs. Turn them off when the chart is rendered to be captured
+   * (PDF export), so it paints its final geometry immediately.
+   */
+  animate?: boolean;
 }
 
 export function PortfolioWeightsChart({
   data,
   comparisonData,
   title,
+  animate = true,
 }: PortfolioWeightsChartProps) {
   const t = useTranslations("PortfolioWeightsChart");
   const colors = useChartColors();
@@ -118,7 +125,7 @@ export function PortfolioWeightsChart({
               name={t("legendOptimal")}
               fill="url(#bar-optimal)"
               radius={[6, 6, 6, 6]}
-              isAnimationActive
+              isAnimationActive={animate}
               animationDuration={700}
             >
               <LabelList
@@ -136,7 +143,7 @@ export function PortfolioWeightsChart({
               name={t("legendUser")}
               fill="url(#bar-user)"
               radius={[6, 6, 6, 6]}
-              isAnimationActive
+              isAnimationActive={animate}
               animationDuration={700}
             >
               <LabelList
@@ -216,7 +223,7 @@ export function PortfolioWeightsChart({
             dataKey="weight"
             name={t("barWeight")}
             radius={[6, 6, 6, 6]}
-            isAnimationActive
+            isAnimationActive={animate}
             animationDuration={700}
           >
             {sortedData.map((entry, index) => (

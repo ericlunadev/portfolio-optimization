@@ -28,12 +28,19 @@ interface RollingVolatilityChartProps {
   data: DataPoint[];
   series: string[];
   title?: string;
+  /**
+   * Mount animations rely on requestAnimationFrame, which is suspended in
+   * background tabs. Turn them off when the chart is rendered to be captured
+   * (PDF export), so it paints its final geometry immediately.
+   */
+  animate?: boolean;
 }
 
 export function RollingVolatilityChart({
   data,
   series,
   title,
+  animate = true,
 }: RollingVolatilityChartProps) {
   const t = useTranslations("RollingVolatilityChart");
   const colors = useChartColors();
@@ -102,7 +109,7 @@ export function RollingVolatilityChart({
                   strokeWidth: 2,
                 }}
                 name={s.name}
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={900}
               />
             ))}

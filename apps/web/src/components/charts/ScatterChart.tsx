@@ -49,6 +49,12 @@ interface ScatterChartProps {
   onPointClick?: (name: string) => void;
   showLabels?: boolean;
   showTangentSlope?: boolean;
+  /**
+   * Mount animations rely on requestAnimationFrame, which is suspended in
+   * background tabs. Turn them off when the chart is rendered to be captured
+   * (PDF export), so it paints its final geometry immediately.
+   */
+  animate?: boolean;
 }
 
 function computeTangentSlope(
@@ -211,6 +217,7 @@ export function RiskReturnScatterChart({
   userPortfolio,
   onPointClick,
   showTangentSlope = false,
+  animate = true,
 }: ScatterChartProps) {
   const t = useTranslations("ScatterChart");
   const colors = useChartColors();
@@ -412,7 +419,7 @@ export function RiskReturnScatterChart({
                     isDark={isDark}
                   />
                 }
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={700}
               />
             )}
@@ -424,7 +431,7 @@ export function RiskReturnScatterChart({
               cursor={onPointClick ? "pointer" : "default"}
               name={t("legendAssets")}
               shape={<AssetDot colors={colors} isDark={isDark} />}
-              isAnimationActive
+              isAnimationActive={animate}
               animationDuration={700}
             />
 
@@ -434,7 +441,7 @@ export function RiskReturnScatterChart({
                 fill={colors.optimal}
                 shape={<OptimalStar colors={colors} isDark={isDark} />}
                 name={t("legendOptimal")}
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={900}
               />
             )}
@@ -445,7 +452,7 @@ export function RiskReturnScatterChart({
                 fill={colors.user}
                 shape={<UserDiamond colors={colors} isDark={isDark} />}
                 name={t("legendUser")}
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={900}
               />
             )}

@@ -229,6 +229,7 @@ export default function SimulationDetailPage() {
       <MarkowitzResults
         params={simulation.params}
         result={simulation.result}
+        title={displayName}
       />
     </div>
   );
