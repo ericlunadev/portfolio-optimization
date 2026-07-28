@@ -28,11 +28,18 @@ interface AssetVolatilityData {
 interface AssetVolatilityChartProps {
   data: AssetVolatilityData[];
   title?: string;
+  /**
+   * Mount animations rely on requestAnimationFrame, which is suspended in
+   * background tabs. Turn them off when the chart is rendered to be captured
+   * (PDF export), so it paints its final geometry immediately.
+   */
+  animate?: boolean;
 }
 
 export function AssetVolatilityChart({
   data,
   title,
+  animate = true,
 }: AssetVolatilityChartProps) {
   const t = useTranslations("AssetVolatilityChart");
   const effectiveTitle = title ?? t("title");
@@ -101,7 +108,7 @@ export function AssetVolatilityChart({
             dataKey="volatility"
             name={t("barVolatility")}
             radius={[6, 6, 6, 6]}
-            isAnimationActive
+            isAnimationActive={animate}
             animationDuration={700}
           >
             {sortedData.map((entry, index) => (

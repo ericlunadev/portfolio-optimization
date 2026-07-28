@@ -21,18 +21,46 @@ import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
+import {
+  CHART_PALETTE,
+  COLOR_ASSET,
+  COLOR_FRONTIER,
+  COLOR_OPTIMAL,
+  COLOR_USER,
+} from "@/components/charts/chart-theme";
+import { PdfChartSpec } from "@/components/pdf/SimulationPdfCharts";
+import { useSimulationPdfExport } from "@/hooks/useSimulationPdfExport";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useTranslations } from "next-intl";
-import { TrendingUp, Activity, Sparkles, ShieldAlert } from "lucide-react";
+import {
+  TrendingUp,
+  Activity,
+  Sparkles,
+  ShieldAlert,
+  FileDown,
+  Loader2,
+} from "lucide-react";
 
 interface MarkowitzResultsProps {
   params: SimulationParams;
   result: OptimizationResultWithStrategy;
+  /** Simulation name, used as the heading and filename of the PDF export. */
+  title?: string;
 }
 
-export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
+export function MarkowitzResults({
+  params,
+  result,
+  title,
+}: MarkowitzResultsProps) {
   const tStrategies = useTranslations("Strategies");
   const t = useTranslations("MarkowitzResults");
+  const tSummary = useTranslations("SimulationSummary");
+  const tScatter = useTranslations("ScatterChart");
+  const tWeights = useTranslations("PortfolioWeightsChart");
+  const tAssetVolatility = useTranslations("AssetVolatilityChart");
+  const tRollingVolatility = useTranslations("RollingVolatilityChart");
+  const tPdf = useTranslations("Pdf");
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
 
   const selectedTickers = params.tickers;
@@ -269,9 +297,221 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
     return { data, series: seriesNames };
   }, [rollingVolData]);
 
+  const weightsChartData = useMemo(
+    () =>
+      result.weights.map((w) => ({
+        name: w.fund_name,
+        weight: w.weight,
+        ret: w.exp_ret,
+        vol: w.volatility,
+      })),
+    [result.weights]
+  );
+
+  const pdfCharts = useMemo<PdfChartSpec[]>(() => {
+    const specs: PdfChartSpec[] = [];
+
+    const scatterLegend = [
+      ...(frontierPoints.length > 0
+        ? [{ label: tScatter("legendFrontier"), color: COLOR_FRONTIER }]
+        : []),
+      { label: tScatter("legendAssets"), color: COLOR_ASSET },
+      { label: strategyLabel, color: COLOR_OPTIMAL },
+      ...(userPortfolioPoint
+        ? [{ label: userPortfolioLabel, color: COLOR_USER }]
+        : []),
+    ];
+
+    specs.push({
+      key: "risk-return",
+      title: t("riskReturnTitle"),
+      subtitle: t("riskReturnSubtitle"),
+      legend: scatterLegend,
+      tall: true,
+      node: (
+        <RiskReturnScatterChart
+          data={scatterData}
+          frontier={frontierPoints}
+          frontierTickers={frontierData?.tickers}
+          optimizedPortfolio={optimizedPortfolioPoint}
+          userPortfolio={userPortfolioPoint}
+          animate={false}
+        />
+      ),
+    });
+
+    specs.push({
+      key: "weights",
+      title: weightsComparisonData
+        ? t("weightsComparison")
+        : t("portfolioWeights"),
+      legend: weightsComparisonData
+        ? [
+            { label: tWeights("legendOptimal"), color: COLOR_OPTIMAL },
+            { label: tWeights("legendUser"), color: COLOR_USER },
+          ]
+        : undefined,
+      node: (
+        <PortfolioWeightsChart
+          data={weightsChartData}
+          comparisonData={weightsComparisonData}
+          title=""
+          animate={false}
+        />
+      ),
+    });
+
+    if (cumRetChartData.data.length > 0) {
+      specs.push({
+        key: "cumulative-returns",
+        title: t("cumulativeReturnsTitle"),
+        subtitle: t("cumulativeReturnsSubtitle"),
+        legend: paletteLegend(cumRetChartData.series),
+        tall: true,
+        node: (
+          <CumulativeReturnsChart
+            data={cumRetChartData.data}
+            series={cumRetChartData.series}
+            highlightSeries={optimalPortfolioLabel}
+            animate={false}
+          />
+        ),
+      });
+    }
+
+    if (assetVolatilityData.length > 0) {
+      specs.push({
+        key: "asset-volatility",
+        title: tAssetVolatility("title"),
+        node: (
+          <AssetVolatilityChart
+            data={assetVolatilityData}
+            title=""
+            animate={false}
+          />
+        ),
+      });
+    }
+
+    if (rollingVolChartData.data.length > 0) {
+      specs.push({
+        key: "rolling-volatility",
+        title: tRollingVolatility("title"),
+        legend: paletteLegend(rollingVolChartData.series),
+        tall: true,
+        node: (
+          <RollingVolatilityChart
+            data={rollingVolChartData.data}
+            series={rollingVolChartData.series}
+            title=""
+            animate={false}
+          />
+        ),
+      });
+    }
+
+    return specs;
+  }, [
+    assetVolatilityData,
+    cumRetChartData,
+    frontierData?.tickers,
+    frontierPoints,
+    optimalPortfolioLabel,
+    optimizedPortfolioPoint,
+    rollingVolChartData,
+    scatterData,
+    strategyLabel,
+    t,
+    tAssetVolatility,
+    tRollingVolatility,
+    tScatter,
+    tWeights,
+    userPortfolioLabel,
+    userPortfolioPoint,
+    weightsChartData,
+    weightsComparisonData,
+  ]);
+
+  const fallbackTitle = `${params.tickers.join(", ")} - ${strategyLabel}`;
+
+  const pdfExport = useSimulationPdfExport({
+    title: title?.trim() || fallbackTitle,
+    strategyLabel,
+    params,
+    result,
+    userPortfolio: userPortfolioStats,
+    charts: pdfCharts,
+    labels: {
+      documentTitle: tPdf("documentTitle"),
+      generatedAtLabel: tPdf("generatedAt"),
+      parametersHeading: tPdf("parametersHeading"),
+      allocationHeading: tPdf("allocationHeading"),
+      riskHeading: tPdf("riskHeading"),
+      comparisonHeading: t("comparisonTitle"),
+      expectedReturn: t("expectedReturn"),
+      volatility: t("volatility"),
+      sharpeRatio: t("sharpeRatio"),
+      probNeg1y: t("probNeg1y"),
+      ci95Label: t("ci95Label"),
+      notAvailable: tPdf("notAvailable"),
+      dateRange: tSummary("dateRange"),
+      strategy: tSummary("strategy"),
+      riskFreeRate: tSummary("riskFreeRate"),
+      targetReturn: tSummary("targetReturn"),
+      targetRisk: tSummary("targetRisk"),
+      fullInvestment: tSummary("fullInvestment"),
+      shortSelling: tSummary("shortSelling"),
+      shortSellingAllowed: tSummary("shortSellingAllowed"),
+      shortSellingNotAllowed: tSummary("shortSellingNotAllowed"),
+      maxLeverage: tSummary("maxLeverage"),
+      maxWeightPerAsset: tSummary("maxWeightPerAsset"),
+      assets: tSummary("assets"),
+      yes: tSummary("yes"),
+      no: tSummary("no"),
+      tableAsset: t("tableAsset"),
+      tableExpReturn: t("tableExpReturn"),
+      tableVolatility: t("tableVolatility"),
+      tableWeight: t("tableWeight"),
+      horizonHeader: tPdf("horizonHeader"),
+      probabilityHeader: tPdf("probabilityHeader"),
+      horizon1m: t("horizon1m"),
+      horizon3m: t("horizon3m"),
+      horizon1y: t("horizon1y"),
+      horizon2y: t("horizon2y"),
+      compareOptimal: t("compareOptimal"),
+      compareUserAlloc: t("compareUserAlloc"),
+      compareReturnLabel: t("compareReturnLabel"),
+      compareVolatilityLabel: t("compareVolatilityLabel"),
+      compareDisclaimer: t("compareDisclaimer"),
+      disclaimer: tPdf("disclaimer"),
+      formatPage: (current, total) => tPdf("page", { current, total }),
+    },
+  });
+
   return (
     <div className="space-y-6">
       <SimulationParamsSummary params={params} />
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {pdfExport.hasError && (
+          <p className="text-xs text-rose-400" role="alert">
+            {t("exportPdfError")}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={pdfExport.exportPdf}
+          disabled={pdfExport.isExporting}
+          className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border disabled:opacity-60"
+        >
+          {pdfExport.isExporting ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <FileDown className="h-4 w-4" />
+          )}
+          {pdfExport.isExporting ? t("exportPdfPreparing") : t("exportPdf")}
+        </button>
+      </div>
 
       <Tabs.Root defaultValue="portfolio" className="w-full">
         <Tabs.List className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-accent/50 p-1 border border-border/30">
@@ -384,12 +624,7 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
                 }}
               >
                 <PortfolioWeightsChart
-                  data={result.weights.map((w) => ({
-                    name: w.fund_name,
-                    weight: w.weight,
-                    ret: w.exp_ret,
-                    vol: w.volatility,
-                  }))}
+                  data={weightsChartData}
                   comparisonData={weightsComparisonData}
                   title={
                     weightsComparisonData
@@ -506,8 +741,18 @@ export function MarkowitzResults({ params, result }: MarkowitzResultsProps) {
       </Tabs.Root>
 
       <AdvisorCallCta />
+
+      {pdfExport.offscreenCharts}
     </div>
   );
+}
+
+/** Maps series names onto the shared chart palette, matching the on-screen legends. */
+function paletteLegend(series: string[]): { label: string; color: string }[] {
+  return series.map((name, index) => ({
+    label: name,
+    color: CHART_PALETTE[index % CHART_PALETTE.length].stroke,
+  }));
 }
 
 interface ComparisonPanelProps {

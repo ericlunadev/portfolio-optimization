@@ -51,6 +51,12 @@ interface ScatterChartProps {
   onPointClick?: (name: string) => void;
   showLabels?: boolean;
   showTangentSlope?: boolean;
+  /**
+   * Mount animations rely on requestAnimationFrame, which is suspended in
+   * background tabs. Turn them off when the chart is rendered to be captured
+   * (PDF export), so it paints its final geometry immediately.
+   */
+  animate?: boolean;
 }
 
 function computeTangentSlope(
@@ -183,6 +189,7 @@ export function RiskReturnScatterChart({
   userPortfolio,
   onPointClick,
   showTangentSlope = false,
+  animate = true,
 }: ScatterChartProps) {
   const t = useTranslations("ScatterChart");
   const [selectedFrontierIndex, setSelectedFrontierIndex] = useState<
@@ -382,7 +389,7 @@ export function RiskReturnScatterChart({
                 name={t("legendFrontier")}
                 onClick={handleFrontierClick}
                 shape={<FrontierDot selectedIndex={selectedFrontierIndex} />}
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={700}
               />
             )}
@@ -394,7 +401,7 @@ export function RiskReturnScatterChart({
               cursor={onPointClick ? "pointer" : "default"}
               name={t("legendAssets")}
               shape={<AssetDot />}
-              isAnimationActive
+              isAnimationActive={animate}
               animationDuration={700}
             />
 
@@ -404,7 +411,7 @@ export function RiskReturnScatterChart({
                 fill={COLOR_OPTIMAL}
                 shape={<OptimalStar />}
                 name={t("legendOptimal")}
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={900}
               />
             )}
@@ -415,7 +422,7 @@ export function RiskReturnScatterChart({
                 fill={COLOR_USER}
                 shape={<UserDiamond />}
                 name={t("legendUser")}
-                isAnimationActive
+                isAnimationActive={animate}
                 animationDuration={900}
               />
             )}
