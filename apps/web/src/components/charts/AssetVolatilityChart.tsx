@@ -13,12 +13,7 @@ import {
 } from "recharts";
 import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
-import {
-  CHART_GRID_STROKE,
-  CHART_PALETTE,
-  ChartTooltip,
-  axisProps,
-} from "./chart-theme";
+import { ChartTooltip, axisProps, useChartColors } from "./chart-theme";
 
 interface AssetVolatilityData {
   name: string;
@@ -35,6 +30,7 @@ export function AssetVolatilityChart({
   title,
 }: AssetVolatilityChartProps) {
   const t = useTranslations("AssetVolatilityChart");
+  const colors = useChartColors();
   const effectiveTitle = title ?? t("title");
   const sortedData = [...data].sort((a, b) => b.volatility - a.volatility);
   const maxVol = Math.max(...data.map((d) => d.volatility));
@@ -54,7 +50,7 @@ export function AssetVolatilityChart({
           barCategoryGap="20%"
         >
           <defs>
-            {CHART_PALETTE.map((c, i) => (
+            {colors.palette.map((c, i) => (
               <linearGradient
                 key={c.name}
                 id={`vol-bar-${i}`}
@@ -68,11 +64,7 @@ export function AssetVolatilityChart({
               </linearGradient>
             ))}
           </defs>
-          <CartesianGrid
-            stroke={CHART_GRID_STROKE}
-            strokeDasharray="2 4"
-            horizontal={false}
-          />
+          <CartesianGrid strokeDasharray="2 4" horizontal={false} />
           <XAxis
             type="number"
             domain={[0, domainMax]}
@@ -87,7 +79,7 @@ export function AssetVolatilityChart({
             tick={{ ...axisProps.tick, fontSize: 12 }}
           />
           <Tooltip
-            cursor={{ fill: "hsl(230 12% 16% / 0.5)" }}
+            cursor={{ fill: colors.cursor, fillOpacity: 0.25 }}
             content={({ active, payload, label }) => (
               <ChartTooltip
                 active={active}
@@ -107,14 +99,13 @@ export function AssetVolatilityChart({
             {sortedData.map((entry, index) => (
               <Cell
                 key={`cell-${entry.name}`}
-                fill={`url(#vol-bar-${index % CHART_PALETTE.length})`}
+                fill={`url(#vol-bar-${index % colors.palette.length})`}
               />
             ))}
             <LabelList
               dataKey="volatility"
               position="right"
               formatter={(v: number) => formatPercent(v, 1)}
-              fill="hsl(40 6% 80%)"
               fontSize={11}
               style={{ fontFamily: "var(--font-mono, monospace)" }}
             />

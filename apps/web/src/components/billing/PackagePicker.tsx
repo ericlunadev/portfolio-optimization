@@ -49,7 +49,7 @@ export function PackagePicker() {
       <div
         role="tablist"
         aria-label={t("railTabsAria")}
-        className="inline-flex rounded-lg border border-border/60 bg-card/30 p-1"
+        className="inline-flex rounded-lg border border-border bg-muted p-1 dark:border-border/60 dark:bg-card/30"
       >
         <button
           type="button"
@@ -58,7 +58,7 @@ export function PackagePicker() {
           onClick={() => handleRailChange("stripe")}
           className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
             rail === "stripe"
-              ? "bg-primary/10 text-foreground"
+              ? "bg-primary/15 text-foreground dark:bg-primary/10"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -72,7 +72,7 @@ export function PackagePicker() {
           onClick={() => handleRailChange("coinbase_commerce")}
           className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
             rail === "coinbase_commerce"
-              ? "bg-primary/10 text-foreground"
+              ? "bg-primary/15 text-foreground dark:bg-primary/10"
               : "text-muted-foreground hover:text-foreground"
           }`}
         >
@@ -84,7 +84,7 @@ export function PackagePicker() {
       {isLoading ? (
         <div className="text-sm text-muted-foreground">{t("loadingPackages")}</div>
       ) : !packages?.length ? (
-        <div className="rounded-lg border border-border/60 bg-card/30 p-4 text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border bg-card p-4 text-sm text-muted-foreground dark:border-border/60 dark:bg-card/30">
           {t("noPackages")}
         </div>
       ) : (
@@ -98,8 +98,8 @@ export function PackagePicker() {
                 onClick={() => setSelected(pkg.id)}
                 className={`text-left rounded-xl border p-4 transition-all ${
                   isSel
-                    ? "border-primary/60 bg-primary/5 ring-2 ring-primary/30"
-                    : "border-border/60 bg-card/40 hover:border-border"
+                    ? "border-primary bg-primary/10 ring-2 ring-primary/30 dark:border-primary/60 dark:bg-primary/5"
+                    : "border-border bg-card hover:border-primary/40 dark:border-border/60 dark:bg-card/40 dark:hover:border-border"
                 }`}
               >
                 <div className="font-display text-2xl tracking-tight">
@@ -151,7 +151,7 @@ export function PackagePicker() {
       </button>
 
       {errorMessage && (
-        <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+        <div className="rounded-lg border border-rose-600/40 bg-rose-500/10 p-3 text-sm text-rose-700 dark:border-rose-500/30 dark:text-rose-200">
           {errorMessage}
         </div>
       )}

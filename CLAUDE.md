@@ -11,6 +11,34 @@
 
 - All dates displayed in charts must use the format **DD/MM/YYYY** (e.g., 31/12/2022).
 
+## Theming
+
+The web app supports **light and dark** appearances. The user picks `system`, `light` or `dark`
+from the header `ThemeSwitcher`; the choice is persisted in the `theme` cookie (same shape as the
+`NEXT_LOCALE` cookie) so the server can render the right appearance immediately.
+
+- Tailwind runs in `darkMode: "class"`. The `dark` class goes on `<html>`.
+- `apps/web/src/styles/globals.css` holds **all** colour tokens: light values in `:root`, dark
+  overrides in `.dark`. Config and helpers live in `apps/web/src/lib/theme.ts`.
+- The server renders `system` as dark; `THEME_INIT_SCRIPT` runs in `<head>` before first paint and
+  corrects it from the OS preference, so there is no flash.
+- **Never hardcode a colour.** Use a Tailwind token (`bg-card`, `text-muted-foreground`) or
+  `hsl(var(--token))` inside SVG. A raw hex or `hsl()` literal only works in one theme.
+- Reach for a `dark:` variant only where the two themes need genuinely different treatments —
+  usually because light mode needs a firmer border or a more opaque surface than dark
+  (`border-border bg-card dark:border-border/50 dark:bg-card/40`).
+- Semantic status colours keep their meaning in both themes and take a darker shade on light
+  (`text-emerald-600 dark:text-emerald-400`). Gain stays green, loss stays red.
+- Recharts writes colours as SVG presentation attributes, which cannot read CSS variables. Chart
+  **chrome** (grid, axes, tick labels, tooltip) is therefore themed by the `.recharts-*` rules in
+  `globals.css`, since real CSS outranks presentation attributes. Chart **series** colours come from
+  `useChartColors()` in `components/charts/chart-theme.tsx`, which returns hex values per theme.
+- Glows encode emitted light and read as nothing on a light page. Where a glow marks selected or
+  optimal state, give light mode a real affordance (ring, border, elevation) instead.
+- The 3D globe is a deliberately dark cinematic stage in **both** themes, framed by the
+  `--scene-bg` / `--scene-foreground` tokens (`bg-scene`, `text-scene-foreground`). Content drawn
+  over it must use the scene tokens, not `--foreground`.
+
 ## Database Migrations
 
 Schema changes follow a **generate → commit → migrate** workflow using Drizzle Kit:

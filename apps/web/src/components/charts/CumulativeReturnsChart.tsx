@@ -13,12 +13,11 @@ import {
 import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
 import {
-  CHART_GRID_STROKE,
-  CHART_PALETTE,
   ChartLegend,
   ChartTooltip,
   axisProps,
   formatChartDate,
+  useChartColors,
 } from "./chart-theme";
 
 interface DataPoint {
@@ -38,9 +37,10 @@ export function CumulativeReturnsChart({
   highlightSeries,
 }: CumulativeReturnsChartProps) {
   const t = useTranslations("CumulativeReturnsChart");
+  const colors = useChartColors();
   const effectiveHighlight = highlightSeries ?? t("highlightDefault");
   const seriesMeta = series.map((name, i) => {
-    const palette = CHART_PALETTE[i % CHART_PALETTE.length];
+    const palette = colors.palette[i % colors.palette.length];
     return {
       name,
       color: palette.stroke,
@@ -92,11 +92,7 @@ export function CumulativeReturnsChart({
                 <feGaussianBlur stdDeviation="2" />
               </filter>
             </defs>
-            <CartesianGrid
-              stroke={CHART_GRID_STROKE}
-              strokeDasharray="2 4"
-              vertical={false}
-            />
+            <CartesianGrid strokeDasharray="2 4" vertical={false} />
             <XAxis
               dataKey="date"
               tickFormatter={formatChartDate}
@@ -109,7 +105,7 @@ export function CumulativeReturnsChart({
             />
             <Tooltip
               cursor={{
-                stroke: "hsl(230 12% 28%)",
+                stroke: colors.cursor,
                 strokeDasharray: "3 3",
                 strokeWidth: 1,
               }}
@@ -146,7 +142,7 @@ export function CumulativeReturnsChart({
                 activeDot={{
                   r: s.isHighlight ? 5 : 4,
                   fill: s.color,
-                  stroke: "hsl(230 15% 6%)",
+                  stroke: colors.markerOutline,
                   strokeWidth: 2,
                 }}
                 name={s.name}

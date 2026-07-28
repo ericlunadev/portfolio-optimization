@@ -30,12 +30,14 @@ export function WelcomeCard() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -12, height: 0, marginBottom: 0 }}
           transition={{ duration: 0.3 }}
-          className="glass-card relative overflow-hidden p-5 md:p-6 border-primary/30"
+          className="glass-card relative overflow-hidden p-5 md:p-6 border-primary/40 shadow-lg dark:border-primary/30 dark:shadow-none"
         >
-          <div className="absolute inset-0 pointer-events-none opacity-50"
+          {/* Gold bloom. `--glow-strong` carries its own per-theme alpha, so the
+              wash stays visible on the light card without blowing out on dark. */}
+          <div className="absolute inset-0 pointer-events-none opacity-60 dark:opacity-50"
             style={{
               background:
-                "radial-gradient(ellipse at top right, hsl(38 65% 55% / 0.08), transparent 60%)",
+                "radial-gradient(ellipse at top right, hsl(var(--glow-strong)), transparent 60%)",
             }}
           />
           <button
@@ -47,7 +49,7 @@ export function WelcomeCard() {
           </button>
           <div className="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-start gap-4">
-              <div className="rounded-xl bg-primary/10 p-3 border border-primary/20">
+              <div className="rounded-xl bg-primary/15 p-3 border border-primary/30 dark:bg-primary/10 dark:border-primary/20">
                 <GraduationCap className="h-5 w-5 text-primary" />
               </div>
               <div>

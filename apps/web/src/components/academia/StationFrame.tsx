@@ -29,7 +29,7 @@ export function StationFrame({ station, children, id, className }: StationFrameP
       ref={ref}
       id={id}
       className={cn(
-        "relative min-h-screen flex items-center py-24 border-t border-border/30",
+        "relative min-h-screen flex items-center py-24 border-t border-border dark:border-border/30",
         className,
       )}
     >
@@ -48,7 +48,7 @@ export function StationFrame({ station, children, id, className }: StationFrameP
               </h2>
             </div>
           </div>
-          <p className="mb-8 md:mb-10 max-w-2xl text-sm md:text-lg text-muted-foreground italic border-l-2 border-primary/40 pl-3 md:pl-4">
+          <p className="mb-8 md:mb-10 max-w-2xl text-sm md:text-lg text-muted-foreground italic border-l-2 border-primary/60 pl-3 md:pl-4 dark:border-primary/40">
             {tLessons(`${station.key}.tagline`)}
           </p>
           {children}

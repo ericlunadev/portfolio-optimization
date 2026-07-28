@@ -108,8 +108,12 @@ export function Station5Portfolio({ id }: { id: string }) {
                               i === j ? "border-primary/40" : "border-border/50",
                             )}
                             style={{
-                              background: i === j ? "hsl(38 65% 55% / 0.15)" : corrColor(v),
-                              color: "hsl(40 6% 90%)",
+                              // The red/blue scale is alpha-composited over the page,
+                              // so it lands light on light and dark on dark; --foreground
+                              // flips with it and stays legible in both themes.
+                              background:
+                                i === j ? "hsl(var(--primary) / 0.15)" : corrColor(v),
+                              color: "hsl(var(--foreground))",
                             }}
                             whileHover={{ scale: 1.1 }}
                           >
@@ -156,17 +160,17 @@ export function Station5Portfolio({ id }: { id: string }) {
 
             <svg viewBox="0 0 100 100" className="w-full aspect-square">
               {/* Axes */}
-              <line x1="10" y1="90" x2="95" y2="90" stroke="hsl(230 12% 22%)" strokeWidth="0.3" />
-              <line x1="10" y1="10" x2="10" y2="90" stroke="hsl(230 12% 22%)" strokeWidth="0.3" />
+              <line x1="10" y1="90" x2="95" y2="90" stroke="hsl(var(--border))" strokeWidth="0.3" />
+              <line x1="10" y1="10" x2="10" y2="90" stroke="hsl(var(--border))" strokeWidth="0.3" />
 
-              <text x="52" y="98" textAnchor="middle" fill="hsl(230 8% 50%)" style={{ fontSize: "3px" }}>
+              <text x="52" y="98" textAnchor="middle" fill="hsl(var(--muted-foreground))" style={{ fontSize: "3px" }}>
                 {t("axisRisk")}
               </text>
               <text
                 x="4"
                 y="50"
                 textAnchor="middle"
-                fill="hsl(230 8% 50%)"
+                fill="hsl(var(--muted-foreground))"
                 style={{ fontSize: "3px" }}
                 transform="rotate(-90 4 50)"
               >
@@ -183,7 +187,7 @@ export function Station5Portfolio({ id }: { id: string }) {
                     cx={cx}
                     cy={cy}
                     r="0.6"
-                    fill="hsl(230 12% 35%)"
+                    fill="hsl(var(--muted-foreground))"
                     opacity="0.5"
                   />
                 );
@@ -197,7 +201,7 @@ export function Station5Portfolio({ id }: { id: string }) {
                   return `${i === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
                 }).join(" ")}
                 fill="none"
-                stroke="hsl(38 65% 55%)"
+                stroke="hsl(var(--primary))"
                 strokeWidth="0.8"
                 initial={{ pathLength: 0 }}
                 whileInView={{ pathLength: 1 }}
@@ -217,7 +221,7 @@ export function Station5Portfolio({ id }: { id: string }) {
                   const cy = 90 - (OPTIMAL.ret / 17) * 80;
                   return (
                     <>
-                      <circle cx={cx} cy={cy} r="3" fill="hsl(38 65% 55%)" opacity="0.2">
+                      <circle cx={cx} cy={cy} r="3" fill="hsl(var(--primary))" opacity="0.2">
                         <animate
                           attributeName="r"
                           values="2;4;2"
@@ -225,11 +229,11 @@ export function Station5Portfolio({ id }: { id: string }) {
                           repeatCount="indefinite"
                         />
                       </circle>
-                      <circle cx={cx} cy={cy} r="1.3" fill="hsl(38 65% 55%)" />
+                      <circle cx={cx} cy={cy} r="1.3" fill="hsl(var(--primary))" />
                       <text
                         x={cx + 4}
                         y={cy + 1}
-                        fill="hsl(38 65% 65%)"
+                        fill="hsl(var(--primary-emphasis))"
                         style={{ fontSize: "3px", fontFamily: "var(--font-display)" }}
                       >
                         {t("maxSharpeLabel")}
@@ -274,7 +278,9 @@ export function Station5Portfolio({ id }: { id: string }) {
           </p>
           <Link
             href="/efficient-frontier/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110"
+            // Hover deepens the gold on light and brightens it on dark, so the
+            // near-white label keeps its contrast either way.
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-90 dark:hover:brightness-110"
           >
             <Zap className="h-4 w-4" />
             {t("ctaButton")}

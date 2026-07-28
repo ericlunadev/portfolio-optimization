@@ -12,12 +12,11 @@ import {
 import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
 import {
-  CHART_GRID_STROKE,
-  CHART_PALETTE,
   ChartLegend,
   ChartTooltip,
   axisProps,
   formatChartDate,
+  useChartColors,
 } from "./chart-theme";
 
 interface DataPoint {
@@ -37,10 +36,11 @@ export function RollingVolatilityChart({
   title,
 }: RollingVolatilityChartProps) {
   const t = useTranslations("RollingVolatilityChart");
+  const colors = useChartColors();
   const effectiveTitle = title ?? t("title");
   const seriesMeta = series.map((name, i) => ({
     name,
-    color: CHART_PALETTE[i % CHART_PALETTE.length].stroke,
+    color: colors.palette[i % colors.palette.length].stroke,
   }));
 
   return (
@@ -60,11 +60,7 @@ export function RollingVolatilityChart({
             data={data}
             margin={{ top: 8, right: 16, left: 4, bottom: 4 }}
           >
-            <CartesianGrid
-              stroke={CHART_GRID_STROKE}
-              strokeDasharray="2 4"
-              vertical={false}
-            />
+            <CartesianGrid strokeDasharray="2 4" vertical={false} />
             <XAxis
               dataKey="date"
               tickFormatter={formatChartDate}
@@ -77,7 +73,7 @@ export function RollingVolatilityChart({
             />
             <Tooltip
               cursor={{
-                stroke: "hsl(230 12% 28%)",
+                stroke: colors.cursor,
                 strokeDasharray: "3 3",
               }}
               content={({ active, payload, label }) => (
@@ -102,7 +98,7 @@ export function RollingVolatilityChart({
                 activeDot={{
                   r: 4,
                   fill: s.color,
-                  stroke: "hsl(230 15% 6%)",
+                  stroke: colors.markerOutline,
                   strokeWidth: 2,
                 }}
                 name={s.name}

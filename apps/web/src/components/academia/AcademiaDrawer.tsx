@@ -43,7 +43,9 @@ export function AcademiaDrawer({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+                // The scrim darkens the page in both themes, so it is built from
+                // `--scene-bg` (dark everywhere) rather than `--background`.
+                className="fixed inset-0 z-50 bg-[hsl(var(--scene-bg)/0.45)] backdrop-blur-sm dark:bg-[hsl(var(--scene-bg)/0.7)]"
               />
             </Dialog.Overlay>
 
@@ -53,11 +55,11 @@ export function AcademiaDrawer({
                 animate={{ x: 0 }}
                 exit={{ x: "100%" }}
                 transition={{ type: "spring", stiffness: 260, damping: 30 }}
-                className="fixed right-0 top-0 z-50 h-screen w-full max-w-md border-l border-border bg-card shadow-2xl overflow-y-auto"
+                className="fixed right-0 top-0 z-50 h-screen w-full max-w-md border-l border-border bg-card shadow-lg overflow-y-auto dark:shadow-2xl"
               >
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border/50 bg-card/95 backdrop-blur-md px-6 py-4">
+                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-card/95 backdrop-blur-md px-6 py-4 dark:border-border/50">
                   <div>
-                    <div className="text-[10px] uppercase tracking-widest text-primary/80">
+                    <div className="text-[10px] uppercase tracking-widest text-primary dark:text-primary/80">
                       {tDrawer("stationLabel", {
                         current: station.index,
                         total: STATIONS.length,
@@ -83,7 +85,7 @@ export function AcademiaDrawer({
                           "h-1.5 flex-1 rounded-full transition-all",
                           s.key === current
                             ? "bg-primary"
-                            : "bg-border hover:bg-muted-foreground/40",
+                            : "bg-input hover:bg-muted-foreground/50 dark:bg-border dark:hover:bg-muted-foreground/40",
                         )}
                         aria-label={tDrawer("goToStationAria", {
                           label: tLessons(`${s.key}.label`),
@@ -120,7 +122,7 @@ export function AcademiaDrawer({
                             key={n}
                             className="flex gap-2 text-sm text-muted-foreground"
                           >
-                            <span className="text-primary/60">→</span>
+                            <span className="text-primary/70 dark:text-primary/60">→</span>
                             <span>{text}</span>
                           </li>
                         );
@@ -137,7 +139,7 @@ export function AcademiaDrawer({
                   </motion.div>
                 </div>
 
-                <div className="sticky bottom-0 border-t border-border/50 bg-card/95 backdrop-blur-md px-6 py-4 flex items-center justify-between">
+                <div className="sticky bottom-0 border-t border-border bg-card/95 backdrop-blur-md px-6 py-4 flex items-center justify-between dark:border-border/50">
                   <button
                     onClick={() => prev && setCurrent(prev.key)}
                     disabled={!prev}

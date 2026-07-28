@@ -19,7 +19,7 @@ export function Sidebar() {
   const tBrand = useTranslations("Brand");
 
   return (
-    <aside className="hidden md:flex w-64 shrink-0 border-r border-border/50 bg-card/40 backdrop-blur-sm flex-col">
+    <aside className="hidden md:flex w-64 shrink-0 border-r border-border bg-card/80 dark:border-border/50 dark:bg-card/40 backdrop-blur-sm flex-col">
       <div className="p-6 pb-8">
         <h1 className="font-display text-2xl tracking-tight">
           <span className="text-gradient-gold">{tBrand("shortName")}</span>{" "}
@@ -41,7 +41,7 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
-                  ? "bg-primary/10 text-primary border border-primary/20"
+                  ? "bg-primary/15 text-primary border border-primary/30 dark:bg-primary/10 dark:border-primary/20"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground"
               )}
             >

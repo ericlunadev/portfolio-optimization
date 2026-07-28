@@ -552,7 +552,9 @@ function ComparisonPanel({ optimal, user }: ComparisonPanelProps) {
               <span
                 className={cn(
                   "font-mono text-xs tabular-nums",
-                  optimalBetter ? "text-emerald-400" : "text-amber-400"
+                  optimalBetter
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400"
                 )}
               >
                 {diff > 0 ? "+" : ""}
@@ -561,12 +563,12 @@ function ComparisonPanel({ optimal, user }: ComparisonPanelProps) {
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-3">
-                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-[#fcd9a8]/80">
+                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-primary-emphasis">
                   {t("compareOptimal")}
                 </span>
-                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/40">
+                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/70 dark:bg-accent/40">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#c89853] to-[#fcd9a8] transition-all duration-700"
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#8a6224] to-[#c99a49] transition-all duration-700 dark:from-[#c89853] dark:to-[#fcd9a8]"
                     style={{ width: `${optPct}%` }}
                   />
                 </div>
@@ -575,12 +577,12 @@ function ComparisonPanel({ optimal, user }: ComparisonPanelProps) {
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-amber-300/80">
+                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-300/80">
                   {t("compareUserAlloc")}
                 </span>
-                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/40">
+                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/70 dark:bg-accent/40">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-500 to-amber-200 transition-all duration-700"
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-700 to-amber-400 transition-all duration-700 dark:from-amber-500 dark:to-amber-200"
                     style={{ width: `${userPct}%` }}
                   />
                 </div>
@@ -629,9 +631,9 @@ function ProbNegBars({ stats }: ProbNegBarsProps) {
                 {formatPercent(h.value)}
               </span>
             </div>
-            <div className="relative h-1.5 overflow-hidden rounded-full bg-accent/40">
+            <div className="relative h-1.5 overflow-hidden rounded-full bg-accent/70 dark:bg-accent/40">
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-rose-500/70 to-rose-300/90 transition-all duration-700"
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-rose-600 to-rose-400 transition-all duration-700 dark:from-rose-500/70 dark:to-rose-300/90"
                 style={{ width: `${pct}%` }}
               />
             </div>

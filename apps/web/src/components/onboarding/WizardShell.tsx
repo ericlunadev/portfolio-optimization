@@ -120,7 +120,7 @@ export function WizardShell({ initialProfile }: Props) {
   const progressPct = (step / TOTAL_STEPS) * 100;
 
   return (
-    <div className="w-full max-w-xl rounded-2xl border border-border bg-card/80 p-6 shadow-2xl backdrop-blur md:p-8">
+    <div className="w-full max-w-xl rounded-2xl border border-border bg-card p-6 shadow-lg backdrop-blur dark:border-border/50 dark:bg-card/80 dark:shadow-2xl md:p-8">
       <div className="mb-6">
         <p className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {progressLabel}
@@ -137,7 +137,7 @@ export function WizardShell({ initialProfile }: Props) {
       {step === 2 && <StepInvestorProfile value={step2} onChange={setStep2} />}
       {step === 3 && <StepMarketPreferences value={step3} onChange={setStep3} />}
 
-      {error && <p className="mt-4 text-sm text-red-400">{error}</p>}
+      {error && <p className="mt-4 text-sm text-destructive">{error}</p>}
 
       <div className="mt-8 flex items-center justify-between gap-3">
         <button

@@ -24,14 +24,14 @@ function StatusBanner() {
 
   if (status === "success") {
     return (
-      <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-200">
+      <div className="rounded-lg border border-emerald-600/40 bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:border-emerald-500/30 dark:text-emerald-200">
         {t("statusSuccess")}
       </div>
     );
   }
   if (status === "cancelled") {
     return (
-      <div className="rounded-lg border border-border/60 bg-card/30 p-3 text-sm text-muted-foreground">
+      <div className="rounded-lg border border-border bg-card p-3 text-sm text-muted-foreground dark:border-border/60 dark:bg-card/30">
         {t("statusCancelled")}
       </div>
     );

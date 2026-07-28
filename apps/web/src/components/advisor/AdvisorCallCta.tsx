@@ -57,7 +57,7 @@ export function AdvisorCallCta() {
     <>
       <div className="glass-card mt-6 flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-primary/10 p-2 text-primary">
+          <div className="rounded-lg bg-primary/15 p-2 text-primary dark:bg-primary/10">
             <CalendarClock className="h-5 w-5" />
           </div>
           <div>
@@ -120,11 +120,11 @@ function AdvisorModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm dark:bg-black/60"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-2xl md:p-6"
+        className="relative w-full max-w-md rounded-xl border border-border bg-card p-5 shadow-lg md:p-6 dark:shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -151,7 +151,7 @@ function AdvisorModal({
             </div>
 
             {errorMessage && (
-              <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-200">
+              <div className="rounded-lg border border-rose-600/40 bg-rose-500/10 p-3 text-sm text-rose-700 dark:border-rose-500/30 dark:text-rose-200">
                 {errorMessage}
               </div>
             )}

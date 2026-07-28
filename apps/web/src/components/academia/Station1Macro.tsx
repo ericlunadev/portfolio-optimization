@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 function GlobeLoading() {
   const t = useTranslations("Academia.ZoomGlobe");
   return (
-    <div className="flex h-full w-full items-center justify-center text-sm text-muted-foreground">
+    // Sits on the permanently dark globe stage, so it uses the scene foreground.
+    <div className="flex h-full w-full items-center justify-center text-sm text-[hsl(var(--scene-foreground)/0.65)]">
       {t("loading")}
     </div>
   );
@@ -45,7 +46,13 @@ export function Station1Macro({ id }: { id: string }) {
       <div className="grid gap-10 md:grid-cols-[1fr_1fr] items-center">
         {/* Globe */}
         <div className="relative">
-          <div className="aspect-square w-full max-w-md mx-auto">
+          {/*
+            The globe is a cinematic scene lit as a dark void, so it stays dark
+            in both themes. The stage below frames it like a video player: an
+            explicitly dark, rounded viewport built from the `--scene-*` tokens,
+            which do not flip with the theme.
+          */}
+          <div className="aspect-square w-full max-w-md mx-auto overflow-hidden rounded-2xl border border-border bg-[hsl(var(--scene-bg))] text-[hsl(var(--scene-foreground))] shadow-lg dark:border-border/50 dark:shadow-2xl">
             <ZoomGlobe climate={climate} />
           </div>
           <p className="mt-4 text-center text-xs text-muted-foreground">
@@ -71,8 +78,8 @@ export function Station1Macro({ id }: { id: string }) {
                   className={cn(
                     "rounded-lg border px-3 py-2 text-sm transition-all",
                     climate === c
-                      ? "border-primary/50 bg-primary/10 text-primary glow-gold"
-                      : "border-border/50 bg-card/40 text-muted-foreground hover:border-border hover:text-foreground",
+                      ? "border-primary bg-primary/10 text-primary glow-gold dark:border-primary/50"
+                      : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground dark:border-border/50 dark:bg-card/40 dark:hover:border-border",
                   )}
                 >
                   {t(`${c}Label`)}
@@ -92,7 +99,7 @@ export function Station1Macro({ id }: { id: string }) {
             >
               <div className="flex items-baseline justify-between">
                 <h3 className="font-display text-xl">{currentLabel}</h3>
-                <span className="text-xs uppercase tracking-widest text-primary/80">
+                <span className="text-xs uppercase tracking-widest text-primary dark:text-primary/80">
                   {currentMood}
                 </span>
               </div>
@@ -107,7 +114,7 @@ export function Station1Macro({ id }: { id: string }) {
                   {currentWinners.map((w) => (
                     <span
                       key={w}
-                      className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 text-xs text-primary"
+                      className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-0.5 text-xs text-[hsl(var(--primary-emphasis))] dark:border-primary/30 dark:bg-primary/5"
                     >
                       {w}
                     </span>
@@ -122,7 +129,7 @@ export function Station1Macro({ id }: { id: string }) {
               const text = tLessons(`${station.key}.bullet${n}`);
               return (
                 <li key={n} className="flex gap-2">
-                  <span className="text-primary/60">→</span>
+                  <span className="text-primary/70 dark:text-primary/60">→</span>
                   <span>{text}</span>
                 </li>
               );

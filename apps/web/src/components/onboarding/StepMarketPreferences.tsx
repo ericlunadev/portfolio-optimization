@@ -59,7 +59,7 @@ function MultiChip<T extends string>({
             onClick={() => onToggle(opt)}
             className={
               active
-                ? "rounded-lg border border-primary bg-primary/15 px-3 py-1.5 text-sm font-medium text-primary"
+                ? "rounded-lg border border-primary bg-primary/20 px-3 py-1.5 text-sm font-medium text-primary dark:bg-primary/15"
                 : "rounded-lg border border-border bg-background px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
             }
           >

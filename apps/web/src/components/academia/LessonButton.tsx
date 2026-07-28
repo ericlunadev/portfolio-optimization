@@ -30,8 +30,8 @@ export function LessonButton({
         onClick={() => setOpen(true)}
         className={cn(
           variant === "pill"
-            ? "inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 text-xs text-primary transition-all hover:bg-primary/10 hover:border-primary/50"
-            : "inline-flex items-center gap-1 text-xs text-primary/80 hover:text-primary transition-colors",
+            ? "inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs text-primary transition-all hover:bg-primary/20 hover:border-primary/60 dark:border-primary/30 dark:bg-primary/5 dark:hover:bg-primary/10 dark:hover:border-primary/50"
+            : "inline-flex items-center gap-1 text-xs text-primary hover:text-[hsl(var(--primary-emphasis))] transition-colors dark:text-primary/80 dark:hover:text-primary",
           className,
         )}
       >

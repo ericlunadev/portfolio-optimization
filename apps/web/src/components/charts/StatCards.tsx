@@ -15,34 +15,39 @@ export interface StatCardProps {
   };
 }
 
+/**
+ * Tailwind class strings, so the theme cannot be swapped at runtime through a
+ * CSS variable — each accent carries a compile-time `dark:` counterpart and the
+ * light value is the darker of the pair so it reads on a white card.
+ */
 const ACCENT_STYLES: Record<
   NonNullable<StatCardProps["accent"]>,
   { glow: string; valueClass: string; ring: string }
 > = {
   gold: {
-    glow: "from-[#e0a861]/30 to-transparent",
-    valueClass: "text-[#fcd9a8]",
-    ring: "ring-[#e0a861]/20",
+    glow: "from-[#a97b2f]/25 to-transparent dark:from-[#e0a861]/30",
+    valueClass: "text-primary-emphasis",
+    ring: "ring-[#a97b2f]/25 dark:ring-[#e0a861]/20",
   },
   emerald: {
-    glow: "from-emerald-400/25 to-transparent",
-    valueClass: "text-emerald-300",
-    ring: "ring-emerald-400/20",
+    glow: "from-emerald-500/20 to-transparent dark:from-emerald-400/25",
+    valueClass: "text-emerald-700 dark:text-emerald-300",
+    ring: "ring-emerald-500/25 dark:ring-emerald-400/20",
   },
   violet: {
-    glow: "from-violet-400/25 to-transparent",
-    valueClass: "text-violet-300",
-    ring: "ring-violet-400/20",
+    glow: "from-violet-500/20 to-transparent dark:from-violet-400/25",
+    valueClass: "text-violet-700 dark:text-violet-300",
+    ring: "ring-violet-500/25 dark:ring-violet-400/20",
   },
   rose: {
-    glow: "from-rose-400/25 to-transparent",
-    valueClass: "text-rose-300",
-    ring: "ring-rose-400/20",
+    glow: "from-rose-500/20 to-transparent dark:from-rose-400/25",
+    valueClass: "text-rose-700 dark:text-rose-300",
+    ring: "ring-rose-500/25 dark:ring-rose-400/20",
   },
   neutral: {
-    glow: "from-slate-400/15 to-transparent",
+    glow: "from-slate-400/20 to-transparent dark:from-slate-400/15",
     valueClass: "text-foreground",
-    ring: "ring-border/40",
+    ring: "ring-border/60 dark:ring-border/40",
   },
 };
 
@@ -92,8 +97,9 @@ export function StatCard({
           <span
             className={cn(
               "text-xs font-medium tabular-nums",
-              trend.direction === "up" && "text-emerald-400",
-              trend.direction === "down" && "text-rose-400",
+              trend.direction === "up" &&
+                "text-emerald-600 dark:text-emerald-400",
+              trend.direction === "down" && "text-rose-600 dark:text-rose-400",
               trend.direction === "flat" && "text-muted-foreground"
             )}
           >

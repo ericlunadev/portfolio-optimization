@@ -23,8 +23,8 @@ export function SignInPrompt({
   return (
     <>
       <div className="mx-auto max-w-md">
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-card/30 px-6 py-12 text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center dark:border-border/50 dark:bg-card/30">
+          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/15 text-primary dark:bg-primary/10">
             <Lock className="h-5 w-5" />
           </div>
           <h2 className="font-display text-xl tracking-tight">{effectiveTitle}</h2>

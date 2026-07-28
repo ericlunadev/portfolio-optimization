@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
+import { useChartColors } from "./chart-theme";
 
 interface DataPoint {
   date: string;
@@ -27,6 +28,11 @@ interface DrawdownChartProps {
 
 export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
   const t = useTranslations("DrawdownChart");
+  const colors = useChartColors();
+  // Blue for the return line so red stays exclusively "loss".
+  const returnColor =
+    colors.palette.find((c) => c.name === "blue")?.stroke ??
+    colors.palette[0].stroke;
   return (
     <div className="h-[260px] sm:h-[340px] md:h-[400px]">
     <ResponsiveContainer width="100%" height="100%">
@@ -61,21 +67,22 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
             const d = new Date(label);
             return `${d.getDate().toString().padStart(2, "0")}/${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getFullYear()}`;
           }}
+          // Inline styles land on a real DOM node, so CSS variables resolve here.
           contentStyle={{
-            background: "hsl(230 15% 10%)",
-            border: "1px solid hsl(230 12% 20%)",
+            background: "hsl(var(--popover))",
+            border: "1px solid hsl(var(--border))",
             borderRadius: "8px",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.5)",
+            boxShadow: "0 4px 16px hsl(var(--chart-tooltip-shadow))",
           }}
-          labelStyle={{ color: "hsl(40 6% 90%)", fontWeight: 500 }}
-          itemStyle={{ color: "hsl(40 6% 75%)" }}
+          labelStyle={{ color: "hsl(var(--popover-foreground))", fontWeight: 500 }}
+          itemStyle={{ color: "hsl(var(--muted-foreground))" }}
         />
         <Legend />
         <Line
           yAxisId="return"
           type="monotone"
           dataKey="cumulative_return"
-          stroke="#5b8def"
+          stroke={returnColor}
           strokeWidth={2}
           dot={false}
           name={t("cumulativeReturn")}
@@ -84,8 +91,8 @@ export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
           yAxisId="drawdown"
           type="monotone"
           dataKey="drawdown"
-          fill="rgba(248, 113, 113, 0.12)"
-          stroke="#f87171"
+          fill={`${colors.danger}1f`}
+          stroke={colors.danger}
           strokeWidth={1}
           name={t("drawdown")}
         />
