@@ -22,11 +22,8 @@ import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import {
-  CHART_PALETTE,
-  COLOR_ASSET,
-  COLOR_FRONTIER,
-  COLOR_OPTIMAL,
-  COLOR_USER,
+  useChartColors,
+  type ChartColors,
 } from "@/components/charts/chart-theme";
 import { PdfChartSpec } from "@/components/pdf/SimulationPdfCharts";
 import { useSimulationPdfExport } from "@/hooks/useSimulationPdfExport";
@@ -61,6 +58,9 @@ export function MarkowitzResults({
   const tAssetVolatility = useTranslations("AssetVolatilityChart");
   const tRollingVolatility = useTranslations("RollingVolatilityChart");
   const tPdf = useTranslations("Pdf");
+  // The PDF legends must use the same palette as the offscreen chart nodes they
+  // describe, so they follow the active theme rather than a fixed set.
+  const chartColors = useChartColors();
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
 
   const selectedTickers = params.tickers;
@@ -313,12 +313,12 @@ export function MarkowitzResults({
 
     const scatterLegend = [
       ...(frontierPoints.length > 0
-        ? [{ label: tScatter("legendFrontier"), color: COLOR_FRONTIER }]
+        ? [{ label: tScatter("legendFrontier"), color: chartColors.frontier }]
         : []),
-      { label: tScatter("legendAssets"), color: COLOR_ASSET },
-      { label: strategyLabel, color: COLOR_OPTIMAL },
+      { label: tScatter("legendAssets"), color: chartColors.asset },
+      { label: strategyLabel, color: chartColors.optimal },
       ...(userPortfolioPoint
-        ? [{ label: userPortfolioLabel, color: COLOR_USER }]
+        ? [{ label: userPortfolioLabel, color: chartColors.user }]
         : []),
     ];
 
@@ -347,8 +347,8 @@ export function MarkowitzResults({
         : t("portfolioWeights"),
       legend: weightsComparisonData
         ? [
-            { label: tWeights("legendOptimal"), color: COLOR_OPTIMAL },
-            { label: tWeights("legendUser"), color: COLOR_USER },
+            { label: tWeights("legendOptimal"), color: chartColors.optimal },
+            { label: tWeights("legendUser"), color: chartColors.user },
           ]
         : undefined,
       node: (
@@ -366,7 +366,7 @@ export function MarkowitzResults({
         key: "cumulative-returns",
         title: t("cumulativeReturnsTitle"),
         subtitle: t("cumulativeReturnsSubtitle"),
-        legend: paletteLegend(cumRetChartData.series),
+        legend: paletteLegend(cumRetChartData.series, chartColors.palette),
         tall: true,
         node: (
           <CumulativeReturnsChart
@@ -397,7 +397,7 @@ export function MarkowitzResults({
       specs.push({
         key: "rolling-volatility",
         title: tRollingVolatility("title"),
-        legend: paletteLegend(rollingVolChartData.series),
+        legend: paletteLegend(rollingVolChartData.series, chartColors.palette),
         tall: true,
         node: (
           <RollingVolatilityChart
@@ -413,6 +413,7 @@ export function MarkowitzResults({
     return specs;
   }, [
     assetVolatilityData,
+    chartColors,
     cumRetChartData,
     frontierData?.tickers,
     frontierPoints,
@@ -748,10 +749,13 @@ export function MarkowitzResults({
 }
 
 /** Maps series names onto the shared chart palette, matching the on-screen legends. */
-function paletteLegend(series: string[]): { label: string; color: string }[] {
+function paletteLegend(
+  series: string[],
+  palette: ChartColors["palette"],
+): { label: string; color: string }[] {
   return series.map((name, index) => ({
     label: name,
-    color: CHART_PALETTE[index % CHART_PALETTE.length].stroke,
+    color: palette[index % palette.length].stroke,
   }));
 }
 
@@ -797,7 +801,9 @@ function ComparisonPanel({ optimal, user }: ComparisonPanelProps) {
               <span
                 className={cn(
                   "font-mono text-xs tabular-nums",
-                  optimalBetter ? "text-emerald-400" : "text-amber-400"
+                  optimalBetter
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-amber-600 dark:text-amber-400"
                 )}
               >
                 {diff > 0 ? "+" : ""}
@@ -806,12 +812,12 @@ function ComparisonPanel({ optimal, user }: ComparisonPanelProps) {
             </div>
             <div className="space-y-1.5">
               <div className="flex items-center gap-3">
-                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-[#fcd9a8]/80">
+                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-primary-emphasis">
                   {t("compareOptimal")}
                 </span>
-                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/40">
+                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/70 dark:bg-accent/40">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#c89853] to-[#fcd9a8] transition-all duration-700"
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#8a6224] to-[#c99a49] transition-all duration-700 dark:from-[#c89853] dark:to-[#fcd9a8]"
                     style={{ width: `${optPct}%` }}
                   />
                 </div>
@@ -820,12 +826,12 @@ function ComparisonPanel({ optimal, user }: ComparisonPanelProps) {
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-amber-300/80">
+                <span className="w-16 shrink-0 text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-300/80">
                   {t("compareUserAlloc")}
                 </span>
-                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/40">
+                <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/70 dark:bg-accent/40">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-500 to-amber-200 transition-all duration-700"
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-amber-700 to-amber-400 transition-all duration-700 dark:from-amber-500 dark:to-amber-200"
                     style={{ width: `${userPct}%` }}
                   />
                 </div>
@@ -874,9 +880,9 @@ function ProbNegBars({ stats }: ProbNegBarsProps) {
                 {formatPercent(h.value)}
               </span>
             </div>
-            <div className="relative h-1.5 overflow-hidden rounded-full bg-accent/40">
+            <div className="relative h-1.5 overflow-hidden rounded-full bg-accent/70 dark:bg-accent/40">
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-rose-500/70 to-rose-300/90 transition-all duration-700"
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-rose-600 to-rose-400 transition-all duration-700 dark:from-rose-500/70 dark:to-rose-300/90"
                 style={{ width: `${pct}%` }}
               />
             </div>

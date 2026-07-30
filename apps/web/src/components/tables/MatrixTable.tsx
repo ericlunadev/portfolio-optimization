@@ -23,11 +23,12 @@ export function MatrixTable({
     if (!colorScale) return "";
 
     if (isCorrelationCell) {
-      // For correlation: -1 to 1
+      // For correlation: -1 to 1. Strongest band first, otherwise a value of
+      // -0.9 would be caught by the -0.3 band and never reach the -0.7 one.
       if (value >= 0.7) return "bg-green-100 dark:bg-green-900/30";
       if (value >= 0.3) return "bg-green-50 dark:bg-green-900/10";
-      if (value <= -0.3) return "bg-red-50 dark:bg-red-900/10";
       if (value <= -0.7) return "bg-red-100 dark:bg-red-900/30";
+      if (value <= -0.3) return "bg-red-50 dark:bg-red-900/10";
       return "";
     } else {
       // For covariance: highlight diagonal (variance)

@@ -13,14 +13,12 @@ import {
 } from "recharts";
 import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import {
-  CHART_GRID_STROKE,
-  COLOR_ASSET,
-  COLOR_FRONTIER,
-  COLOR_OPTIMAL,
-  COLOR_USER,
+  ChartColors,
   ChartLegend,
   axisProps,
+  useChartColors,
 } from "./chart-theme";
 
 interface DataPoint {
@@ -83,14 +81,19 @@ function computeTangentSlope(
   return (pNext.ret - pPrev.ret) / (pNext.vol - pPrev.vol);
 }
 
-function FrontierDot(props: {
+/** Recharts clones these shapes and injects `cx`/`cy`/`index`. */
+interface ShapeProps {
   cx?: number;
   cy?: number;
-  selectedIndex?: number | null;
-  index?: number;
-}) {
-  const { cx, cy, selectedIndex, index } = props;
-  if (cx == null || cy == null) return null;
+  colors?: ChartColors;
+  isDark?: boolean;
+}
+
+function FrontierDot(
+  props: ShapeProps & { selectedIndex?: number | null; index?: number }
+) {
+  const { cx, cy, selectedIndex, index, colors, isDark } = props;
+  if (cx == null || cy == null || !colors) return null;
   const isSelected = selectedIndex != null && index === selectedIndex;
   return (
     <g style={{ cursor: "pointer" }}>
@@ -100,9 +103,9 @@ function FrontierDot(props: {
           cy={cy}
           r={11}
           fill="none"
-          stroke={COLOR_FRONTIER}
-          strokeOpacity={0.7}
-          strokeWidth={1.5}
+          stroke={colors.frontier}
+          strokeOpacity={isDark ? 0.7 : 0.9}
+          strokeWidth={isDark ? 1.5 : 2}
           strokeDasharray="3 3"
         />
       )}
@@ -110,71 +113,96 @@ function FrontierDot(props: {
         cx={cx}
         cy={cy}
         r={5}
-        fill={COLOR_FRONTIER}
+        fill={colors.frontier}
         fillOpacity={0.9}
-        stroke="white"
-        strokeOpacity={0.15}
+        stroke={colors.markerOutline}
+        strokeOpacity={isDark ? 0.15 : 0.9}
         strokeWidth={1}
       />
     </g>
   );
 }
 
-function AssetDot(props: { cx?: number; cy?: number; payload?: DataPoint }) {
-  const { cx, cy } = props;
-  if (cx == null || cy == null) return null;
+function AssetDot(props: ShapeProps & { payload?: DataPoint }) {
+  const { cx, cy, colors } = props;
+  if (cx == null || cy == null || !colors) return null;
   return (
     <g>
-      <circle
-        cx={cx}
-        cy={cy}
-        r={6}
-        fill={COLOR_ASSET}
-        fillOpacity={0.18}
-      />
+      <circle cx={cx} cy={cy} r={6} fill={colors.asset} fillOpacity={0.18} />
       <circle
         cx={cx}
         cy={cy}
         r={3.5}
-        fill={COLOR_ASSET}
-        stroke="hsl(230 15% 8%)"
+        fill={colors.asset}
+        stroke={colors.markerOutline}
         strokeWidth={1.5}
       />
     </g>
   );
 }
 
-function OptimalStar(props: { cx?: number; cy?: number }) {
-  const { cx, cy } = props;
-  if (cx == null || cy == null) return null;
+function OptimalStar(props: ShapeProps) {
+  const { cx, cy, colors, isDark } = props;
+  if (cx == null || cy == null || !colors) return null;
   return (
-    <g filter="url(#scatter-glow)">
-      <circle cx={cx} cy={cy} r={14} fill={COLOR_OPTIMAL} fillOpacity={0.12} />
-      <circle cx={cx} cy={cy} r={9} fill={COLOR_OPTIMAL} fillOpacity={0.22} />
+    // The bloom is emitted light: it only reads against a dark plot. On light
+    // the same "this is the winner" emphasis comes from a solid gold ring.
+    <g filter={isDark ? "url(#scatter-glow)" : undefined}>
+      <circle
+        cx={cx}
+        cy={cy}
+        r={14}
+        fill={colors.optimal}
+        fillOpacity={isDark ? 0.12 : 0.08}
+      />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={9}
+        fill={colors.optimal}
+        fillOpacity={isDark ? 0.22 : 0.14}
+      />
+      {!isDark && (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={12}
+          fill="none"
+          stroke={colors.optimal}
+          strokeOpacity={0.55}
+          strokeWidth={2}
+        />
+      )}
       <path
         d={`M ${cx} ${cy - 7} L ${cx + 2} ${cy - 2.5} L ${cx + 7} ${cy - 2} L ${cx + 3} ${cy + 1.5} L ${cx + 4.5} ${cy + 7} L ${cx} ${cy + 4} L ${cx - 4.5} ${cy + 7} L ${cx - 3} ${cy + 1.5} L ${cx - 7} ${cy - 2} L ${cx - 2} ${cy - 2.5} Z`}
-        fill={COLOR_OPTIMAL}
-        stroke="hsl(230 15% 6%)"
+        fill={colors.optimal}
+        stroke={colors.markerOutline}
         strokeWidth={1}
       />
     </g>
   );
 }
 
-function UserDiamond(props: { cx?: number; cy?: number }) {
-  const { cx, cy } = props;
-  if (cx == null || cy == null) return null;
+function UserDiamond(props: ShapeProps) {
+  const { cx, cy, colors, isDark } = props;
+  if (cx == null || cy == null || !colors) return null;
   return (
     <g>
-      <circle cx={cx} cy={cy} r={11} fill={COLOR_USER} fillOpacity={0.12} />
+      <circle
+        cx={cx}
+        cy={cy}
+        r={11}
+        fill={colors.user}
+        fillOpacity={isDark ? 0.12 : 0.1}
+      />
       <rect
         x={cx - 5}
         y={cy - 5}
         width={10}
         height={10}
         transform={`rotate(45 ${cx} ${cy})`}
-        fill={COLOR_USER}
-        stroke="hsl(230 15% 6%)"
+        fill={colors.user}
+        stroke={colors.markerOutline}
         strokeWidth={1}
       />
     </g>
@@ -192,6 +220,8 @@ export function RiskReturnScatterChart({
   animate = true,
 }: ScatterChartProps) {
   const t = useTranslations("ScatterChart");
+  const colors = useChartColors();
+  const isDark = useResolvedTheme() === "dark";
   const [selectedFrontierIndex, setSelectedFrontierIndex] = useState<
     number | null
   >(null);
@@ -223,22 +253,22 @@ export function RiskReturnScatterChart({
   if (sortedFrontier.length > 0) {
     legendItems.push({
       label: t("legendFrontier"),
-      color: COLOR_FRONTIER,
+      color: colors.frontier,
       variant: "line",
     });
   }
-  legendItems.push({ label: t("legendAssets"), color: COLOR_ASSET, variant: "dot" });
+  legendItems.push({ label: t("legendAssets"), color: colors.asset, variant: "dot" });
   if (optimizedPortfolio) {
     legendItems.push({
       label: t("legendOptimal"),
-      color: COLOR_OPTIMAL,
+      color: colors.optimal,
       variant: "star",
     });
   }
   if (userPortfolio) {
     legendItems.push({
       label: t("legendUser"),
-      color: COLOR_USER,
+      color: colors.user,
       variant: "diamond",
     });
   }
@@ -251,9 +281,9 @@ export function RiskReturnScatterChart({
           <ScatterChart margin={{ top: 12, right: 16, bottom: 24, left: 8 }}>
             <defs>
               <linearGradient id="frontier-stroke" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#7c3aed" />
-                <stop offset="50%" stopColor={COLOR_FRONTIER} />
-                <stop offset="100%" stopColor="#22d3ee" />
+                <stop offset="0%" stopColor={colors.frontierFrom} />
+                <stop offset="50%" stopColor={colors.frontier} />
+                <stop offset="100%" stopColor={colors.frontierTo} />
               </linearGradient>
               <filter
                 id="scatter-glow"
@@ -269,11 +299,7 @@ export function RiskReturnScatterChart({
                 </feMerge>
               </filter>
             </defs>
-            <CartesianGrid
-              stroke={CHART_GRID_STROKE}
-              strokeDasharray="2 4"
-              vertical={false}
-            />
+            <CartesianGrid strokeDasharray="2 4" vertical={false} />
             <XAxis
               type="number"
               dataKey="vol"
@@ -284,7 +310,6 @@ export function RiskReturnScatterChart({
                 value: t("axisVolatility"),
                 position: "insideBottom",
                 offset: -10,
-                fill: "hsl(230 8% 50%)",
                 fontSize: 11,
               }}
               {...axisProps}
@@ -300,14 +325,13 @@ export function RiskReturnScatterChart({
                 angle: -90,
                 position: "insideLeft",
                 offset: 14,
-                fill: "hsl(230 8% 50%)",
                 fontSize: 11,
               }}
               {...axisProps}
             />
             <ZAxis range={[60, 60]} />
             <Tooltip
-              cursor={{ stroke: "hsl(230 12% 25%)", strokeDasharray: "3 3" }}
+              cursor={{ stroke: colors.cursor, strokeDasharray: "3 3" }}
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null;
                 const point = payload[0].payload as FrontierPoint &
@@ -322,7 +346,7 @@ export function RiskReturnScatterChart({
                   frontierTickers &&
                   frontierTickers.length > 0;
                 return (
-                  <div className="min-w-[200px] max-w-xs rounded-xl border border-border/60 bg-popover/90 px-3 py-2.5 shadow-2xl shadow-black/60 backdrop-blur-md">
+                  <div className="min-w-[200px] max-w-xs rounded-xl border border-border/60 bg-popover/90 px-3 py-2.5 shadow-2xl shadow-black/10 backdrop-blur-md dark:shadow-black/60">
                     {point.name && (
                       <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
                         {point.name}
@@ -382,13 +406,19 @@ export function RiskReturnScatterChart({
             {sortedFrontier.length > 0 && (
               <Scatter
                 data={sortedFrontier}
-                fill={COLOR_FRONTIER}
+                fill={colors.frontier}
                 stroke="url(#frontier-stroke)"
                 line={{ strokeWidth: 2.5, stroke: "url(#frontier-stroke)" }}
                 lineType="joint"
                 name={t("legendFrontier")}
                 onClick={handleFrontierClick}
-                shape={<FrontierDot selectedIndex={selectedFrontierIndex} />}
+                shape={
+                  <FrontierDot
+                    selectedIndex={selectedFrontierIndex}
+                    colors={colors}
+                    isDark={isDark}
+                  />
+                }
                 isAnimationActive={animate}
                 animationDuration={700}
               />
@@ -396,11 +426,11 @@ export function RiskReturnScatterChart({
 
             <Scatter
               data={data}
-              fill={COLOR_ASSET}
+              fill={colors.asset}
               onClick={(entry) => onPointClick?.(entry.name)}
               cursor={onPointClick ? "pointer" : "default"}
               name={t("legendAssets")}
-              shape={<AssetDot />}
+              shape={<AssetDot colors={colors} isDark={isDark} />}
               isAnimationActive={animate}
               animationDuration={700}
             />
@@ -408,8 +438,8 @@ export function RiskReturnScatterChart({
             {optimizedPortfolio && (
               <Scatter
                 data={[optimizedPortfolio]}
-                fill={COLOR_OPTIMAL}
-                shape={<OptimalStar />}
+                fill={colors.optimal}
+                shape={<OptimalStar colors={colors} isDark={isDark} />}
                 name={t("legendOptimal")}
                 isAnimationActive={animate}
                 animationDuration={900}
@@ -419,8 +449,8 @@ export function RiskReturnScatterChart({
             {userPortfolio && (
               <Scatter
                 data={[userPortfolio]}
-                fill={COLOR_USER}
-                shape={<UserDiamond />}
+                fill={colors.user}
+                shape={<UserDiamond colors={colors} isDark={isDark} />}
                 name={t("legendUser")}
                 isAnimationActive={animate}
                 animationDuration={900}
@@ -431,14 +461,14 @@ export function RiskReturnScatterChart({
       </div>
 
       {selectedPoint && frontierTickers && frontierTickers.length > 0 && (
-        <div className="mt-4 rounded-xl border border-violet-500/20 bg-violet-500/5 p-4">
+        <div className="mt-4 rounded-xl border border-violet-500/30 bg-violet-500/5 p-4 dark:border-violet-500/20">
           <div className="mb-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span
                 className="h-2 w-2 rounded-full"
                 style={{
-                  background: COLOR_FRONTIER,
-                  boxShadow: `0 0 10px ${COLOR_FRONTIER}`,
+                  background: colors.frontier,
+                  boxShadow: `0 0 10px ${colors.frontier}`,
                 }}
               />
               <h4 className="text-sm font-semibold text-foreground">

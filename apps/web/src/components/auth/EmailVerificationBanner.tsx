@@ -29,7 +29,7 @@ export function EmailVerificationBanner() {
   };
 
   return (
-    <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200 md:px-8">
+    <div className="border-b border-amber-600/40 bg-amber-500/15 px-4 py-2 text-sm text-amber-900 md:px-8 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <MailWarning className="h-4 w-4 shrink-0" />
@@ -45,7 +45,7 @@ export function EmailVerificationBanner() {
           <button
             onClick={handleResend}
             disabled={status === "sending"}
-            className="shrink-0 rounded-md border border-amber-400/40 px-2.5 py-1 text-xs font-medium text-amber-100 transition-colors hover:bg-amber-400/10 disabled:opacity-50"
+            className="shrink-0 rounded-md border border-amber-700/40 px-2.5 py-1 text-xs font-medium text-amber-900 transition-colors hover:bg-amber-500/15 disabled:opacity-50 dark:border-amber-400/40 dark:text-amber-100 dark:hover:bg-amber-400/10"
           >
             {status === "sending"
               ? t("verifyBannerResending")

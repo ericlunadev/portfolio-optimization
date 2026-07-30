@@ -29,7 +29,7 @@ export function LocaleSwitcher() {
     <div
       role="group"
       aria-label={t("label")}
-      className="flex items-center gap-1 rounded-lg border border-border/60 bg-card/40 p-0.5"
+      className="flex items-center gap-1 rounded-lg border border-border bg-card dark:border-border/60 dark:bg-card/40 p-0.5"
     >
       <Languages className="ml-1.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden />
       {locales.map((locale) => {
@@ -44,7 +44,7 @@ export function LocaleSwitcher() {
             className={cn(
               "rounded-md px-2 py-1 text-xs font-medium uppercase tracking-wide transition-colors",
               isActive
-                ? "bg-primary/15 text-primary"
+                ? "bg-primary/20 text-primary dark:bg-primary/15"
                 : "text-muted-foreground hover:text-foreground",
               isPending && "opacity-60",
             )}

@@ -29,7 +29,7 @@ export function ZoomIntro() {
         style={{ scale, opacity, y }}
         className="relative z-10 mx-auto max-w-3xl px-4 text-center space-y-6 md:px-6 md:space-y-8"
       >
-        <div className="text-[10px] uppercase tracking-[0.25em] text-primary/80 md:text-xs md:tracking-[0.3em]">
+        <div className="text-[10px] uppercase tracking-[0.25em] text-primary md:text-xs md:tracking-[0.3em] dark:text-primary/80">
           {t("kicker")}
         </div>
         <h1 className="font-display text-4xl md:text-7xl leading-[1.05] tracking-tight">
@@ -51,7 +51,7 @@ export function ZoomIntro() {
               className="flex items-center gap-1"
             >
               <div
-                className="rounded-full border border-primary/40 bg-primary/5 flex items-center justify-center text-xs font-medium text-primary"
+                className="rounded-full border border-primary/60 bg-primary/10 flex items-center justify-center text-xs font-medium text-primary dark:border-primary/40 dark:bg-primary/5"
                 style={{
                   width: `clamp(${32 - i * 3}px, ${(48 - i * 5) / 16}rem, ${48 - i * 5}px)`,
                   height: `clamp(${32 - i * 3}px, ${(48 - i * 5) / 16}rem, ${48 - i * 5}px)`,
@@ -60,7 +60,7 @@ export function ZoomIntro() {
                 {s.index}
               </div>
               {i < STATIONS.length - 1 && (
-                <div className="w-2 h-px bg-primary/30 sm:w-4" />
+                <div className="w-2 h-px bg-primary/50 sm:w-4 dark:bg-primary/30" />
               )}
             </motion.div>
           ))}

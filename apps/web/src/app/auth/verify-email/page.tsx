@@ -40,7 +40,7 @@ function VerifyEmailInner() {
 
   return (
     <main className="flex min-h-[80vh] items-center justify-center px-4 py-12">
-      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-center shadow-2xl">
+      <div className="w-full max-w-sm rounded-xl border border-border bg-card p-6 text-center shadow-lg dark:shadow-2xl">
         <h1 className="mb-4 text-lg font-semibold text-foreground">
           {t("verifyEmailTitle")}
         </h1>
@@ -53,7 +53,7 @@ function VerifyEmailInner() {
 
         {status === "success" && (
           <>
-            <p className="mb-5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+            <p className="mb-5 rounded-lg border border-emerald-600/40 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:border-emerald-500/30 dark:text-emerald-300">
               {t("verifyEmailSuccess")}
             </p>
             <Link
@@ -66,13 +66,13 @@ function VerifyEmailInner() {
         )}
 
         {status === "missing" && (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+          <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive dark:border-destructive/30">
             {t("verifyEmailMissingToken")}
           </p>
         )}
 
         {status === "error" && (
-          <p className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-300">
+          <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive dark:border-destructive/30">
             {t("verifyEmailError")}
           </p>
         )}

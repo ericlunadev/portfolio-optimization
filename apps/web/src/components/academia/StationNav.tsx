@@ -53,10 +53,12 @@ export function StationNav() {
     const isActive = idx === activeIdx;
     const isPast = idx < activeIdx;
     return cn(
-      "h-2 w-2 shrink-0 rounded-full border border-primary/40 transition-all",
+      "h-2 w-2 shrink-0 rounded-full border border-primary/60 transition-all dark:border-primary/40",
       isActive && "bg-primary scale-125",
       isPast && "bg-primary/70",
-      !isActive && !isPast && "bg-transparent group-hover:bg-primary/30",
+      !isActive &&
+        !isPast &&
+        "bg-transparent group-hover:bg-primary/40 dark:group-hover:bg-primary/30",
     );
   };
 
@@ -71,7 +73,7 @@ export function StationNav() {
       {/* Skip button top-right */}
       <Link
         href="/efficient-frontier/new"
-        className="fixed top-4 right-4 md:top-6 md:right-8 z-40 flex items-center gap-1.5 rounded-full border border-border/60 bg-card/80 backdrop-blur-md px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground hover:border-border"
+        className="fixed top-4 right-4 md:top-6 md:right-8 z-40 flex items-center gap-1.5 rounded-full border border-border bg-card/90 shadow-sm backdrop-blur-md px-3 py-1.5 text-xs text-muted-foreground transition-all hover:text-foreground hover:border-primary/40 dark:border-border/60 dark:bg-card/80 dark:shadow-none dark:hover:border-border"
       >
         <X className="h-3 w-3" />
         {tNav("skipToApp")}
@@ -86,10 +88,10 @@ export function StationNav() {
           <div className={dotClass(0)} />
           <span
             className={cn(
-              "rounded-full border border-primary/40 bg-background/95 backdrop-blur-sm px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.15em] whitespace-nowrap transition-all",
+              "rounded-full border border-primary/50 bg-card/95 shadow-sm backdrop-blur-sm px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.15em] whitespace-nowrap transition-all dark:border-primary/40 dark:bg-background/95 dark:shadow-none",
               active === "intro"
                 ? "text-primary opacity-100 translate-x-0"
-                : "text-primary/80 opacity-0 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-hover/nav:opacity-100 group-hover/nav:translate-x-0 group-hover/nav:pointer-events-auto",
+                : "text-primary opacity-0 -translate-x-1 pointer-events-none dark:text-primary/80 group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-hover/nav:opacity-100 group-hover/nav:translate-x-0 group-hover/nav:pointer-events-auto",
             )}
           >
             {tNav("introLabel")}
@@ -107,10 +109,10 @@ export function StationNav() {
               <div className={dotClass(i + 1)} />
               <span
                 className={cn(
-                  "rounded-full border border-primary/40 bg-background/95 backdrop-blur-sm px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.15em] whitespace-nowrap transition-all",
+                  "rounded-full border border-primary/50 bg-card/95 shadow-sm backdrop-blur-sm px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.15em] whitespace-nowrap transition-all dark:border-primary/40 dark:bg-background/95 dark:shadow-none",
                   isActive
                     ? "text-primary opacity-100 translate-x-0"
-                    : "text-primary/80 opacity-0 -translate-x-1 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-hover/nav:opacity-100 group-hover/nav:translate-x-0 group-hover/nav:pointer-events-auto",
+                    : "text-primary opacity-0 -translate-x-1 pointer-events-none dark:text-primary/80 group-hover:opacity-100 group-hover:translate-x-0 group-hover:pointer-events-auto group-hover/nav:opacity-100 group-hover/nav:translate-x-0 group-hover/nav:pointer-events-auto",
                 )}
               >
                 {String(s.index).padStart(2, "0")} · {tLessons(`${s.key}.label`)}

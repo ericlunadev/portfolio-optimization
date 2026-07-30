@@ -129,7 +129,7 @@ export function SimulationParamsSummary({
           </div>
 
           {/* Tickers */}
-          <div className="mt-3 border-t border-border/50 pt-3">
+          <div className="mt-3 border-t border-border pt-3 dark:border-border/50">
             <dt className="mb-1.5 text-sm text-muted-foreground">{t("assets")}</dt>
             <div className="flex flex-wrap gap-1.5">
               {params.tickers.map((ticker) => (

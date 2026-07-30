@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { StationFrame } from "./StationFrame";
 import { getStation } from "./lessons";
 import { InfoTooltip } from "@/components/ui/InfoTooltip";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 import { cn } from "@/lib/utils";
 
 interface Candidate {
@@ -71,12 +72,17 @@ function generatePricePath(seed: number, trend: "up" | "down" | "sideways"): str
 }
 
 function Gauge({ value, label }: { value: number; label: string }) {
+  const resolved = useResolvedTheme();
+  // Good / caution / poor. The extremes ride the theme tokens; the mid amber has
+  // no token, so it is darkened on light backgrounds to stay legible.
   const color =
     value >= 70
-      ? "hsl(38 65% 55%)"
+      ? "hsl(var(--primary))"
       : value >= 45
-        ? "hsl(40 50% 55%)"
-        : "hsl(0 60% 55%)";
+        ? resolved === "dark"
+          ? "hsl(40 50% 55%)"
+          : "hsl(38 60% 34%)"
+        : "hsl(var(--destructive))";
 
   return (
     <div>
@@ -161,7 +167,9 @@ export function Station4Assets({ id }: { id: string }) {
               className={cn(
                 "rounded-lg border px-4 py-2 text-sm transition-all",
                 active === c.ticker
-                  ? "border-primary/50 bg-primary/10 text-primary glow-gold"
+                  ? // The glow only reads on dark; the ring + solid border keep the
+                    // selected candidate distinguishable on light.
+                    "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 glow-gold"
                   : "border-border/50 bg-card/40 text-muted-foreground hover:border-border hover:text-foreground",
               )}
             >
@@ -246,13 +254,13 @@ export function Station4Assets({ id }: { id: string }) {
 
             <svg viewBox="0 0 100 100" className="w-full h-32" preserveAspectRatio="none">
               {/* Support/resistance guide */}
-              <line x1="0" y1="25" x2="100" y2="25" stroke="hsl(230 12% 22%)" strokeWidth="0.3" strokeDasharray="1 2" />
-              <line x1="0" y1="75" x2="100" y2="75" stroke="hsl(230 12% 22%)" strokeWidth="0.3" strokeDasharray="1 2" />
+              <line x1="0" y1="25" x2="100" y2="25" stroke="hsl(var(--border))" strokeWidth="0.3" strokeDasharray="1 2" />
+              <line x1="0" y1="75" x2="100" y2="75" stroke="hsl(var(--border))" strokeWidth="0.3" strokeDasharray="1 2" />
               <motion.path
                 key={candidate.ticker}
                 d={pricePath}
                 fill="none"
-                stroke="hsl(38 65% 55%)"
+                stroke="hsl(var(--primary))"
                 strokeWidth="0.8"
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
@@ -306,7 +314,9 @@ export function Station4Assets({ id }: { id: string }) {
           className={cn(
             "glass-card p-5 flex items-center justify-between border-2",
             passesBoth
-              ? "border-primary/50 glow-gold"
+              ? // The glow only reads on dark; the ring keeps the "passes both"
+                // verdict distinguishable on light.
+                "border-primary ring-1 ring-primary/40 glow-gold"
               : "border-border/50",
           )}
         >

@@ -1,32 +1,113 @@
 "use client";
 
 import { ReactNode } from "react";
+import { useResolvedTheme } from "@/components/theme/ThemeProvider";
 
-export const CHART_PALETTE = [
-  { name: "gold", stroke: "#e0a861", solid: "#c89853", soft: "#fcd9a8" },
-  { name: "emerald", stroke: "#34d399", solid: "#10b981", soft: "#a7f3d0" },
-  { name: "violet", stroke: "#a78bfa", solid: "#8b5cf6", soft: "#c4b5fd" },
-  { name: "amber", stroke: "#fbbf24", solid: "#f59e0b", soft: "#fde68a" },
-  { name: "blue", stroke: "#60a5fa", solid: "#3b82f6", soft: "#bfdbfe" },
-  { name: "teal", stroke: "#2dd4bf", solid: "#14b8a6", soft: "#99f6e4" },
-  { name: "rose", stroke: "#fb7185", solid: "#f43f5e", soft: "#fda4af" },
-  { name: "lime", stroke: "#a3e635", solid: "#84cc16", soft: "#d9f99d" },
-];
+export interface ChartPaletteEntry {
+  name: string;
+  /** Line/point colour. */
+  stroke: string;
+  /** Start of a bar's fill gradient. */
+  solid: string;
+  /** End of a bar's fill gradient. */
+  soft: string;
+}
 
-export const COLOR_OPTIMAL = "#e0a861";
-export const COLOR_USER = "#fbbf24";
-export const COLOR_FRONTIER = "#a78bfa";
-export const COLOR_ASSET = "#94a3b8";
-export const COLOR_DANGER = "#f87171";
+export interface ChartColors {
+  palette: ChartPaletteEntry[];
+  /** The optimised portfolio — gold. */
+  optimal: string;
+  /** The user's own allocation — amber. */
+  user: string;
+  /** The efficient frontier — violet. */
+  frontier: string;
+  /** Individual assets — neutral. */
+  asset: string;
+  /** Loss / risk — red. */
+  danger: string;
+  /** Ends of the frontier curve's stroke gradient. */
+  frontierFrom: string;
+  frontierTo: string;
+  /** Ends of the optimal / user weight bar gradients. */
+  optimalBar: [string, string];
+  userBar: [string, string];
+  /** Page colour behind a marker; knocks scatter markers out of the plot. */
+  markerOutline: string;
+  /** Tooltip crosshair and hover band. */
+  cursor: string;
+}
 
-export const CHART_GRID_STROKE = "hsl(230 12% 16%)";
-export const CHART_AXIS_STROKE = "hsl(230 8% 38%)";
+/**
+ * Series colours, one complete set per appearance.
+ *
+ * These are deliberately plain hex strings rather than `var(--token)`: several
+ * call sites build a translucent variant by concatenating a hex alpha pair
+ * (`${color}55`), which only works on a real hex value.
+ */
+const DARK_COLORS: ChartColors = {
+  palette: [
+    { name: "gold", stroke: "#e0a861", solid: "#c89853", soft: "#fcd9a8" },
+    { name: "emerald", stroke: "#34d399", solid: "#10b981", soft: "#a7f3d0" },
+    { name: "violet", stroke: "#a78bfa", solid: "#8b5cf6", soft: "#c4b5fd" },
+    { name: "amber", stroke: "#fbbf24", solid: "#f59e0b", soft: "#fde68a" },
+    { name: "blue", stroke: "#60a5fa", solid: "#3b82f6", soft: "#bfdbfe" },
+    { name: "teal", stroke: "#2dd4bf", solid: "#14b8a6", soft: "#99f6e4" },
+    { name: "rose", stroke: "#fb7185", solid: "#f43f5e", soft: "#fda4af" },
+    { name: "lime", stroke: "#a3e635", solid: "#84cc16", soft: "#d9f99d" },
+  ],
+  optimal: "#e0a861",
+  user: "#fbbf24",
+  frontier: "#a78bfa",
+  asset: "#94a3b8",
+  danger: "#f87171",
+  frontierFrom: "#7c3aed",
+  frontierTo: "#22d3ee",
+  optimalBar: ["#c89853", "#fcd9a8"],
+  userBar: ["#f59e0b", "#fde68a"],
+  markerOutline: "#0d0e13",
+  cursor: "#3f4457",
+};
 
+/** Same hues as the dark set, pushed dark enough to hold up on a white card. */
+const LIGHT_COLORS: ChartColors = {
+  palette: [
+    { name: "gold", stroke: "#a97b2f", solid: "#8a6224", soft: "#d9b57a" },
+    { name: "emerald", stroke: "#059669", solid: "#047857", soft: "#6ee7b7" },
+    { name: "violet", stroke: "#7c3aed", solid: "#6d28d9", soft: "#a78bfa" },
+    { name: "amber", stroke: "#d97706", solid: "#b45309", soft: "#fcd34d" },
+    { name: "blue", stroke: "#2563eb", solid: "#1d4ed8", soft: "#93c5fd" },
+    { name: "teal", stroke: "#0d9488", solid: "#0f766e", soft: "#5eead4" },
+    { name: "rose", stroke: "#e11d48", solid: "#be123c", soft: "#fda4af" },
+    { name: "lime", stroke: "#65a30d", solid: "#4d7c0f", soft: "#bef264" },
+  ],
+  optimal: "#8a6224",
+  user: "#b45309",
+  frontier: "#6d28d9",
+  asset: "#475569",
+  danger: "#dc2626",
+  frontierFrom: "#6d28d9",
+  frontierTo: "#0e7490",
+  optimalBar: ["#8a6224", "#c99a49"],
+  userBar: ["#b45309", "#e8a33d"],
+  markerOutline: "#ffffff",
+  cursor: "#a8a294",
+};
+
+/** Reactive series colours for the current appearance. */
+export function useChartColors(): ChartColors {
+  return useResolvedTheme() === "dark" ? DARK_COLORS : LIGHT_COLORS;
+}
+
+/**
+ * Axis chrome. Deliberately carries no colours: `globals.css` styles
+ * `.recharts-text` and `.recharts-cartesian-grid line` from theme variables,
+ * and real CSS outranks the SVG presentation attributes Recharts writes, so a
+ * colour here would only be dead weight that fights the stylesheet.
+ */
 export const axisProps = {
   axisLine: false,
   tickLine: false,
   tick: {
-    fill: "hsl(230 8% 55%)",
     fontSize: 11,
     fontVariantNumeric: "tabular-nums" as const,
   },
@@ -75,7 +156,7 @@ export function ChartTooltip({
   if (!active || !payload || payload.length === 0) return null;
 
   return (
-    <div className="min-w-[180px] rounded-xl border border-border/60 bg-popover/90 px-3 py-2.5 shadow-2xl shadow-black/60 backdrop-blur-md">
+    <div className="min-w-[180px] rounded-xl border border-border/60 bg-popover/90 px-3 py-2.5 shadow-2xl shadow-black/10 backdrop-blur-md dark:shadow-black/60">
       {!hideLabel && label !== undefined && (
         <div className="mb-2 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
           {labelFormatter ? labelFormatter(label) : label}
@@ -99,7 +180,7 @@ export function ChartTooltip({
             >
               <div className="flex items-center gap-2 text-xs text-foreground/80">
                 <span
-                  className="h-2 w-2 rounded-full ring-2 ring-white/10"
+                  className="h-2 w-2 rounded-full ring-2 ring-black/5 dark:ring-white/10"
                   style={{ background: entry.color ?? "currentColor" }}
                 />
                 <span className="truncate">{name}</span>

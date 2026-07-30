@@ -1,6 +1,8 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  // The `dark` class is set on <html> from the theme cookie; see src/lib/theme.ts.
+  darkMode: "class",
   content: [
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
@@ -18,6 +20,13 @@ const config: Config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          // Gold pushed further from the page: darker on light, brighter on dark.
+          emphasis: "hsl(var(--primary-emphasis))",
+        },
+        // The cinematic 3D stage, which stays dark in both themes.
+        scene: {
+          DEFAULT: "hsl(var(--scene-bg))",
+          foreground: "hsl(var(--scene-foreground))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",

@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Instrument_Serif, Manrope } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { defaultTheme, isTheme, THEME_COOKIE, THEME_INIT_SCRIPT } from "@/lib/theme";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
 
@@ -41,13 +44,32 @@ export default async function RootLayout({
   const locale = await getLocale();
   const messages = await getMessages();
 
+  // The server cannot read the OS preference, so "system" is rendered as dark
+  // and corrected by THEME_INIT_SCRIPT before the first paint.
+  const cookieTheme = cookies().get(THEME_COOKIE)?.value;
+  const theme = isTheme(cookieTheme) ? cookieTheme : defaultTheme;
+  const resolvedTheme = theme === "light" ? "light" : "dark";
+
   return (
-    <html lang={locale}>
+    <html
+      lang={locale}
+      className={resolvedTheme === "dark" ? "dark" : undefined}
+      style={{ colorScheme: resolvedTheme }}
+      suppressHydrationWarning
+    >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body
         className={`${instrumentSerif.variable} ${manrope.variable} font-sans`}
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <Providers>{children}</Providers>
+          <ThemeProvider
+            initialTheme={theme}
+            initialResolvedTheme={resolvedTheme}
+          >
+            <Providers>{children}</Providers>
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>

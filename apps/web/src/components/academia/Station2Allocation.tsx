@@ -126,7 +126,7 @@ export function Station2Allocation({ id }: { id: string }) {
                   cy="110"
                   r="80"
                   fill="none"
-                  stroke="hsl(230 15% 16%)"
+                  stroke="hsl(var(--muted))"
                   strokeWidth="32"
                 />
                 <motion.circle
@@ -134,7 +134,7 @@ export function Station2Allocation({ id }: { id: string }) {
                   cy="110"
                   r="80"
                   fill="none"
-                  stroke="hsl(38 65% 55%)"
+                  stroke="hsl(var(--primary))"
                   strokeWidth="32"
                   strokeDasharray={`${(stocksAngle / 360) * 502.65} 502.65`}
                   strokeDashoffset="0"
@@ -144,13 +144,13 @@ export function Station2Allocation({ id }: { id: string }) {
                     strokeDasharray: `${(stocksAngle / 360) * 502.65} 502.65`,
                   }}
                   transition={{ type: "spring", stiffness: 80, damping: 18 }}
-                  style={{ filter: "drop-shadow(0 0 8px hsl(38 65% 55% / 0.4))" }}
+                  style={{ filter: "drop-shadow(0 0 8px hsl(var(--primary) / 0.4))" }}
                 />
                 <text
                   x="110"
                   y="100"
                   textAnchor="middle"
-                  fill="hsl(40 6% 90%)"
+                  fill="hsl(var(--foreground))"
                   className="text-xs"
                   style={{ fontSize: "11px", letterSpacing: "0.1em" }}
                 >
@@ -160,7 +160,7 @@ export function Station2Allocation({ id }: { id: string }) {
                   x="110"
                   y="125"
                   textAnchor="middle"
-                  fill="hsl(38 65% 55%)"
+                  fill="hsl(var(--primary))"
                   style={{ fontSize: "22px", fontFamily: "var(--font-display)" }}
                 >
                   {profileLabel(profile)}
@@ -215,7 +215,7 @@ export function Station2Allocation({ id }: { id: string }) {
                 y1={baselineY}
                 x2="100"
                 y2={baselineY}
-                stroke="hsl(230 12% 28%)"
+                stroke="hsl(var(--border))"
                 strokeWidth="0.3"
                 strokeDasharray="1 1.5"
               />
@@ -223,7 +223,7 @@ export function Station2Allocation({ id }: { id: string }) {
                 key={profile}
                 d={path}
                 fill="none"
-                stroke="hsl(38 65% 55%)"
+                stroke="hsl(var(--primary))"
                 strokeWidth="0.8"
                 strokeLinejoin="round"
                 strokeLinecap="round"
@@ -254,7 +254,9 @@ export function Station2Allocation({ id }: { id: string }) {
                   className={cn(
                     "w-full rounded-xl border p-4 text-left transition-all",
                     isActive
-                      ? "border-primary/50 bg-primary/5 glow-gold"
+                      ? // The gold glow reads as "selected" on dark; on light it is
+                        // barely visible, so the ring + solid border carry the state.
+                        "border-primary bg-primary/10 ring-1 ring-primary/40 glow-gold"
                       : "border-border/50 bg-card/40 hover:border-border",
                   )}
                 >

@@ -2,8 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Theme tokens.
+ *
+ * `:root` holds the light appearance; `.dark` overrides it. The `dark` class is
+ * put on <html> by the server (from the theme cookie) and corrected before
+ * first paint by the inline script in `src/lib/theme.ts`.
+ *
+ * Every colour below is stored as bare HSL channels so Tailwind can compose
+ * them with an alpha value (`bg-card/40`). Values used as whole colours rather
+ * than Tailwind tokens (gradients, glows, scrollbars) already carry their own
+ * alpha where needed.
+ */
 @layer base {
   :root {
+    --background: 40 30% 97%;
+    --foreground: 230 25% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 230 25% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 230 25% 12%;
+    --primary: 38 62% 36%;
+    --primary-foreground: 40 40% 98%;
+    --secondary: 40 20% 93%;
+    --secondary-foreground: 230 20% 25%;
+    --muted: 40 18% 93%;
+    --muted-foreground: 230 10% 40%;
+    --accent: 40 22% 90%;
+    --accent-foreground: 230 25% 15%;
+    --destructive: 0 70% 44%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 14% 86%;
+    --input: 40 14% 80%;
+    --ring: 38 62% 40%;
+    --radius: 0.75rem;
+
+    /* A gold one step further from the background than --primary, for
+       "this one is the winner" emphasis. It moves *away* from the page in each
+       theme: darker on light, brighter on dark. */
+    --primary-emphasis: 38 72% 27%;
+
+    /* Backdrop for the cinematic 3D scenes (the globe). These are lit as a
+       dark void and stay dark in both themes; the surrounding page frames them
+       like a video player rather than recolouring them. */
+    --scene-bg: 230 20% 7%;
+    --scene-foreground: 40 6% 90%;
+
+    /* Page backdrop — a soft warm wash rather than a flat fill. */
+    --surface-gradient-from: 40 45% 99%;
+    --surface-gradient-to: 40 25% 95%;
+
+    /* Frosted panels. */
+    --glass-bg: 0 0% 100% / 0.7;
+
+    /* Brand gradient used for display headings. */
+    --gradient-gold-from: 38 65% 34%;
+    --gradient-gold-to: 38 80% 46%;
+
+    /* Gold halo behind primary actions. */
+    --glow-strong: 38 62% 40% / 0.22;
+    --glow-soft: 38 62% 40% / 0.08;
+
+    /* Chrome that is not a Tailwind token. */
+    --scrollbar-thumb: 40 10% 76%;
+    --scrollbar-thumb-hover: 40 10% 62%;
+    --range-track: 40 12% 84%;
+
+    /* Chart chrome. Series colours live in `chart-theme.tsx`; these are the
+       axes/grid/labels that must flip with the theme. */
+    --chart-grid: 40 14% 88%;
+    --chart-axis: 230 10% 45%;
+    --chart-tick: 230 10% 40%;
+    --chart-legend: 230 15% 30%;
+    --chart-tooltip-shadow: 230 25% 40% / 0.18;
+
+    /* Skeleton shimmer. */
+    --shimmer-base: 40 18% 92%;
+    --shimmer-highlight: 40 25% 97%;
+
+    color-scheme: light;
+  }
+
+  .dark {
     --background: 230 15% 5%;
     --foreground: 40 6% 90%;
     --card: 230 15% 8%;
@@ -23,7 +103,34 @@
     --border: 230 12% 17%;
     --input: 230 12% 19%;
     --ring: 38 65% 55%;
-    --radius: 0.75rem;
+
+    --primary-emphasis: 38 65% 65%;
+
+    --surface-gradient-from: 230 18% 9%;
+    --surface-gradient-to: 230 15% 5%;
+
+    --glass-bg: 230 15% 8% / 0.6;
+
+    --gradient-gold-from: 38 60% 50%;
+    --gradient-gold-to: 38 85% 65%;
+
+    --glow-strong: 38 65% 55% / 0.15;
+    --glow-soft: 38 65% 55% / 0.05;
+
+    --scrollbar-thumb: 230 12% 22%;
+    --scrollbar-thumb-hover: 230 12% 30%;
+    --range-track: 230 12% 30%;
+
+    --chart-grid: 230 12% 17%;
+    --chart-axis: 230 8% 38%;
+    --chart-tick: 230 8% 55%;
+    --chart-legend: 40 6% 70%;
+    --chart-tooltip-shadow: 0 0% 0% / 0.5;
+
+    --shimmer-base: 230 15% 12%;
+    --shimmer-highlight: 230 15% 16%;
+
+    color-scheme: dark;
   }
 }
 
@@ -36,8 +143,8 @@
     @apply bg-background text-foreground antialiased;
     background: radial-gradient(
       ellipse at 10% 0%,
-      hsl(230 18% 9%) 0%,
-      hsl(230 15% 5%) 60%
+      hsl(var(--surface-gradient-from)) 0%,
+      hsl(var(--surface-gradient-to)) 60%
     );
     min-height: 100vh;
   }
@@ -51,17 +158,17 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(230 12% 22%);
+    background: hsl(var(--scrollbar-thumb));
     border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(230 12% 30%);
+    background: hsl(var(--scrollbar-thumb-hover));
   }
 
-  /* Select styling for dark mode */
+  /* Native select popups do not inherit the page theme on every platform */
   select option {
-    background: hsl(230 15% 10%);
-    color: hsl(40 6% 90%);
+    background: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
   }
 
   /* Range input styling */
@@ -70,7 +177,7 @@
     appearance: none;
     cursor: pointer;
     height: 6px;
-    background: hsl(230 12% 30%);
+    background: hsl(var(--range-track));
     border-radius: 3px;
     outline: none;
   }
@@ -79,15 +186,15 @@
     height: 18px;
     width: 18px;
     border-radius: 50%;
-    background: hsl(38 65% 55%);
-    box-shadow: 0 0 10px hsl(38 65% 55% / 0.3);
+    background: hsl(var(--primary));
+    box-shadow: 0 0 10px hsl(var(--glow-strong));
     transition: box-shadow 0.2s;
   }
   input[type="range"]::-webkit-slider-thumb:hover {
-    box-shadow: 0 0 16px hsl(38 65% 55% / 0.5);
+    box-shadow: 0 0 16px hsl(var(--glow-strong));
   }
   input[type="range"]::-moz-range-track {
-    background: hsl(230 12% 30%);
+    background: hsl(var(--range-track));
     height: 6px;
     border-radius: 3px;
   }
@@ -95,59 +202,69 @@
     height: 18px;
     width: 18px;
     border-radius: 50%;
-    background: hsl(38 65% 55%);
+    background: hsl(var(--primary));
     border: none;
-    box-shadow: 0 0 10px hsl(38 65% 55% / 0.3);
+    box-shadow: 0 0 10px hsl(var(--glow-strong));
   }
 
   /* Checkbox styling */
   input[type="checkbox"] {
-    accent-color: hsl(38 65% 55%);
+    accent-color: hsl(var(--primary));
   }
 
-  /* Recharts dark theme */
+  /*
+   * Recharts theming.
+   *
+   * These rules exist because Recharts writes colours as SVG *presentation
+   * attributes*, which cannot reference CSS variables. Real CSS declarations
+   * outrank presentation attributes, so styling the generated classes here is
+   * what makes chart chrome follow the theme with no re-render.
+   */
   .recharts-cartesian-grid line {
-    stroke: hsl(230 12% 17%);
+    stroke: hsl(var(--chart-grid));
   }
   .recharts-text {
-    fill: hsl(230 8% 50%);
+    fill: hsl(var(--chart-tick));
     font-size: 11px;
   }
   .recharts-legend-item-text {
-    color: hsl(40 6% 70%) !important;
+    color: hsl(var(--chart-legend)) !important;
     font-size: 12px;
   }
   .recharts-tooltip-wrapper {
-    filter: drop-shadow(0 4px 16px rgba(0, 0, 0, 0.5));
+    filter: drop-shadow(0 4px 16px hsl(var(--chart-tooltip-shadow)));
   }
   .recharts-default-tooltip {
-    background: hsl(230 15% 10%) !important;
-    border-color: hsl(230 12% 20%) !important;
+    background: hsl(var(--popover)) !important;
+    border-color: hsl(var(--border)) !important;
     border-radius: 8px !important;
   }
   .recharts-tooltip-label {
-    color: hsl(40 6% 90%) !important;
+    color: hsl(var(--popover-foreground)) !important;
     font-weight: 500;
   }
   .recharts-tooltip-item {
-    color: hsl(40 6% 75%) !important;
+    color: hsl(var(--muted-foreground)) !important;
   }
 }
 
 @layer components {
   .glass-card {
     @apply rounded-xl border border-border/50;
-    background: hsl(230 15% 8% / 0.6);
+    background: hsl(var(--glass-bg));
     backdrop-filter: blur(12px);
   }
 
   .glow-gold {
-    box-shadow: 0 0 20px hsl(38 65% 55% / 0.15),
-                0 0 60px hsl(38 65% 55% / 0.05);
+    box-shadow: 0 0 20px hsl(var(--glow-strong)), 0 0 60px hsl(var(--glow-soft));
   }
 
   .text-gradient-gold {
-    background: linear-gradient(135deg, hsl(38 60% 50%), hsl(38 85% 65%));
+    background: linear-gradient(
+      135deg,
+      hsl(var(--gradient-gold-from)),
+      hsl(var(--gradient-gold-to))
+    );
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -178,9 +295,9 @@
 .animate-shimmer {
   background: linear-gradient(
     90deg,
-    hsl(230 15% 12%) 25%,
-    hsl(230 15% 16%) 50%,
-    hsl(230 15% 12%) 75%
+    hsl(var(--shimmer-base)) 25%,
+    hsl(var(--shimmer-highlight)) 50%,
+    hsl(var(--shimmer-base)) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;

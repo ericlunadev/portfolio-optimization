@@ -73,7 +73,7 @@ export function Station3Sectors({ id }: { id: string }) {
               cy={center}
               r={radius + 30}
               fill="none"
-              stroke="hsl(230 15% 16%)"
+              stroke="hsl(var(--border))"
               strokeWidth="0.5"
               strokeDasharray="2 4"
             />
@@ -82,7 +82,7 @@ export function Station3Sectors({ id }: { id: string }) {
               cy={center}
               r={radius - 30}
               fill="none"
-              stroke="hsl(230 15% 16%)"
+              stroke="hsl(var(--border))"
               strokeWidth="0.5"
               strokeDasharray="2 4"
             />
@@ -98,13 +98,15 @@ export function Station3Sectors({ id }: { id: string }) {
                     cx={x}
                     cy={y}
                     r={isLeader ? 24 : 16}
-                    fill={isLeader ? "hsl(38 65% 55% / 0.15)" : "hsl(230 15% 12%)"}
-                    stroke={isLeader ? "hsl(38 65% 55%)" : "hsl(230 12% 22%)"}
+                    fill={
+                      isLeader ? "hsl(var(--primary) / 0.15)" : "hsl(var(--secondary))"
+                    }
+                    stroke={isLeader ? "hsl(var(--primary))" : "hsl(var(--border))"}
                     strokeWidth={isLeader ? 1.5 : 0.8}
                     animate={{
                       r: isLeader ? 24 : 16,
                       filter: isLeader
-                        ? "drop-shadow(0 0 10px hsl(38 65% 55% / 0.6))"
+                        ? "drop-shadow(0 0 10px hsl(var(--primary) / 0.6))"
                         : "drop-shadow(0 0 0px transparent)",
                     }}
                     transition={{ type: "spring", stiffness: 150, damping: 18 }}
@@ -115,7 +117,9 @@ export function Station3Sectors({ id }: { id: string }) {
                     textAnchor="middle"
                     dominantBaseline="central"
                     animate={{
-                      fill: isLeader ? "hsl(38 65% 65%)" : "hsl(230 8% 50%)",
+                      fill: isLeader
+                        ? "hsl(var(--primary-emphasis))"
+                        : "hsl(var(--muted-foreground))",
                     }}
                     style={{
                       fontSize: "10px",
@@ -140,15 +144,15 @@ export function Station3Sectors({ id }: { id: string }) {
                 cx={center}
                 cy={center}
                 r={60}
-                fill="hsl(230 15% 8%)"
-                stroke="hsl(38 65% 55% / 0.2)"
+                fill="hsl(var(--card))"
+                stroke="hsl(var(--primary) / 0.2)"
                 strokeWidth="1"
               />
               <text
                 x={center}
                 y={center - 8}
                 textAnchor="middle"
-                fill="hsl(230 8% 50%)"
+                fill="hsl(var(--muted-foreground))"
                 style={{ fontSize: "9px", letterSpacing: "0.15em" }}
               >
                 {t("phaseLabel")}
@@ -157,7 +161,7 @@ export function Station3Sectors({ id }: { id: string }) {
                 x={center}
                 y={center + 10}
                 textAnchor="middle"
-                fill="hsl(38 65% 55%)"
+                fill="hsl(var(--primary))"
                 style={{ fontSize: "13px", fontFamily: "var(--font-display)" }}
               >
                 {phaseShort}
@@ -184,7 +188,9 @@ export function Station3Sectors({ id }: { id: string }) {
                   className={cn(
                     "rounded-lg border px-3 py-2 text-sm transition-all text-left",
                     phase === p
-                      ? "border-primary/50 bg-primary/10 text-primary glow-gold"
+                      ? // The glow only reads on dark; the ring + solid border keep
+                        // the selected phase distinguishable on light.
+                        "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 glow-gold"
                       : "border-border/50 bg-card/40 text-muted-foreground hover:border-border hover:text-foreground",
                   )}
                 >

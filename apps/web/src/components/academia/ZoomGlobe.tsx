@@ -9,6 +9,15 @@ import type { Topology } from "topojson-specification";
 import type { Feature, FeatureCollection } from "geojson";
 import countries110m from "world-atlas/countries-110m.json";
 
+/*
+ * This globe is a cinematic surface, not a themed UI surface: it is lit as a
+ * dark void (deep ocean, atmosphere halo, starfield, cool fill light) and stays
+ * dark in both light and dark appearance. The canvas itself is transparent —
+ * the darkness comes from the `--scene-bg` stage the caller wraps it in
+ * (see Station1Macro), which frames it like a video player on a light page.
+ * Do not swap these colours for theme tokens.
+ */
+
 type Climate = "expansion" | "contraction" | "stagflation";
 
 const CLIMATE_COLOR: Record<Climate, string> = {

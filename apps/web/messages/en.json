@@ -26,6 +26,12 @@
     "es": "Spanish",
     "en": "English"
   },
+  "ThemeSwitcher": {
+    "label": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
   "Common": {
     "loading": "Loading...",
     "back": "Back",

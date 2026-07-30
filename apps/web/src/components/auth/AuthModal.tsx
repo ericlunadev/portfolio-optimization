@@ -71,11 +71,11 @@ export function AuthModal({ open, onClose, initialMode = "signin" }: AuthModalPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4 backdrop-blur-sm dark:bg-black/60"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-2xl md:p-6"
+        className="relative w-full max-w-sm rounded-xl border border-border bg-card p-5 shadow-lg md:p-6 dark:shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -131,7 +131,7 @@ export function AuthModal({ open, onClose, initialMode = "signin" }: AuthModalPr
             </div>
           )}
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-destructive">{error}</p>}
 
           <button
             type="submit"

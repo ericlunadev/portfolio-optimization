@@ -20,7 +20,7 @@ export default async function AcademiaPage() {
       <Station3Sectors id="station-sectors" />
       <Station4Assets id="station-assets" />
       <Station5Portfolio id="station-portfolio" />
-      <footer className="py-16 text-center text-xs text-muted-foreground border-t border-border/30">
+      <footer className="py-16 text-center text-xs text-muted-foreground border-t border-border dark:border-border/30">
         {t("footer")}
       </footer>
     </div>

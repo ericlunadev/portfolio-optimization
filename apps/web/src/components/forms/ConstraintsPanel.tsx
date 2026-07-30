@@ -81,7 +81,7 @@ export function ConstraintsPanel({
           onCheckedChange={onEnforceFullInvestmentChange}
           className="relative h-6 w-11 cursor-pointer rounded-full bg-muted outline-none transition-colors data-[state=checked]:bg-primary"
         >
-          <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow-lg transition-transform duration-100 will-change-transform data-[state=checked]:translate-x-[22px]" />
+          <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-background shadow-sm ring-1 ring-border transition-transform duration-100 will-change-transform data-[state=checked]:translate-x-[22px] dark:bg-white dark:shadow-lg dark:ring-0" />
         </Switch.Root>
       </div>
 
@@ -137,7 +137,7 @@ export function ConstraintsPanel({
           onCheckedChange={onAllowShortSellingChange}
           className="relative h-6 w-11 cursor-pointer rounded-full bg-muted outline-none transition-colors data-[state=checked]:bg-primary"
         >
-          <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow-lg transition-transform duration-100 will-change-transform data-[state=checked]:translate-x-[22px]" />
+          <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-background shadow-sm ring-1 ring-border transition-transform duration-100 will-change-transform data-[state=checked]:translate-x-[22px] dark:bg-white dark:shadow-lg dark:ring-0" />
         </Switch.Root>
       </div>
 
@@ -155,12 +155,12 @@ export function ConstraintsPanel({
             onCheckedChange={onUseLeverageChange}
             className="relative h-6 w-11 cursor-pointer rounded-full bg-muted outline-none transition-colors data-[state=checked]:bg-primary"
           >
-            <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-white shadow-lg transition-transform duration-100 will-change-transform data-[state=checked]:translate-x-[22px]" />
+            <Switch.Thumb className="block h-5 w-5 translate-x-0.5 rounded-full bg-background shadow-sm ring-1 ring-border transition-transform duration-100 will-change-transform data-[state=checked]:translate-x-[22px] dark:bg-white dark:shadow-lg dark:ring-0" />
           </Switch.Root>
         </div>
 
         {useLeverage && (
-          <div className="rounded-md border border-border bg-muted/30 p-3">
+          <div className="rounded-md border border-border bg-muted/60 p-3 dark:bg-muted/30">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-sm text-muted-foreground">{t("maxLeverageLabel")}</span>
               <span className="text-sm font-semibold text-primary">
@@ -179,7 +179,7 @@ export function ConstraintsPanel({
                 <Slider.Range className="absolute h-full rounded-full bg-primary" />
               </Slider.Track>
               <Slider.Thumb
-                className="block h-5 w-5 rounded-full bg-primary shadow-lg ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="block h-5 w-5 rounded-full bg-primary shadow-md ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:shadow-lg"
                 aria-label={t("maxLeverageAria")}
               />
             </Slider.Root>

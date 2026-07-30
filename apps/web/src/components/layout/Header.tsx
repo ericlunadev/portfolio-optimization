@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBanner";
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
+import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
 import { CreditsChip } from "@/components/billing/CreditsChip";
 
 export function Header() {
@@ -37,7 +38,7 @@ export function Header() {
   return (
     <>
       <EmailVerificationBanner />
-      <header className="relative z-30 border-b border-border/50 bg-card/20 backdrop-blur-sm px-4 py-3 md:px-8">
+      <header className="relative z-30 border-b border-border bg-card/80 backdrop-blur-sm px-4 py-3 dark:border-border/50 dark:bg-card/20 md:px-8">
         <div className="flex items-center justify-between gap-3 md:justify-end">
           <h1 className="font-display text-lg tracking-tight md:hidden">
             <span className="text-gradient-gold">{tBrand("shortName")}</span>{" "}
@@ -45,6 +46,7 @@ export function Header() {
           </h1>
           <div className="flex items-center gap-2 md:gap-3">
             <CreditsChip />
+            <ThemeSwitcher />
             <LocaleSwitcher />
           {isPending ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
@@ -52,7 +54,7 @@ export function Header() {
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setShowUserMenu((v) => !v)}
-                className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted/60 md:gap-3 md:px-2"
+                className="flex items-center gap-2 rounded-lg px-1.5 py-1 transition-colors hover:bg-muted dark:hover:bg-muted/60 md:gap-3 md:px-2"
                 aria-haspopup="menu"
                 aria-expanded={showUserMenu}
               >
@@ -60,10 +62,10 @@ export function Header() {
                   <img
                     src={user.image}
                     alt={user.name || t("userFallback")}
-                    className="h-8 w-8 rounded-full ring-2 ring-primary/20"
+                    className="h-8 w-8 rounded-full ring-2 ring-primary/30 dark:ring-primary/20"
                   />
                 ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary ring-2 ring-primary/20">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/15 text-primary ring-2 ring-primary/30 dark:bg-primary/10 dark:ring-primary/20">
                     <User className="h-4 w-4" />
                   </div>
                 )}
@@ -75,9 +77,9 @@ export function Header() {
               {showUserMenu && (
                 <div
                   role="menu"
-                  className="absolute right-0 top-full z-40 mt-2 w-56 overflow-hidden rounded-lg border border-border bg-card shadow-xl"
+                  className="absolute right-0 top-full z-40 mt-2 w-56 overflow-hidden rounded-lg border border-border bg-card shadow-lg dark:shadow-xl"
                 >
-                  <div className="border-b border-border/60 px-3 py-2.5">
+                  <div className="border-b border-border px-3 py-2.5 dark:border-border/60">
                     <p className="truncate text-sm font-medium text-foreground">
                       {user.name || t("userFallback")}
                     </p>

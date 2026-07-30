@@ -9,7 +9,7 @@ export function WalletCard() {
   const { data, isLoading } = useWallet();
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/40 p-6 backdrop-blur-sm">
+    <div className="rounded-2xl border border-border bg-card p-6 backdrop-blur-sm dark:border-border/60 dark:bg-card/40">
       <div className="flex items-center gap-3 text-muted-foreground">
         <Wallet className="h-4 w-4" />
         <span className="text-sm font-medium uppercase tracking-wide">{t("walletLabel")}</span>

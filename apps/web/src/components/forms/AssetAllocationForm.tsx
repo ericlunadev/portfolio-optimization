@@ -141,7 +141,7 @@ function AssetRowInput({
         )}
 
         {showResults && results.length > 0 && (
-          <div className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border border-input bg-background shadow-lg">
+          <div className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg">
             {results.map((result) => (
               <button
                 key={result.symbol}
@@ -161,7 +161,7 @@ function AssetRowInput({
         )}
 
         {showResults && search.length > 0 && results.length === 0 && !isSearching && (
-          <div className="absolute z-50 mt-1 w-full rounded-md border border-input bg-background p-3 text-center text-sm text-muted-foreground shadow-lg">
+          <div className="absolute z-50 mt-1 w-full rounded-md border border-border bg-popover p-3 text-center text-sm text-muted-foreground shadow-lg">
             {t("noResults")}
           </div>
         )}

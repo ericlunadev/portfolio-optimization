@@ -14,13 +14,10 @@ import {
 import { useTranslations } from "next-intl";
 import { formatPercent } from "@/lib/utils";
 import {
-  CHART_GRID_STROKE,
-  CHART_PALETTE,
-  COLOR_OPTIMAL,
-  COLOR_USER,
   ChartLegend,
   ChartTooltip,
   axisProps,
+  useChartColors,
 } from "./chart-theme";
 
 interface WeightData {
@@ -55,6 +52,7 @@ export function PortfolioWeightsChart({
   animate = true,
 }: PortfolioWeightsChartProps) {
   const t = useTranslations("PortfolioWeightsChart");
+  const colors = useChartColors();
   const effectiveTitle = title ?? t("title");
   if (comparisonData && comparisonData.length > 0) {
     const sortedCompData = [...comparisonData].sort(
@@ -71,8 +69,8 @@ export function PortfolioWeightsChart({
           {effectiveTitle && <h3 className="font-display text-lg">{effectiveTitle}</h3>}
           <ChartLegend
             items={[
-              { label: t("legendOptimal"), color: COLOR_OPTIMAL, variant: "line" },
-              { label: t("legendUser"), color: COLOR_USER, variant: "line" },
+              { label: t("legendOptimal"), color: colors.optimal, variant: "line" },
+              { label: t("legendUser"), color: colors.user, variant: "line" },
             ]}
           />
         </div>
@@ -88,19 +86,15 @@ export function PortfolioWeightsChart({
           >
             <defs>
               <linearGradient id="bar-optimal" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#c89853" />
-                <stop offset="100%" stopColor="#fcd9a8" />
+                <stop offset="0%" stopColor={colors.optimalBar[0]} />
+                <stop offset="100%" stopColor={colors.optimalBar[1]} />
               </linearGradient>
               <linearGradient id="bar-user" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#f59e0b" />
-                <stop offset="100%" stopColor="#fde68a" />
+                <stop offset="0%" stopColor={colors.userBar[0]} />
+                <stop offset="100%" stopColor={colors.userBar[1]} />
               </linearGradient>
             </defs>
-            <CartesianGrid
-              stroke={CHART_GRID_STROKE}
-              strokeDasharray="2 4"
-              horizontal={false}
-            />
+            <CartesianGrid strokeDasharray="2 4" horizontal={false} />
             <XAxis
               type="number"
               domain={[0, domainMax]}
@@ -115,7 +109,7 @@ export function PortfolioWeightsChart({
               tick={{ ...axisProps.tick, fontSize: 12 }}
             />
             <Tooltip
-              cursor={{ fill: "hsl(230 12% 16% / 0.5)" }}
+              cursor={{ fill: colors.cursor, fillOpacity: 0.25 }}
               content={({ active, payload, label }) => (
                 <ChartTooltip
                   active={active}
@@ -140,7 +134,6 @@ export function PortfolioWeightsChart({
                 formatter={(v: number) =>
                   v > 0.005 ? formatPercent(v, 1) : ""
                 }
-                fill={COLOR_OPTIMAL}
                 fontSize={11}
                 style={{ fontFamily: "var(--font-mono, monospace)" }}
               />
@@ -159,7 +152,6 @@ export function PortfolioWeightsChart({
                 formatter={(v: number) =>
                   v > 0.005 ? formatPercent(v, 1) : ""
                 }
-                fill={COLOR_USER}
                 fontSize={11}
                 style={{ fontFamily: "var(--font-mono, monospace)" }}
               />
@@ -188,7 +180,7 @@ export function PortfolioWeightsChart({
           barCategoryGap="20%"
         >
           <defs>
-            {CHART_PALETTE.map((c, i) => (
+            {colors.palette.map((c, i) => (
               <linearGradient
                 key={c.name}
                 id={`bar-${i}`}
@@ -202,11 +194,7 @@ export function PortfolioWeightsChart({
               </linearGradient>
             ))}
           </defs>
-          <CartesianGrid
-            stroke={CHART_GRID_STROKE}
-            strokeDasharray="2 4"
-            horizontal={false}
-          />
+          <CartesianGrid strokeDasharray="2 4" horizontal={false} />
           <XAxis
             type="number"
             domain={[0, domainMax]}
@@ -241,7 +229,7 @@ export function PortfolioWeightsChart({
             {sortedData.map((entry, index) => (
               <Cell
                 key={`cell-${entry.name}`}
-                fill={`url(#bar-${index % CHART_PALETTE.length})`}
+                fill={`url(#bar-${index % colors.palette.length})`}
               />
             ))}
             <LabelList
@@ -250,7 +238,6 @@ export function PortfolioWeightsChart({
               formatter={(v: number) =>
                 v > 0.005 ? formatPercent(v, 1) : ""
               }
-              fill="hsl(40 6% 80%)"
               fontSize={11}
               style={{ fontFamily: "var(--font-mono, monospace)" }}
             />

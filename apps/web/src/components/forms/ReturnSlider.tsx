@@ -44,7 +44,7 @@ export function ReturnSlider({
           <Slider.Range className="absolute h-full rounded-full bg-primary" />
         </Slider.Track>
         <Slider.Thumb
-          className="block h-5 w-5 rounded-full bg-primary shadow-lg ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="block h-5 w-5 rounded-full bg-primary shadow-md ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:shadow-lg"
           aria-label={effectiveLabel}
         />
       </Slider.Root>

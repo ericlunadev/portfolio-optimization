@@ -19,7 +19,7 @@ export function MobileTabBar() {
 
   return (
     <nav
-      className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border/50 bg-card/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+      className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card dark:border-border/50 dark:bg-card/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
       aria-label={tNav("ariaLabel")}
     >
       <ul className="grid grid-cols-4">
