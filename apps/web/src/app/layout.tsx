@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
-import { Instrument_Serif, Manrope } from "next/font/google";
+import { Instrument_Sans, Manrope } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages, getTranslations } from "next-intl/server";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -8,8 +8,7 @@ import { defaultTheme, isTheme, THEME_COOKIE, THEME_INIT_SCRIPT } from "@/lib/th
 import "@/styles/globals.css";
 import { Providers } from "./providers";
 
-const instrumentSerif = Instrument_Serif({
-  weight: "400",
+const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
@@ -61,7 +60,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body
-        className={`${instrumentSerif.variable} ${manrope.variable} font-sans`}
+        className={`${instrumentSans.variable} ${manrope.variable} font-sans`}
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
           <ThemeProvider
