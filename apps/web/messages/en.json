@@ -162,7 +162,7 @@
     "targetRiskInfoHow": "The optimizer searches for the portfolio with the highest expected return whose volatility does not exceed the target. If multiple portfolios meet the constraint, the one with the highest return is selected.",
     "targetRiskInfoFeasLabel": "Feasibility:",
     "targetRiskInfoFeas": "If the target risk is below the minimum achievable volatility (minimum-variance portfolio), the optimizer will return the lowest-risk portfolio possible. Typical values are between 10% and 25% annually.",
-    "riskFreeRateSlider": "Risk-free rate: {value}%",
+    "riskFreeRateLabel": "Risk-free rate (%)",
     "assetConstraintsLabel": "Asset Constraints",
     "assetConstraintsInfoAria": "Asset constraints information",
     "assetConstraintsInfoTitle": "Asset Constraints",
