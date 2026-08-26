@@ -32,7 +32,7 @@ optimization.post(
       tickers: z.array(z.string()).min(1),
       strategy: z.enum(["max-sharpe", "min-risk", "max-return", "target-return", "target-risk", "knee-point"]),
       w_max: z.number().min(0).max(1).default(1.0),
-      risk_free_rate: z.number().min(0).max(1).default(0),
+      risk_free_rate: z.number().min(0).default(0),
       target_return: z.number().optional(),
       target_risk: z.number().optional(),
       start_date: z.string().optional(),
@@ -262,7 +262,7 @@ optimization.post(
     z.object({
       tickers: z.array(z.string()),
       w_max: z.number().min(0).max(1).default(1.0),
-      risk_free_rate: z.number().min(0).max(0.2).default(0),
+      risk_free_rate: z.number().min(0).default(0),
       start_date: z.string().optional(),
       end_date: z.string().optional(),
       enforce_full_investment: z.boolean().default(true),

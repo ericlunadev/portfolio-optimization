@@ -162,7 +162,7 @@
     "targetRiskInfoHow": "El optimizador busca el portafolio con el mayor rendimiento esperado cuya volatilidad no exceda el valor objetivo. Si existen múltiples portafolios que cumplen la restricción, se selecciona el de mayor rendimiento.",
     "targetRiskInfoFeasLabel": "Factibilidad:",
     "targetRiskInfoFeas": "Si el riesgo objetivo es menor que la volatilidad mínima alcanzable (portafolio de mínima varianza), el optimizador devolverá el portafolio de menor riesgo posible. Valores típicos están entre 10% y 25% anual.",
-    "riskFreeRateSlider": "Tasa libre de riesgo: {value}%",
+    "riskFreeRateLabel": "Tasa libre de riesgo (%)",
     "assetConstraintsLabel": "Restricciones de Activos",
     "assetConstraintsInfoAria": "Información sobre restricciones de activos",
     "assetConstraintsInfoTitle": "Restricciones de Activos",

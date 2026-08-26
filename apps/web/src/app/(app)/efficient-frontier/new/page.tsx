@@ -20,6 +20,11 @@ import { decodeFormState, encodeFormState } from "@/lib/optimization-url";
 
 const currentYear = new Date().getFullYear();
 
+// 0.0525 -> "5.25", without the float noise of a plain multiplication.
+function percentFromRate(rate: number): string {
+  return String(Number((rate * 100).toFixed(6)));
+}
+
 function NewOptimizationForm() {
   const t = useTranslations("NewOptimization");
   const tCommon = useTranslations("Common");
@@ -47,6 +52,11 @@ function NewOptimizationForm() {
   const [targetReturn, setTargetReturn] = useState(initialState.targetReturn);
   const [targetRisk, setTargetRisk] = useState(initialState.targetRisk);
   const [riskFreeRate, setRiskFreeRate] = useState(initialState.riskFreeRate);
+  // The rate is stored as a decimal but typed as a percentage, so the raw text
+  // lives alongside it to keep intermediate states ("", "5.") editable.
+  const [riskFreeRateInput, setRiskFreeRateInput] = useState(() =>
+    percentFromRate(initialState.riskFreeRate)
+  );
   const [dateRange, setDateRange] = useState(initialState.dateRange);
   const [assets, setAssets] = useState<AssetRow[]>(initialState.assets);
 
@@ -483,18 +493,35 @@ function NewOptimizationForm() {
 
             {strategy === "max-sharpe" && (
               <div className="mt-3">
-                <label className="mb-1 block text-xs text-muted-foreground">
-                  {t("riskFreeRateSlider", { value: (riskFreeRate * 100).toFixed(3) })}
+                <label
+                  htmlFor="risk-free-rate"
+                  className="mb-1 block text-xs text-muted-foreground"
+                >
+                  {t("riskFreeRateLabel")}
                 </label>
-                <input
-                  type="range"
-                  min={0}
-                  max={0.10}
-                  step={0.00001}
-                  value={riskFreeRate}
-                  onChange={(e) => setRiskFreeRate(Number(e.target.value))}
-                  className="w-full"
-                />
+                <div className="relative w-32">
+                  <input
+                    id="risk-free-rate"
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    step={0.001}
+                    value={riskFreeRateInput}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setRiskFreeRateInput(val);
+                      const parsed = Number(val);
+                      setRiskFreeRate(
+                        val === "" || Number.isNaN(parsed) ? 0 : Math.max(0, parsed) / 100
+                      );
+                    }}
+                    onBlur={() => setRiskFreeRateInput(percentFromRate(riskFreeRate))}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-right text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    %
+                  </span>
+                </div>
               </div>
             )}
           </div>
