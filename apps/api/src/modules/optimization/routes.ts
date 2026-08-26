@@ -157,6 +157,8 @@ optimization.post(
       volatility: result.volatility,
       sharpe_ratio: sharpeRatio,
       strategy,
+      // Annualized covariances, in the same asset order as `weights`.
+      covariance_matrix: covMatrix,
       stats: {
         ci_95_low: result.return - 1.96 * result.volatility,
         ci_95_high: result.return + 1.96 * result.volatility,

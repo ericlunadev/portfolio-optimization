@@ -17,6 +17,7 @@ import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart
 import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsChart";
 import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
+import { MatrixTable } from "@/components/tables/MatrixTable";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
@@ -64,6 +65,19 @@ export function MarkowitzResults({
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
 
   const selectedTickers = params.tickers;
+
+  // Simulations saved before the API returned the matrix have no covariances,
+  // and a re-run is what fills them in — so the section renders conditionally.
+  const covarianceLabels = useMemo(
+    () => result.weights.map((w) => w.fund_name),
+    [result.weights]
+  );
+  const covarianceMatrix = useMemo(() => {
+    const matrix = result.covariance_matrix;
+    if (!matrix || matrix.length !== covarianceLabels.length) return null;
+    if (matrix.some((row) => row.length !== covarianceLabels.length)) return null;
+    return matrix;
+  }, [result.covariance_matrix, covarianceLabels.length]);
   const currentStrategy = OPTIMIZATION_STRATEGIES.find(
     (s) => s.value === params.strategy
   );
@@ -714,6 +728,25 @@ export function MarkowitzResults({
               </table>
             </div>
           </div>
+
+          {covarianceMatrix && (
+            <div className="glass-card p-4 md:p-5">
+              <h3 className="mb-1 font-display text-lg">
+                {t("covarianceMatrixTitle")}
+              </h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {t("covarianceMatrixSubtitle")}
+              </p>
+              <MatrixTable
+                labels={covarianceLabels}
+                matrix={covarianceMatrix}
+                formatValue={(v) => (v * 100).toFixed(4)}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("covarianceMatrixNote")}
+              </p>
+            </div>
+          )}
 
           {assetVolatilityData.length > 0 && (
             <div className="glass-card p-4 md:p-5">

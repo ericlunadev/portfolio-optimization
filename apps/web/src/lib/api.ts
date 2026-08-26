@@ -404,6 +404,11 @@ export interface OptimizationResultWithStrategy {
   volatility: number;
   sharpe_ratio: number;
   strategy: OptimizationStrategy;
+  /**
+   * Annualized covariances between assets, in the same order as `weights`.
+   * Optional: simulations saved before this field existed do not carry it.
+   */
+  covariance_matrix?: number[][];
   stats: {
     ci_95_low: number;
     ci_95_high: number;
