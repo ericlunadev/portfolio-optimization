@@ -4,6 +4,11 @@
     "retry": "Reintentar",
     "loading": "Cargando…"
   },
+  "legal": {
+    "results": "Resultado de una simulación sobre datos históricos. No es una recomendación de inversión: los rendimientos pasados no garantizan resultados futuros.",
+    "projections": "Probabilidades estimadas con un modelo estadístico a partir de la volatilidad histórica. No son una predicción del comportamiento futuro del mercado.",
+    "profile": "Tus respuestas solo ajustan los valores por defecto de la simulación. No constituyen una evaluación de idoneidad ni un perfil de inversionista regulado."
+  },
   "tabs": {
     "home": "Inicio",
     "optimizer": "Optimizador",

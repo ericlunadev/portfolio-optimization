@@ -38,6 +38,35 @@
     "yes": "Sí",
     "no": "No"
   },
+  "Legal": {
+    "footerNotice": "Herramienta educativa de simulación. Nada en esta aplicación constituye asesoría de inversión.",
+    "footerLink": "Aviso legal",
+    "results": "Resultado de una simulación sobre datos históricos. No es una recomendación de inversión: los rendimientos pasados no garantizan resultados futuros.",
+    "projections": "Probabilidades estimadas con un modelo estadístico a partir de la volatilidad histórica. No son una predicción del comportamiento futuro del mercado.",
+    "advisor": "La llamada es una sesión educativa sobre la metodología y tus resultados. No constituye asesoría de inversión personalizada ni una recomendación de compra o venta de instrumentos.",
+    "profile": "Tus respuestas solo ajustan los valores por defecto de la simulación. No constituyen una evaluación de idoneidad ni un perfil de inversionista regulado.",
+    "email": "Documento informativo generado automáticamente. No constituye asesoría de inversión. Los rendimientos pasados no garantizan resultados futuros.",
+    "page": {
+      "title": "Aviso legal",
+      "intro": "Lee este aviso antes de usar los resultados de la aplicación para tomar cualquier decisión de inversión.",
+      "lastUpdated": "Última actualización: {date}",
+      "backToApp": "Volver a la aplicación",
+      "noAdviceTitle": "No es asesoría de inversión",
+      "noAdviceBody": "Esta aplicación es una herramienta educativa y de análisis cuantitativo. Todo su contenido —simulaciones, gráficas, métricas, materiales de Academia y comunicaciones por correo— tiene fines informativos y educativos. Nada de lo que aquí se muestra constituye asesoría de inversión, recomendación personalizada, oferta o invitación para comprar o vender instrumento financiero alguno. Las decisiones de inversión son responsabilidad exclusiva del usuario.",
+      "pastPerformanceTitle": "Rendimientos pasados",
+      "pastPerformanceBody": "Los resultados se calculan sobre series de precios históricas. El rendimiento pasado no garantiza ni sugiere resultados futuros. Toda inversión implica riesgo, incluida la pérdida total del capital invertido.",
+      "modelLimitsTitle": "Límites del modelo",
+      "modelLimitsBody": "El optimizador implementa el modelo de media-varianza de Markowitz, que asume que los rendimientos esperados, las volatilidades y las correlaciones estimadas en el periodo histórico seleccionado se mantienen en el futuro. En la práctica esos parámetros cambian. Las simulaciones no incluyen comisiones, impuestos, deslizamiento ni costos de rebalanceo, y las probabilidades de rendimiento negativo se derivan de un modelo estadístico que puede subestimar eventos extremos.",
+      "dataSourcesTitle": "Fuentes de datos",
+      "dataSourcesBody": "Los datos de mercado provienen de proveedores externos, entre ellos Yahoo Finance, y se ofrecen tal cual. Pueden contener errores, retrasos o huecos, y no se garantiza su exactitud ni su disponibilidad.",
+      "advisoryTitle": "Llamadas con asesor",
+      "advisoryBody": "Las llamadas que pueden reservarse desde la aplicación son sesiones educativas de duración limitada, orientadas a explicar la metodología y a interpretar los resultados de tus simulaciones. No constituyen asesoría de inversión personalizada, gestión de portafolios ni intermediación de valores.",
+      "creditsTitle": "Créditos",
+      "creditsBody": "Los créditos son un medio interno de acceso a las funciones de la aplicación. No son un instrumento financiero, no representan valor monetario fuera de la aplicación y, conforme a los términos de compra, no son reembolsables ni transferibles.",
+      "jurisdictionTitle": "Registro y jurisdicción",
+      "jurisdictionBody": "El operador de esta aplicación no está registrado ni regulado como asesor en inversiones, intermediario del mercado de valores o entidad financiera ante la Comisión Nacional Bancaria y de Valores (CNBV) de México, la Securities and Exchange Commission (SEC) de Estados Unidos, ni ante ninguna otra autoridad. Antes de tomar decisiones, consulta a un profesional debidamente autorizado en tu jurisdicción."
+    }
+  },
   "Strategies": {
     "max-sharpe": {
       "label": "Máximo Sharpe (Óptimo)",
@@ -238,7 +267,7 @@
     "horizonHeader": "Horizonte",
     "probabilityHeader": "Probabilidad",
     "notAvailable": "N/D",
-    "disclaimer": "Documento informativo. Los rendimientos pasados no garantizan resultados futuros.",
+    "disclaimer": "Documento informativo. No constituye asesoría de inversión. Los rendimientos pasados no garantizan resultados futuros.",
     "page": "Página {current} de {total}"
   },
   "AdvisorCta": {

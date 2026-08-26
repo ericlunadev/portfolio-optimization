@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { Disclaimer } from '@/components/legal/disclaimer';
 import { ChartCard } from '@/components/optimizer/charts/chart-card';
 import { RiskReturnScatter } from '@/components/optimizer/charts/risk-return-scatter';
 import { WeightsBarChart } from '@/components/optimizer/charts/weights-bar-chart';
@@ -38,6 +39,8 @@ export function OptimizationResults({ result }: OptimizationResultsProps) {
           hint={`${t('optimizer.probNeg2y')}: ${formatPercent(result.stats.prob_neg_2y)}`}
         />
       </View>
+
+      <Disclaimer variant="projections" />
 
       <ChartCard title={t('optimizer.chartRiskReturnTitle')} footer={<ScatterLegend />}>
         {(width) => <RiskReturnScatter result={result} width={width} />}
@@ -84,6 +87,8 @@ export function OptimizationResults({ result }: OptimizationResultsProps) {
           </View>
         ))}
       </View>
+
+      <Disclaimer variant="results" boxed />
     </View>
   );
 }

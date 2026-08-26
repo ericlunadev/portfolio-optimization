@@ -38,6 +38,35 @@
     "yes": "Yes",
     "no": "No"
   },
+  "Legal": {
+    "footerNotice": "Educational simulation tool. Nothing in this application constitutes investment advice.",
+    "footerLink": "Legal notice",
+    "results": "Result of a simulation over historical data. This is not an investment recommendation: past performance does not guarantee future results.",
+    "projections": "Probabilities estimated by a statistical model from historical volatility. They are not a prediction of future market behaviour.",
+    "advisor": "The call is an educational session about the methodology and your results. It is not personalized investment advice, nor a recommendation to buy or sell any instrument.",
+    "profile": "Your answers only adjust the simulation's default values. They are not a suitability assessment or a regulated investor profile.",
+    "email": "Automatically generated informational document. It does not constitute investment advice. Past performance does not guarantee future results.",
+    "page": {
+      "title": "Legal notice",
+      "intro": "Read this notice before using the application's results to make any investment decision.",
+      "lastUpdated": "Last updated: {date}",
+      "backToApp": "Back to the app",
+      "noAdviceTitle": "Not investment advice",
+      "noAdviceBody": "This application is an educational and quantitative analysis tool. All of its content — simulations, charts, metrics, Academia material and email communications — is provided for informational and educational purposes. Nothing shown here constitutes investment advice, a personalized recommendation, or an offer or solicitation to buy or sell any financial instrument. Investment decisions are the user's sole responsibility.",
+      "pastPerformanceTitle": "Past performance",
+      "pastPerformanceBody": "Results are computed over historical price series. Past performance neither guarantees nor suggests future results. All investing carries risk, including the total loss of the capital invested.",
+      "modelLimitsTitle": "Model limitations",
+      "modelLimitsBody": "The optimizer implements Markowitz mean-variance analysis, which assumes that the expected returns, volatilities and correlations estimated over the selected historical window persist into the future. In practice those parameters change. Simulations exclude commissions, taxes, slippage and rebalancing costs, and the negative-return probabilities come from a statistical model that may understate extreme events.",
+      "dataSourcesTitle": "Data sources",
+      "dataSourcesBody": "Market data comes from third-party providers, including Yahoo Finance, and is provided as is. It may contain errors, delays or gaps, and its accuracy and availability are not guaranteed.",
+      "advisoryTitle": "Advisor calls",
+      "advisoryBody": "Calls bookable from the application are time-limited educational sessions intended to explain the methodology and help interpret your simulation results. They are not personalized investment advice, portfolio management, or securities brokerage.",
+      "creditsTitle": "Credits",
+      "creditsBody": "Credits are an internal means of access to the application's features. They are not a financial instrument, hold no monetary value outside the application and, per the purchase terms, are non-refundable and non-transferable.",
+      "jurisdictionTitle": "Registration and jurisdiction",
+      "jurisdictionBody": "The operator of this application is not registered or regulated as an investment adviser, securities broker or financial institution with Mexico's Comisión Nacional Bancaria y de Valores (CNBV), the United States Securities and Exchange Commission (SEC), or any other authority. Consult a properly licensed professional in your jurisdiction before making decisions."
+    }
+  },
   "Strategies": {
     "max-sharpe": {
       "label": "Max Sharpe (Optimal)",
@@ -238,7 +267,7 @@
     "horizonHeader": "Horizon",
     "probabilityHeader": "Probability",
     "notAvailable": "N/A",
-    "disclaimer": "Informational document. Past performance does not guarantee future results.",
+    "disclaimer": "Informational document. This is not investment advice. Past performance does not guarantee future results.",
     "page": "Page {current} of {total}"
   },
   "AdvisorCta": {

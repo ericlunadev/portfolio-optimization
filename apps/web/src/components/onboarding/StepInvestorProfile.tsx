@@ -7,6 +7,7 @@ import type {
   InvestmentHorizon,
   RiskBehavior,
 } from "@/lib/api";
+import { Disclaimer } from "@/components/legal/Disclaimer";
 import { WhyTooltip } from "./WhyTooltip";
 
 export interface Step2Values {
@@ -148,6 +149,8 @@ export function StepInvestorProfile({ value, onChange }: Props) {
           labelFor={(v) => t(GOAL_KEY[v])}
         />
       </div>
+
+      <Disclaimer variant="profile" boxed />
     </div>
   );
 }

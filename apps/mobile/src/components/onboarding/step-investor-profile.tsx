@@ -1,5 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
+import { Disclaimer } from '@/components/legal/disclaimer';
 import { SingleSelectChips } from '@/components/onboarding/chip-group';
 import { WhyTooltip } from '@/components/onboarding/why-tooltip';
 import { ThemedText } from '@/components/themed-text';
@@ -110,6 +111,8 @@ export function StepInvestorProfile({ value, onChange }: Props) {
           labelFor={(option) => t(`onboarding.step2.${GOAL_KEY[option]}`)}
         />
       </View>
+
+      <Disclaimer variant="profile" boxed />
     </View>
   );
 }
