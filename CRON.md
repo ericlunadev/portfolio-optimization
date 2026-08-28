@@ -276,6 +276,10 @@ Content per simulation: name, period (**DD/MM/YYYY**, per CLAUDE.md), the three 
 metrics with delta vs the previous `simulation_runs` row, top weight changes, and a link
 into the app.
 
+The template **must** render `investingDisclaimer` (already on `EmailMessages`, filled for
+both locales) in its footer. An email leaves the app, so it carries no surrounding UI and
+has to state the notice itself — same reason the PDF export does.
+
 ### Locale
 
 `getLocaleFromRequest` (`apps/api/src/lib/email/locale.ts`) reads the `NEXT_LOCALE` cookie —

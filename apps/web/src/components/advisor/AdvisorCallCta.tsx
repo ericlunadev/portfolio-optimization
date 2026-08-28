@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CalendarClock, ExternalLink, Loader2, X } from "lucide-react";
 import { useWallet, useBookAdvisorCall } from "@/hooks/useBilling";
+import { Disclaimer } from "@/components/legal/Disclaimer";
 import { ApiError } from "@/lib/api";
 
 const ADVISOR_CALL_COST = 100;
@@ -55,23 +56,26 @@ export function AdvisorCallCta() {
 
   return (
     <>
-      <div className="glass-card mt-6 flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-start gap-3">
-          <div className="rounded-lg bg-primary/15 p-2 text-primary dark:bg-primary/10">
-            <CalendarClock className="h-5 w-5" />
+      <div className="glass-card mt-6 p-5">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-lg bg-primary/15 p-2 text-primary dark:bg-primary/10">
+              <CalendarClock className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="font-medium text-foreground">{t("title")}</h3>
+              <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="font-medium text-foreground">{t("title")}</h3>
-            <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
-          </div>
+          <button
+            type="button"
+            onClick={openModal}
+            className="shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
+          >
+            {t("button")}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={openModal}
-          className="shrink-0 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110"
-        >
-          {t("button")}
-        </button>
+        <Disclaimer variant="advisor" className="mt-4" />
       </div>
 
       {open && (
@@ -149,6 +153,8 @@ function AdvisorModal({
                 {t("modalBalance", { balance })}
               </p>
             </div>
+
+            <Disclaimer variant="advisor" boxed />
 
             {errorMessage && (
               <div className="rounded-lg border border-rose-600/40 bg-rose-500/10 p-3 text-sm text-rose-700 dark:border-rose-500/30 dark:text-rose-200">

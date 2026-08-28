@@ -21,6 +21,7 @@ import { MatrixTable } from "@/components/tables/MatrixTable";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
+import { Disclaimer } from "@/components/legal/Disclaimer";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import {
   useChartColors,
@@ -774,6 +775,8 @@ export function MarkowitzResults({
         </Tabs.Content>
       </Tabs.Root>
 
+      <Disclaimer variant="results" boxed className="mt-6" />
+
       <AdvisorCallCta />
 
       {pdfExport.offscreenCharts}
@@ -922,6 +925,7 @@ function ProbNegBars({ stats }: ProbNegBarsProps) {
           </div>
         );
       })}
+      <Disclaimer variant="projections" className="pt-1" />
     </div>
   );
 }

@@ -4,6 +4,11 @@
     "retry": "Retry",
     "loading": "Loading…"
   },
+  "legal": {
+    "results": "Result of a simulation over historical data. This is not an investment recommendation: past performance does not guarantee future results.",
+    "projections": "Probabilities estimated by a statistical model from historical volatility. They are not a prediction of future market behaviour.",
+    "profile": "Your answers only adjust the simulation's default values. They are not a suitability assessment or a regulated investor profile."
+  },
   "tabs": {
     "home": "Home",
     "optimizer": "Optimizer",
