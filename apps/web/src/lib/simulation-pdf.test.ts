@@ -82,6 +82,7 @@ const labels: SimulationPdfLabels = {
   tableExpReturn: "Exp. Return",
   tableVolatility: "Volatility",
   tableWeight: "Weight",
+  tableLimits: "Limits",
   horizonHeader: "Horizon",
   probabilityHeader: "Probability",
   horizon1m: "1 Month",

@@ -45,6 +45,10 @@ export const api = {
     strategy: OptimizationStrategy,
     options: {
       wMax?: number;
+      /** Per-asset minimum weight as a decimal, aligned with `tickers`. */
+      wMinPerAsset?: (number | null)[];
+      /** Per-asset maximum weight as a decimal, aligned with `tickers`. */
+      wMaxPerAsset?: (number | null)[];
       riskFreeRate?: number;
       targetReturn?: number;
       targetRisk?: number;
@@ -62,6 +66,8 @@ export const api = {
         tickers,
         strategy,
         w_max: options.wMax ?? 1,
+        w_min_per_asset: options.wMinPerAsset,
+        w_max_per_asset: options.wMaxPerAsset,
         risk_free_rate: options.riskFreeRate ?? 0,
         target_return: options.targetReturn,
         target_risk: options.targetRisk,
@@ -134,7 +140,9 @@ export const api = {
     enforceFullInvestment: boolean = true,
     allowShortSelling: boolean = false,
     maxLeverage: number = 1.0,
-    wMax: number = 1.0
+    wMax: number = 1.0,
+    wMinPerAsset?: (number | null)[],
+    wMaxPerAsset?: (number | null)[]
   ) {
     const res = await apiFetch(`${API_BASE}/optimization/efficient-frontier-tickers`, {
       method: "POST",
@@ -147,6 +155,8 @@ export const api = {
         allow_short_selling: allowShortSelling,
         max_leverage: maxLeverage,
         w_max: wMax,
+        w_min_per_asset: wMinPerAsset,
+        w_max_per_asset: wMaxPerAsset,
       }),
     });
     return handleResponse<EfficientFrontierResponse>(res);
@@ -476,9 +486,24 @@ export interface DateRange {
   endYear: number;
 }
 
+/**
+ * One row of the asset picker. `allocation` is the user's own current holding,
+ * used for the comparison chart. `minWeight` / `maxWeight` are the percentage
+ * limits the optimizer must allocate between; both are optional and absent on
+ * simulations saved before per-asset limits existed.
+ */
+export interface SimulationAsset {
+  ticker: string;
+  allocation: number | null;
+  /** Minimum weight in percent (0-100), or null for no floor. */
+  minWeight?: number | null;
+  /** Maximum weight in percent (0-100), or null for no cap. */
+  maxWeight?: number | null;
+}
+
 export interface SimulationParams {
   tickers: string[];
-  assets: { ticker: string; allocation: number | null }[];
+  assets: SimulationAsset[];
   dateRange: DateRange;
   strategy: OptimizationStrategy;
   targetReturn?: number;
@@ -490,6 +515,8 @@ export interface SimulationParams {
   maxLeverage: number;
   assetConstraints: boolean;
   wMax: number;
+  /** Whether the per-asset min/max limits carried on `assets` are applied. */
+  assetLimits?: boolean;
   showFrontier: boolean;
 }
 

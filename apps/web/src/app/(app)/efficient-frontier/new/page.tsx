@@ -17,6 +17,7 @@ import { LessonButton } from "@/components/academia/LessonButton";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
 import { decodeFormState, encodeFormState } from "@/lib/optimization-url";
+import { toWeightBounds, validateAssetLimits } from "@/lib/asset-limits";
 
 const currentYear = new Date().getFullYear();
 
@@ -44,6 +45,7 @@ function NewOptimizationForm() {
   const [showFrontier, setShowFrontier] = useState(initialState.showFrontier);
   const [assetConstraints, setAssetConstraints] = useState(initialState.assetConstraints);
   const [wMax, setWMax] = useState(initialState.wMax);
+  const [assetLimits, setAssetLimits] = useState(initialState.assetLimits);
   const [enforceFullInvestment, setEnforceFullInvestment] = useState(initialState.enforceFullInvestment);
   const [allowShortSelling, setAllowShortSelling] = useState(initialState.allowShortSelling);
   const [useLeverage, setUseLeverage] = useState(initialState.useLeverage);
@@ -84,11 +86,12 @@ function NewOptimizationForm() {
           maxLeverage,
           assetConstraints,
           wMax,
+          assetLimits,
           showFrontier,
         },
         currentYear
       ).toString(),
-    [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, showFrontier]
+    [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]
   );
 
   useEffect(() => {
@@ -101,7 +104,14 @@ function NewOptimizationForm() {
 
   const currentSimulationParams = useMemo((): SimulationParams => ({
     tickers: assets.map((a) => a.ticker).filter(Boolean),
-    assets: assets.filter((a) => a.ticker).map((a) => ({ ticker: a.ticker, allocation: a.allocation })),
+    assets: assets
+      .filter((a) => a.ticker)
+      .map((a) => ({
+        ticker: a.ticker,
+        allocation: a.allocation,
+        minWeight: a.minWeight,
+        maxWeight: a.maxWeight,
+      })),
     dateRange,
     strategy,
     targetReturn: strategy === "target-return" ? targetReturn : undefined,
@@ -113,8 +123,9 @@ function NewOptimizationForm() {
     maxLeverage,
     assetConstraints,
     wMax,
+    assetLimits,
     showFrontier,
-  }), [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, showFrontier]);
+  }), [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]);
 
   const selectedTickers = useMemo(
     () => assets.map((a) => a.ticker).filter(Boolean),
@@ -130,6 +141,53 @@ function NewOptimizationForm() {
   }, [assets]);
 
   const isAllocationValid = !hasAnyAllocation || Math.abs(totalAllocation - 100) < 0.01;
+
+  // The optimizer allocates `maxLeverage` of capital, so that — not a flat
+  // 100% — is what the per-asset floors and caps have to bracket.
+  const targetPercent = (useLeverage ? maxLeverage : 1) * 100;
+
+  const limitsError = useMemo(
+    () =>
+      validateAssetLimits(currentSimulationParams.assets, {
+        assetLimits,
+        targetPercent,
+        enforceFullInvestment,
+        fallbackMaxPercent: assetConstraints ? wMax * 100 : 100,
+      }),
+    [
+      currentSimulationParams.assets,
+      assetLimits,
+      targetPercent,
+      enforceFullInvestment,
+      assetConstraints,
+      wMax,
+    ]
+  );
+
+  const limitsErrorMessage = useMemo(() => {
+    if (!limitsError) return null;
+    switch (limitsError.kind) {
+      case "minAboveMax":
+        return t("limitsMinAboveMax", { ticker: limitsError.ticker });
+      case "outOfRange":
+        return t("limitsOutOfRange", { ticker: limitsError.ticker });
+      case "minTotalTooHigh":
+        return t("limitsMinTotalTooHigh", {
+          total: limitsError.total.toFixed(1),
+          target: limitsError.target.toFixed(0),
+        });
+      case "maxTotalTooLow":
+        return t("limitsMaxTotalTooLow", {
+          total: limitsError.total.toFixed(1),
+          target: limitsError.target.toFixed(0),
+        });
+    }
+  }, [limitsError, t]);
+
+  const weightBounds = useMemo(
+    () => toWeightBounds(currentSimulationParams.assets, assetLimits),
+    [currentSimulationParams.assets, assetLimits]
+  );
 
   const startDate = useMemo(() => {
     const month = String(dateRange.startMonth).padStart(2, "0");
@@ -154,6 +212,8 @@ function NewOptimizationForm() {
     strategy,
     {
       wMax: assetConstraints ? wMax : 1,
+      wMinPerAsset: weightBounds?.wMinPerAsset,
+      wMaxPerAsset: weightBounds?.wMaxPerAsset,
       riskFreeRate: strategy === "max-sharpe" ? riskFreeRate : 0,
       targetReturn: strategy === "target-return" ? targetReturn : undefined,
       targetRisk: strategy === "target-risk" ? targetRisk : undefined,
@@ -183,7 +243,7 @@ function NewOptimizationForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubmitted, optimizationResult]);
 
-  const canProceed = selectedTickers.length >= 2 && isAllocationValid;
+  const canProceed = selectedTickers.length >= 2 && isAllocationValid && !limitsError;
 
   if (isSessionPending) {
     return (
@@ -666,7 +726,63 @@ function NewOptimizationForm() {
             label={t("lessonAssets")}
           />
         </div>
-        <AssetAllocationForm assets={assets} onChange={setAssets} />
+
+        <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border pb-4 dark:border-border/50">
+          <input
+            type="checkbox"
+            id="assetLimits"
+            checked={assetLimits}
+            onChange={(e) => setAssetLimits(e.target.checked)}
+            className="h-4 w-4 rounded border-input"
+          />
+          <label htmlFor="assetLimits" className="text-sm">
+            {t("assetLimitsLabel")}
+          </label>
+          <Popover.Root>
+            <Popover.Trigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={t("assetLimitsInfoAria")}
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                className="z-50 w-[calc(100vw-2rem)] max-w-xs rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg sm:w-80"
+                sideOffset={5}
+                align="start"
+              >
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">{t("assetLimitsInfoTitle")}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {t("assetLimitsInfoIntro")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>{t("assetLimitsInfoEmptyLabel")}</strong>{" "}
+                    {t("assetLimitsInfoEmpty")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>{t("assetLimitsInfoFeasibleLabel")}</strong>{" "}
+                    {t("assetLimitsInfoFeasible")}
+                  </p>
+                </div>
+                <Popover.Arrow className="fill-border" />
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+          <p className="w-full text-xs text-muted-foreground">
+            {t("assetLimitsHelp")}
+          </p>
+        </div>
+
+        <AssetAllocationForm
+          assets={assets}
+          onChange={setAssets}
+          showLimits={assetLimits}
+          limitsError={limitsErrorMessage}
+        />
       </div>
 
       {/* Submit */}
@@ -675,6 +791,8 @@ function NewOptimizationForm() {
           <p className="text-sm text-muted-foreground sm:mr-4">
             {selectedTickers.length < 2
               ? t("needAtLeastTwo")
+              : limitsErrorMessage
+              ? limitsErrorMessage
               : t("allocationMustSumTo100", { value: totalAllocation.toFixed(1) })}
           </p>
         )}

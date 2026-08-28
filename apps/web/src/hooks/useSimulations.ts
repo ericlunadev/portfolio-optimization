@@ -7,6 +7,7 @@ import {
   OptimizationResultWithStrategy,
   SimulationListItem,
 } from "@/lib/api";
+import { toWeightBounds } from "@/lib/asset-limits";
 
 export function useSimulations(enabled: boolean = true) {
   return useQuery({
@@ -127,8 +128,12 @@ export function useRerunSimulation() {
       ).getDate();
       const endDate = `${nextParams.dateRange.endYear}-${endMonth}-${String(lastDay).padStart(2, "0")}`;
 
+      const weightBounds = toWeightBounds(nextParams.assets, nextParams.assetLimits);
+
       const result = await api.optimizePortfolio(nextParams.tickers, nextParams.strategy, {
         wMax: nextParams.assetConstraints ? nextParams.wMax : 1,
+        wMinPerAsset: weightBounds?.wMinPerAsset,
+        wMaxPerAsset: weightBounds?.wMaxPerAsset,
         riskFreeRate: nextParams.strategy === "max-sharpe" ? nextParams.riskFreeRate : 0,
         targetReturn:
           nextParams.strategy === "target-return" ? nextParams.targetReturn : undefined,

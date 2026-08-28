@@ -12,6 +12,7 @@ import {
   OptimizationResult,
 } from "../../lib/math/optimizer.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
+import { validateAssetBounds } from "../../lib/math/bounds.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { meterRequest, newIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
@@ -19,6 +20,13 @@ import { defaultLookbackPeriod } from "../../lib/dates.js";
 import { fetchTickerPrices } from "../../lib/yahoo.js";
 
 const optimization = new Hono();
+
+/**
+ * Per-asset weight bounds, aligned index-for-index with `tickers`. A `null`
+ * entry falls back to the portfolio-wide `w_max` (and to 0, or `-w_max` with
+ * short selling, for the minimum).
+ */
+const perAssetBoundSchema = z.array(z.number().min(-1).max(1).nullable()).optional();
 
 // All optimization endpoints require authentication
 optimization.use("*", authMiddleware);
@@ -32,6 +40,8 @@ optimization.post(
       tickers: z.array(z.string()).min(1),
       strategy: z.enum(["max-sharpe", "min-risk", "max-return", "target-return", "target-risk", "knee-point"]),
       w_max: z.number().min(0).max(1).default(1.0),
+      w_min_per_asset: perAssetBoundSchema,
+      w_max_per_asset: perAssetBoundSchema,
       risk_free_rate: z.number().min(0).default(0),
       target_return: z.number().optional(),
       target_risk: z.number().optional(),
@@ -43,6 +53,13 @@ optimization.post(
     })
   ),
   async (c) => {
+    // Validate the weight bounds before metering: an infeasible floor/cap
+    // combination is a bad request, and the user should not be charged for it.
+    const boundsError = validateAssetBounds(c.req.valid("json"));
+    if (boundsError) {
+      return c.json(boundsError, 400);
+    }
+
     const user = c.get("user");
     const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
     const spend = await meterRequest(user, 1, idempotencyKey);
@@ -52,6 +69,8 @@ optimization.post(
       tickers,
       strategy,
       w_max,
+      w_min_per_asset,
+      w_max_per_asset,
       risk_free_rate,
       target_return,
       target_risk,
@@ -71,6 +90,8 @@ optimization.post(
       case "max-sharpe":
         result = findMaxSharpePortfolio(expectedReturns, covMatrix, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           riskFreeRate: risk_free_rate,
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
@@ -83,6 +104,8 @@ optimization.post(
         result = findMinVariancePortfolio(expectedReturns, covMatrix, {
           rMin: Math.min(...expectedReturns) * max_leverage,
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
           maxLeverage: max_leverage,
@@ -92,6 +115,10 @@ optimization.post(
       case "max-return":
         result = findMaxReturnPortfolio(expectedReturns, covMatrix, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
+          allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
         });
         break;
 
@@ -101,6 +128,8 @@ optimization.post(
         }
         result = findTargetReturnPortfolio(expectedReturns, covMatrix, target_return, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
           maxLeverage: max_leverage,
@@ -113,6 +142,8 @@ optimization.post(
         }
         result = findTargetRiskPortfolio(expectedReturns, covMatrix, target_risk, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
@@ -123,6 +154,8 @@ optimization.post(
       case "knee-point":
         result = findKneePointPortfolio(expectedReturns, covMatrix, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
@@ -184,6 +217,8 @@ optimization.post(
       tickers: z.array(z.string()),
       r_min: z.number().min(0).max(1),
       w_max: z.number().min(0).max(1).default(1.0),
+      w_min_per_asset: perAssetBoundSchema,
+      w_max_per_asset: perAssetBoundSchema,
       start_date: z.string().optional(),
       end_date: z.string().optional(),
       // Constraint toggles
@@ -193,6 +228,13 @@ optimization.post(
     })
   ),
   async (c) => {
+    // Validate the weight bounds before metering: an infeasible floor/cap
+    // combination is a bad request, and the user should not be charged for it.
+    const boundsError = validateAssetBounds(c.req.valid("json"));
+    if (boundsError) {
+      return c.json(boundsError, 400);
+    }
+
     const user = c.get("user");
     const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
     const spend = await meterRequest(user, 1, idempotencyKey);
@@ -202,6 +244,8 @@ optimization.post(
       tickers,
       r_min,
       w_max,
+      w_min_per_asset,
+      w_max_per_asset,
       start_date,
       end_date,
       enforce_full_investment,
@@ -215,6 +259,8 @@ optimization.post(
     const result = findMinVariancePortfolio(expectedReturns, covMatrix, {
       rMin: r_min,
       wMax: w_max,
+      wMinPerAsset: w_min_per_asset,
+      wMaxPerAsset: w_max_per_asset,
       enforceFullInvestment: enforce_full_investment,
       allowShortSelling: allow_short_selling,
       maxLeverage: max_leverage,
@@ -264,6 +310,8 @@ optimization.post(
     z.object({
       tickers: z.array(z.string()),
       w_max: z.number().min(0).max(1).default(1.0),
+      w_min_per_asset: perAssetBoundSchema,
+      w_max_per_asset: perAssetBoundSchema,
       risk_free_rate: z.number().min(0).default(0),
       start_date: z.string().optional(),
       end_date: z.string().optional(),
@@ -273,6 +321,13 @@ optimization.post(
     })
   ),
   async (c) => {
+    // Validate the weight bounds before metering: an infeasible floor/cap
+    // combination is a bad request, and the user should not be charged for it.
+    const boundsError = validateAssetBounds(c.req.valid("json"));
+    if (boundsError) {
+      return c.json(boundsError, 400);
+    }
+
     const user = c.get("user");
     const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
     const spend = await meterRequest(user, 1, idempotencyKey);
@@ -281,6 +336,8 @@ optimization.post(
     const {
       tickers,
       w_max,
+      w_min_per_asset,
+      w_max_per_asset,
       risk_free_rate,
       start_date,
       end_date,
@@ -294,6 +351,8 @@ optimization.post(
 
     const result = findMaxSharpePortfolio(expectedReturns, covMatrix, {
       wMax: w_max,
+      wMinPerAsset: w_min_per_asset,
+      wMaxPerAsset: w_max_per_asset,
       riskFreeRate: risk_free_rate,
       numFrontierPoints: 50,
       enforceFullInvestment: enforce_full_investment,
@@ -351,6 +410,8 @@ optimization.post(
       start_date: z.string().optional(),
       end_date: z.string().optional(),
       w_max: z.number().min(0).max(1).default(1.0),
+      w_min_per_asset: perAssetBoundSchema,
+      w_max_per_asset: perAssetBoundSchema,
       // Constraint toggles (for consistent frontier calculation)
       enforce_full_investment: z.boolean().default(true),
       allow_short_selling: z.boolean().default(false),
@@ -358,17 +419,26 @@ optimization.post(
     })
   ),
   async (c) => {
+    // Validate the weight bounds before metering: an infeasible floor/cap
+    // combination is a bad request, and the user should not be charged for it.
+    const boundsError = validateAssetBounds(c.req.valid("json"));
+    if (boundsError) {
+      return c.json(boundsError, 400);
+    }
+
     const user = c.get("user");
     const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
     const spend = await meterRequest(user, 1, idempotencyKey);
 
     try {
-    const { tickers, start_date, end_date, w_max, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");
+    const { tickers, start_date, end_date, w_max, w_min_per_asset, w_max_per_asset, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");
 
     const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
     const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
 
     const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 25, w_max, {
+      wMinPerAsset: w_min_per_asset,
+      wMaxPerAsset: w_max_per_asset,
       enforceFullInvestment: enforce_full_investment,
       allowShortSelling: allow_short_selling,
       maxLeverage: max_leverage,
