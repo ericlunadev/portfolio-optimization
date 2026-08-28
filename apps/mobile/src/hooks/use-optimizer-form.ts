@@ -1,6 +1,13 @@
 import { useState } from 'react';
 
 import type { OptimizationStrategy, OptimizeRequest } from '@/lib/api/optimization';
+import {
+  EMPTY_LIMIT,
+  toWeightBounds,
+  validateAssetLimits,
+  type AssetLimit,
+  type AssetLimits,
+} from '@/lib/optimizer/asset-limits';
 import { strategyParam } from '@/lib/optimizer/strategies';
 
 const MIN_TICKERS = 2;
@@ -68,6 +75,11 @@ export function useOptimizerForm() {
   const [useAssetConstraints, setUseAssetConstraints] = useState(false);
   const [maxWeightPerAsset, setMaxWeightPerAsset] = useState('40');
 
+  // Individual min/max per ticker — when off, no bound arrays are sent and each
+  // asset keeps the portfolio-wide range.
+  const [useAssetLimits, setUseAssetLimits] = useState(false);
+  const [assetLimits, setAssetLimits] = useState<AssetLimits>({});
+
   const param = strategyParam(strategy);
 
   const hasEnoughTickers = tickers.length >= MIN_TICKERS;
@@ -96,12 +108,22 @@ export function useOptimizerForm() {
     !useAssetConstraints ||
     (isValidNumber(maxWeightPerAsset) && wMaxValue > 0 && wMaxValue <= 1);
 
+  // Per-asset limits must leave at least one satisfiable portfolio. The floors
+  // and caps have to bracket the capital being allocated, which leverage moves.
+  const assetLimitsError = validateAssetLimits(tickers, assetLimits, {
+    enabled: useAssetLimits,
+    targetPercent: (useLeverage && leverageValid ? leverageValue : 1) * 100,
+    enforceFullInvestment,
+    fallbackMaxPercent: useAssetConstraints && assetConstraintsValid ? wMaxValue * 100 : 100,
+  });
+
   const isValid =
     hasEnoughTickers &&
     paramValid &&
     !dateRangeInvalid &&
     leverageValid &&
-    assetConstraintsValid;
+    assetConstraintsValid &&
+    assetLimitsError === null;
 
   function buildRequest(): OptimizeRequest {
     return {
@@ -120,6 +142,7 @@ export function useOptimizerForm() {
         : {}),
       ...(useLeverage ? { max_leverage: leverageValue } : {}),
       ...(useAssetConstraints ? { w_max: wMaxValue } : {}),
+      ...(toWeightBounds(tickers, assetLimits, useAssetLimits) ?? {}),
       enforce_full_investment: enforceFullInvestment,
       allow_short_selling: allowShortSelling,
     };
@@ -134,6 +157,21 @@ export function useOptimizerForm() {
 
   function removeTicker(symbol: string) {
     setTickers(tickers.filter((t) => t !== symbol));
+    // Drop the removed ticker's limits so re-adding it starts clean and a stale
+    // floor cannot keep the form invalid for an asset no longer in the list.
+    setAssetLimits((current) => {
+      if (!(symbol in current)) return current;
+      const next = { ...current };
+      delete next[symbol];
+      return next;
+    });
+  }
+
+  function setAssetLimit(symbol: string, field: keyof AssetLimit, value: string) {
+    setAssetLimits((current) => ({
+      ...current,
+      [symbol]: { ...EMPTY_LIMIT, ...current[symbol], [field]: value },
+    }));
   }
 
   return {
@@ -175,6 +213,12 @@ export function useOptimizerForm() {
     setUseAssetConstraints,
     maxWeightPerAsset,
     setMaxWeightPerAsset,
+    // Per-asset min/max limits
+    useAssetLimits,
+    setUseAssetLimits,
+    assetLimits,
+    setAssetLimit,
+    assetLimitsError,
     hasEnoughTickers,
     isValid,
     buildRequest,
