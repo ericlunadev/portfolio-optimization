@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   useEfficientFrontierTickers,
   usePortfolioCumulativeReturnsTickers,
@@ -30,6 +30,14 @@ import {
 } from "@/components/charts/chart-theme";
 import { PdfChartSpec } from "@/components/pdf/SimulationPdfCharts";
 import { useSimulationPdfExport } from "@/hooks/useSimulationPdfExport";
+import { ReportConfigDialog } from "@/components/pdf/ReportConfigDialog";
+import {
+  ReportAvailability,
+  ReportConfig,
+  defaultReportConfig,
+  loadReportConfig,
+  saveReportConfig,
+} from "@/lib/report-config";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useTranslations } from "next-intl";
 import {
@@ -65,6 +73,15 @@ export function MarkowitzResults({
   // describe, so they follow the active theme rather than a fixed set.
   const chartColors = useChartColors();
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
+  const [isReportConfigOpen, setIsReportConfigOpen] = useState(false);
+  // Starts at the default so the server and the first client render agree; the
+  // remembered choice is read from `localStorage` right after hydration.
+  const [reportConfig, setReportConfig] = useState<ReportConfig>(
+    defaultReportConfig
+  );
+  useEffect(() => {
+    setReportConfig(loadReportConfig());
+  }, []);
 
   const selectedTickers = params.tickers;
 
@@ -459,9 +476,19 @@ export function MarkowitzResults({
   ]);
 
   const fallbackTitle = `${params.tickers.join(", ")} - ${strategyLabel}`;
+  const reportTitle = title?.trim() || fallbackTitle;
+
+  const reportAvailability = useMemo<ReportAvailability>(
+    () => ({
+      comparison: userPortfolioStats !== null,
+      assetLimits: !!params.assetLimits,
+      chartKeys: pdfCharts.map((chart) => chart.key),
+    }),
+    [params.assetLimits, pdfCharts, userPortfolioStats]
+  );
 
   const pdfExport = useSimulationPdfExport({
-    title: title?.trim() || fallbackTitle,
+    title: reportTitle,
     strategyLabel,
     params,
     result,
@@ -527,7 +554,7 @@ export function MarkowitzResults({
         )}
         <button
           type="button"
-          onClick={pdfExport.exportPdf}
+          onClick={() => setIsReportConfigOpen(true)}
           disabled={pdfExport.isExporting}
           className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border disabled:opacity-60"
         >
@@ -539,6 +566,21 @@ export function MarkowitzResults({
           {pdfExport.isExporting ? t("exportPdfPreparing") : t("exportPdf")}
         </button>
       </div>
+
+      <ReportConfigDialog
+        open={isReportConfigOpen}
+        onOpenChange={setIsReportConfigOpen}
+        config={reportConfig}
+        availability={reportAvailability}
+        charts={pdfCharts}
+        defaultTitle={reportTitle}
+        onGenerate={(config) => {
+          setReportConfig(config);
+          saveReportConfig(config);
+          setIsReportConfigOpen(false);
+          pdfExport.exportPdf(config);
+        }}
+      />
 
       <Tabs.Root defaultValue="portfolio" className="w-full">
         <Tabs.List className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-accent/50 p-1 border border-border/30">

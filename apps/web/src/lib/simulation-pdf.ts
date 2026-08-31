@@ -2,6 +2,11 @@ import type { jsPDF } from "jspdf";
 import type { OptimizationResultWithStrategy, SimulationParams } from "@/lib/api";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { formatWeightLimits } from "@/lib/asset-limits";
+import {
+  REPORT_METRIC_KEYS,
+  ReportConfig,
+  defaultReportConfig,
+} from "@/lib/report-config";
 
 /**
  * Builds the "export simulation to PDF" report.
@@ -10,6 +15,10 @@ import { formatWeightLimits } from "@/lib/asset-limits";
  * real vector text so the numbers stay selectable and searchable in the PDF.
  * The palette mirrors the dark app theme because the charts are painted for a
  * dark background and would be unreadable on white.
+ *
+ * Which sections and fields are drawn comes from the `ReportConfig` the user
+ * picked in the export dialog; every section can be left out, so each one is
+ * responsible for drawing nothing at all — heading included — when it is empty.
  */
 
 // A4 portrait, millimetres.
@@ -101,6 +110,8 @@ export interface SimulationPdfInput {
   userPortfolio: { expectedReturn: number; volatility: number } | null;
   charts: PdfChartImage[];
   labels: SimulationPdfLabels;
+  /** Sections and fields the user selected. Defaults to the full report. */
+  config?: ReportConfig;
 }
 
 export async function buildSimulationPdf(
@@ -109,16 +120,19 @@ export async function buildSimulationPdf(
   const { jsPDF: JsPdf } = await import("jspdf");
   const doc = new JsPdf({ unit: "mm", format: "a4", compress: true });
 
+  const config = input.config ?? defaultReportConfig();
+  const { sections } = config;
+
   const ctx: DrawContext = { doc, y: MARGIN };
   paintPageBackground(doc);
 
   drawHeader(ctx, input);
-  drawMetrics(ctx, input);
-  drawParameters(ctx, input);
-  drawAllocationTable(ctx, input);
-  drawRiskTable(ctx, input);
-  if (input.userPortfolio) drawComparison(ctx, input);
-  drawCharts(ctx, input);
+  if (sections.metrics) drawMetrics(ctx, input, config);
+  if (sections.parameters) drawParameters(ctx, input, config);
+  if (sections.allocation) drawAllocationTable(ctx, input, config);
+  if (sections.risk) drawRiskTable(ctx, input, config);
+  if (sections.comparison && input.userPortfolio) drawComparison(ctx, input);
+  if (sections.charts) drawCharts(ctx, input);
   drawFooters(doc, input.labels);
 
   return doc;
@@ -342,22 +356,28 @@ function drawHeader(ctx: DrawContext, input: SimulationPdfInput): void {
   ctx.y += lineHeight(8.5) + 6;
 }
 
-function drawMetrics(ctx: DrawContext, input: SimulationPdfInput): void {
+function drawMetrics(
+  ctx: DrawContext,
+  input: SimulationPdfInput,
+  config: ReportConfig
+): void {
   const { doc } = ctx;
   const { labels, result } = input;
 
-  const cards = [
-    {
+  const cardsByKey = {
+    expectedReturn: {
       label: labels.expectedReturn,
       value: formatPercent(result.expected_return),
-      hint: `${labels.ci95Label}: ${formatPercent(result.stats.ci_95_low)} / ${formatPercent(result.stats.ci_95_high)}`,
+      hint: config.confidenceInterval
+        ? `${labels.ci95Label}: ${formatPercent(result.stats.ci_95_low)} / ${formatPercent(result.stats.ci_95_high)}`
+        : "",
     },
-    {
+    volatility: {
       label: labels.volatility,
       value: formatPercent(result.volatility),
       hint: "",
     },
-    {
+    sharpeRatio: {
       label: labels.sharpeRatio,
       value:
         result.sharpe_ratio != null
@@ -365,15 +385,26 @@ function drawMetrics(ctx: DrawContext, input: SimulationPdfInput): void {
           : labels.notAvailable,
       hint: "",
     },
-    {
+    probNeg1y: {
       label: labels.probNeg1y,
       value: formatPercent(result.stats.prob_neg_1y),
       hint: "",
     },
-  ];
+  };
+
+  const cards = REPORT_METRIC_KEYS.filter((key) => config.metrics[key]).map(
+    (key) => cardsByKey[key]
+  );
+  if (cards.length === 0) return;
 
   const gap = 3;
-  const cardWidth = (CONTENT_WIDTH - gap * (cards.length - 1)) / cards.length;
+  // Cards keep a sane width when only one or two metrics are selected: a single
+  // card stretched across the page reads as a broken layout, not as a headline.
+  const MAX_CARD_WIDTH = 60;
+  const cardWidth = Math.min(
+    (CONTENT_WIDTH - gap * (cards.length - 1)) / cards.length,
+    MAX_CARD_WIDTH
+  );
   const cardHeight = 24;
 
   ensureSpace(ctx, cardHeight + 4);
@@ -410,45 +441,67 @@ function drawMetrics(ctx: DrawContext, input: SimulationPdfInput): void {
   ctx.y += cardHeight + 8;
 }
 
-function drawParameters(ctx: DrawContext, input: SimulationPdfInput): void {
+function drawParameters(
+  ctx: DrawContext,
+  input: SimulationPdfInput,
+  config: ReportConfig
+): void {
   const { doc } = ctx;
   const { labels, params } = input;
+  const fields = config.parameters;
+
+  const entries: [string, string][] = [];
+
+  if (fields.dateRange) {
+    entries.push([labels.dateRange, formatDateRange(params)]);
+  }
+
+  // The strategy and the knob that tunes it (risk-free rate, target return or
+  // target risk) are one choice, so they travel together.
+  if (fields.strategy) {
+    entries.push([labels.strategy, input.strategyLabel]);
+    if (params.strategy === "max-sharpe") {
+      entries.push([labels.riskFreeRate, formatPercent(params.riskFreeRate, 3)]);
+    }
+    if (
+      params.strategy === "target-return" &&
+      params.targetReturn !== undefined
+    ) {
+      entries.push([labels.targetReturn, formatPercent(params.targetReturn, 1)]);
+    }
+    if (params.strategy === "target-risk" && params.targetRisk !== undefined) {
+      entries.push([labels.targetRisk, formatPercent(params.targetRisk, 1)]);
+    }
+  }
+
+  if (fields.constraints) {
+    entries.push([
+      labels.fullInvestment,
+      params.enforceFullInvestment ? labels.yes : labels.no,
+    ]);
+    entries.push([
+      labels.shortSelling,
+      params.allowShortSelling
+        ? labels.shortSellingAllowed
+        : labels.shortSellingNotAllowed,
+    ]);
+    if (params.useLeverage) {
+      entries.push([
+        labels.maxLeverage,
+        `${formatPercent(params.maxLeverage, 0)} (${formatNumber(params.maxLeverage, 1)}x)`,
+      ]);
+    }
+    if (params.assetConstraints) {
+      entries.push([
+        labels.maxWeightPerAsset,
+        `${Math.round(params.wMax * 100)}%`,
+      ]);
+    }
+  }
+
+  if (entries.length === 0 && !fields.assets) return;
 
   drawSectionHeading(ctx, labels.parametersHeading);
-
-  const entries: [string, string][] = [
-    [labels.dateRange, formatDateRange(params)],
-    [labels.strategy, input.strategyLabel],
-  ];
-
-  if (params.strategy === "max-sharpe") {
-    entries.push([labels.riskFreeRate, formatPercent(params.riskFreeRate, 3)]);
-  }
-  if (params.strategy === "target-return" && params.targetReturn !== undefined) {
-    entries.push([labels.targetReturn, formatPercent(params.targetReturn, 1)]);
-  }
-  if (params.strategy === "target-risk" && params.targetRisk !== undefined) {
-    entries.push([labels.targetRisk, formatPercent(params.targetRisk, 1)]);
-  }
-  entries.push([
-    labels.fullInvestment,
-    params.enforceFullInvestment ? labels.yes : labels.no,
-  ]);
-  entries.push([
-    labels.shortSelling,
-    params.allowShortSelling
-      ? labels.shortSellingAllowed
-      : labels.shortSellingNotAllowed,
-  ]);
-  if (params.useLeverage) {
-    entries.push([
-      labels.maxLeverage,
-      `${formatPercent(params.maxLeverage, 0)} (${formatNumber(params.maxLeverage, 1)}x)`,
-    ]);
-  }
-  if (params.assetConstraints) {
-    entries.push([labels.maxWeightPerAsset, `${Math.round(params.wMax * 100)}%`]);
-  }
 
   const columnWidth = CONTENT_WIDTH / 2;
   const rowHeight = 9;
@@ -470,6 +523,11 @@ function drawParameters(ctx: DrawContext, input: SimulationPdfInput): void {
       });
     });
     ctx.y += rowHeight;
+  }
+
+  if (!fields.assets) {
+    ctx.y += 6;
+    return;
   }
 
   ctx.y += 2;
@@ -496,63 +554,100 @@ function drawParameters(ctx: DrawContext, input: SimulationPdfInput): void {
   ctx.y += 6;
 }
 
-function drawAllocationTable(ctx: DrawContext, input: SimulationPdfInput): void {
+function drawAllocationTable(
+  ctx: DrawContext,
+  input: SimulationPdfInput,
+  config: ReportConfig
+): void {
   const { labels, result, params } = input;
-  drawSectionHeading(ctx, labels.allocationHeading);
+  const selected = config.allocationColumns;
 
   // With per-asset limits on, the assigned weight only makes sense next to the
-  // band it had to fall in, so the table grows a column.
-  const showLimits = !!params.assetLimits;
-  const assetWidth = showLimits ? 0.28 : 0.4;
-  const numericWidth = showLimits ? 0.18 : 0.2;
+  // band it had to fall in, so the table can grow a limits column.
+  const showLimits = !!params.assetLimits && selected.limits;
+
+  const numericColumns: {
+    header: string;
+    cell: (index: number) => string;
+  }[] = [];
+
+  if (showLimits) {
+    numericColumns.push({
+      header: labels.tableLimits,
+      cell: (index) =>
+        formatWeightLimits(params.assets[index], { ascii: true }) ??
+        labels.notAvailable,
+    });
+  }
+  if (selected.expectedReturn) {
+    numericColumns.push({
+      header: labels.tableExpReturn,
+      cell: (index) => formatPercent(result.weights[index].exp_ret),
+    });
+  }
+  if (selected.volatility) {
+    numericColumns.push({
+      header: labels.tableVolatility,
+      cell: (index) => formatPercent(result.weights[index].volatility),
+    });
+  }
+  if (selected.weight) {
+    numericColumns.push({
+      header: labels.tableWeight,
+      cell: (index) => formatPercent(result.weights[index].weight),
+    });
+  }
+
+  drawSectionHeading(ctx, labels.allocationHeading);
+
+  // Numeric columns share a fixed slice each and the asset name takes the rest,
+  // so dropping a column widens the names instead of leaving a gap.
+  const numericWidth = numericColumns.length >= 4 ? 0.18 : 0.2;
+  const assetWidth = 1 - numericColumns.length * numericWidth;
 
   drawTable(
     ctx,
     [
       { header: labels.tableAsset, width: CONTENT_WIDTH * assetWidth },
-      ...(showLimits
-        ? [
-            {
-              header: labels.tableLimits,
-              width: CONTENT_WIDTH * numericWidth,
-              align: "right" as const,
-            },
-          ]
-        : []),
-      {
-        header: labels.tableExpReturn,
+      ...numericColumns.map((column) => ({
+        header: column.header,
         width: CONTENT_WIDTH * numericWidth,
-        align: "right",
-      },
-      {
-        header: labels.tableVolatility,
-        width: CONTENT_WIDTH * numericWidth,
-        align: "right",
-      },
-      {
-        header: labels.tableWeight,
-        width: CONTENT_WIDTH * numericWidth,
-        align: "right",
-      },
+        align: "right" as const,
+      })),
     ],
     result.weights.map((weight, index) => [
       weight.fund_name,
-      ...(showLimits
-        ? [
-            formatWeightLimits(params.assets[index], { ascii: true }) ??
-              labels.notAvailable,
-          ]
-        : []),
-      formatPercent(weight.exp_ret),
-      formatPercent(weight.volatility),
-      formatPercent(weight.weight),
+      ...numericColumns.map((column) => column.cell(index)),
     ]),
-    { highlightLastColumn: true }
+    // The weight is the answer the report exists for, so it stays emphasised —
+    // but only while it is actually the last column.
+    { highlightLastColumn: selected.weight }
   );
 }
 
-function drawRiskTable(ctx: DrawContext, input: SimulationPdfInput): void {
+function drawRiskTable(
+  ctx: DrawContext,
+  input: SimulationPdfInput,
+  config: ReportConfig
+): void {
   const { labels, result } = input;
+  const horizons = config.riskHorizons;
+
+  const rows: string[][] = [];
+  if (horizons.m1) {
+    rows.push([labels.horizon1m, formatPercent(result.stats.prob_neg_1m)]);
+  }
+  if (horizons.m3) {
+    rows.push([labels.horizon3m, formatPercent(result.stats.prob_neg_3m)]);
+  }
+  if (horizons.y1) {
+    rows.push([labels.horizon1y, formatPercent(result.stats.prob_neg_1y)]);
+  }
+  if (horizons.y2) {
+    rows.push([labels.horizon2y, formatPercent(result.stats.prob_neg_2y)]);
+  }
+  if (rows.length === 0) return;
+
   drawSectionHeading(ctx, labels.riskHeading);
 
   drawTable(
@@ -565,12 +660,7 @@ function drawRiskTable(ctx: DrawContext, input: SimulationPdfInput): void {
         align: "right",
       },
     ],
-    [
-      [labels.horizon1m, formatPercent(result.stats.prob_neg_1m)],
-      [labels.horizon3m, formatPercent(result.stats.prob_neg_3m)],
-      [labels.horizon1y, formatPercent(result.stats.prob_neg_1y)],
-      [labels.horizon2y, formatPercent(result.stats.prob_neg_2y)],
-    ]
+    rows
   );
 }
 
