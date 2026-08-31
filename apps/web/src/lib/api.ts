@@ -230,6 +230,12 @@ export const api = {
     return handleResponse<BenchmarkComparisonResponse>(res);
   },
 
+  // Market data
+  async getRiskFreeRates() {
+    const res = await apiFetch(`${API_BASE}/market/risk-free-rates`);
+    return handleResponse<RiskFreeRate[]>(res);
+  },
+
   // Tasks
   async startYahooUpdate() {
     const res = await apiFetch(`${API_BASE}/tasks/yahoo-update`, { method: "POST" });
@@ -533,6 +539,38 @@ export interface NegReturnProbResponse {
 
 export interface RollingVolatilityResponse {
   series: { name: string; data: { date: string; volatility: number }[] }[];
+}
+
+/**
+ * Reference instruments the risk-free rate can be taken from, in the order the
+ * picker lists them. `manual` lets the user type their own rate instead.
+ *
+ * These ids mirror `RISK_FREE_INSTRUMENTS` on the API and are used as
+ * translation keys, so the two lists must stay in sync.
+ */
+export const RISK_FREE_INSTRUMENT_IDS = [
+  "us-t-bill-3m",
+  "us-treasury-5y",
+  "us-treasury-10y",
+  "us-treasury-30y",
+] as const;
+
+export type RiskFreeInstrumentId = (typeof RISK_FREE_INSTRUMENT_IDS)[number];
+
+/** Where the risk-free rate came from: a reference instrument, or typed by hand. */
+export type RiskFreeSource = RiskFreeInstrumentId | "manual";
+
+export function isRiskFreeInstrumentId(value: string): value is RiskFreeInstrumentId {
+  return (RISK_FREE_INSTRUMENT_IDS as readonly string[]).includes(value);
+}
+
+export interface RiskFreeRate {
+  id: RiskFreeInstrumentId;
+  ticker: string;
+  /** Annualised yield as a decimal (0.0425 for 4.25%). */
+  rate: number;
+  /** ISO timestamp of the quote the rate was read from. */
+  asOf: string;
 }
 
 export interface TaskStatus {

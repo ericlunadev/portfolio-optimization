@@ -5,7 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimization } from "@/hooks/useOptimization";
 import { useSaveSimulation } from "@/hooks/useSimulations";
-import { ApiError, OptimizationStrategy, OPTIMIZATION_STRATEGIES, SimulationParams } from "@/lib/api";
+import { useRiskFreeRates } from "@/hooks/useRiskFreeRates";
+import { formatChartDate } from "@/components/charts/chart-theme";
+import {
+  ApiError,
+  OptimizationStrategy,
+  OPTIMIZATION_STRATEGIES,
+  RISK_FREE_INSTRUMENT_IDS,
+  RiskFreeSource,
+  SimulationParams,
+} from "@/lib/api";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
@@ -30,6 +39,7 @@ function NewOptimizationForm() {
   const t = useTranslations("NewOptimization");
   const tCommon = useTranslations("Common");
   const tBilling = useTranslations("Billing");
+  const tInstruments = useTranslations("RiskFreeInstruments");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, isPending: isSessionPending } = authClient.useSession();
@@ -59,11 +69,36 @@ function NewOptimizationForm() {
   const [riskFreeRateInput, setRiskFreeRateInput] = useState(() =>
     percentFromRate(initialState.riskFreeRate)
   );
+  const [riskFreeSource, setRiskFreeSource] = useState<RiskFreeSource>(
+    initialState.riskFreeSource
+  );
   const [dateRange, setDateRange] = useState(initialState.dateRange);
   const [assets, setAssets] = useState<AssetRow[]>(initialState.assets);
 
   const saveSimulation = useSaveSimulation();
   const hasSavedRef = useRef(false);
+
+  const {
+    data: riskFreeRates,
+    isPending: isRiskFreeRatesPending,
+    isError: isRiskFreeRatesError,
+  } = useRiskFreeRates();
+
+  const selectedRiskFreeInstrument = useMemo(
+    () => riskFreeRates?.find((rate) => rate.id === riskFreeSource) ?? null,
+    [riskFreeRates, riskFreeSource]
+  );
+
+  // A preset names an instrument, not a frozen number, so the field follows
+  // that instrument's current quote once the live yields arrive — on mount, and
+  // again when a shared link restores a preset. Typing a rate switches the
+  // source to manual, which clears the selection and stops this from fighting
+  // the user's own input.
+  useEffect(() => {
+    if (!selectedRiskFreeInstrument) return;
+    setRiskFreeRate(selectedRiskFreeInstrument.rate);
+    setRiskFreeRateInput(percentFromRate(selectedRiskFreeInstrument.rate));
+  }, [selectedRiskFreeInstrument]);
 
   // Mirror every form field into the URL query string. Using
   // history.replaceState (which Next.js syncs with its router) keeps the
@@ -80,6 +115,7 @@ function NewOptimizationForm() {
           targetReturn,
           targetRisk,
           riskFreeRate,
+          riskFreeSource,
           enforceFullInvestment,
           allowShortSelling,
           useLeverage,
@@ -91,7 +127,7 @@ function NewOptimizationForm() {
         },
         currentYear
       ).toString(),
-    [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]
+    [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, riskFreeSource, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]
   );
 
   useEffect(() => {
@@ -554,33 +590,74 @@ function NewOptimizationForm() {
             {strategy === "max-sharpe" && (
               <div className="mt-3">
                 <label
-                  htmlFor="risk-free-rate"
+                  htmlFor="risk-free-source"
                   className="mb-1 block text-xs text-muted-foreground"
                 >
                   {t("riskFreeRateLabel")}
                 </label>
-                <div className="relative w-32">
-                  <input
-                    id="risk-free-rate"
-                    type="number"
-                    inputMode="decimal"
-                    min={0}
-                    step={0.001}
-                    value={riskFreeRateInput}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setRiskFreeRateInput(val);
-                      const parsed = Number(val);
-                      setRiskFreeRate(
-                        val === "" || Number.isNaN(parsed) ? 0 : Math.max(0, parsed) / 100
-                      );
-                    }}
-                    onBlur={() => setRiskFreeRateInput(percentFromRate(riskFreeRate))}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-right text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    %
-                  </span>
+                <select
+                  id="risk-free-source"
+                  value={riskFreeSource}
+                  onChange={(e) => setRiskFreeSource(e.target.value as RiskFreeSource)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {RISK_FREE_INSTRUMENT_IDS.map((id) => {
+                    const quoted = riskFreeRates?.find((rate) => rate.id === id);
+                    return (
+                      <option key={id} value={id} disabled={!quoted}>
+                        {quoted
+                          ? t("riskFreeInstrumentOption", {
+                              name: tInstruments(id),
+                              rate: percentFromRate(quoted.rate),
+                            })
+                          : tInstruments(id)}
+                      </option>
+                    );
+                  })}
+                  <option value="manual">{t("riskFreeSourceManual")}</option>
+                </select>
+
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="relative w-32">
+                    <input
+                      id="risk-free-rate"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step={0.001}
+                      aria-label={t("riskFreeRateInputAria")}
+                      value={riskFreeRateInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Typing an own rate is what "manual" means, so editing
+                        // the field detaches it from the selected instrument.
+                        setRiskFreeSource("manual");
+                        setRiskFreeRateInput(val);
+                        const parsed = Number(val);
+                        setRiskFreeRate(
+                          val === "" || Number.isNaN(parsed) ? 0 : Math.max(0, parsed) / 100
+                        );
+                      }}
+                      onBlur={() => setRiskFreeRateInput(percentFromRate(riskFreeRate))}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-right text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
+
+                  <p className="flex-1 text-xs text-muted-foreground">
+                    {selectedRiskFreeInstrument
+                      ? t("riskFreeRateQuoteNote", {
+                          ticker: selectedRiskFreeInstrument.ticker,
+                          date: formatChartDate(selectedRiskFreeInstrument.asOf),
+                        })
+                      : isRiskFreeRatesPending
+                        ? t("riskFreeRatesLoading")
+                        : isRiskFreeRatesError || !riskFreeRates?.length
+                          ? t("riskFreeRatesUnavailable")
+                          : t("riskFreeRateManualNote")}
+                  </p>
                 </div>
               </div>
             )}
