@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Switch, TextInput, View } from 'react-native';
 
+import { AssetLimitRows } from '@/components/optimizer/asset-limit-rows';
 import { DateRangeInput } from '@/components/optimizer/date-range-input';
 import { StrategyPicker } from '@/components/optimizer/strategy-picker';
 import { TickerSearch } from '@/components/optimizer/ticker-search';
@@ -21,6 +22,15 @@ export function OptimizerForm({ form, isSubmitting, onSubmit }: OptimizerFormPro
   const theme = useTheme();
 
   const submitDisabled = !form.isValid || isSubmitting;
+
+  // The validator returns which rule broke plus its numbers; the wording lives
+  // in the translation files.
+  const error = form.assetLimitsError;
+  const assetLimitsMessage = error
+    ? error.kind === 'minAboveMax' || error.kind === 'outOfRange'
+      ? t(`optimizer.limits_${error.kind}`, { ticker: error.ticker })
+      : t(`optimizer.limits_${error.kind}`, { total: error.total, target: error.target })
+    : null;
 
   return (
     <View style={styles.container}>
@@ -122,6 +132,31 @@ export function OptimizerForm({ form, isSubmitting, onSubmit }: OptimizerFormPro
             onChangeText={form.setMaxWeightPerAsset}
             placeholder="40"
           />
+        ) : null}
+      </Section>
+
+      <Section title={t('optimizer.assetLimitsLabel')}>
+        <ToggleRow
+          label={t('optimizer.useAssetLimits')}
+          value={form.useAssetLimits}
+          onValueChange={form.setUseAssetLimits}
+        />
+        {form.useAssetLimits ? (
+          <>
+            <ThemedText type="small" themeColor="textSecondary">
+              {t('optimizer.assetLimitsHelp')}
+            </ThemedText>
+            <AssetLimitRows
+              tickers={form.tickers}
+              limits={form.assetLimits}
+              onChange={form.setAssetLimit}
+            />
+            {assetLimitsMessage ? (
+              <ThemedText type="small" style={{ color: theme.negative }}>
+                {assetLimitsMessage}
+              </ThemedText>
+            ) : null}
+          </>
         ) : null}
       </Section>
 

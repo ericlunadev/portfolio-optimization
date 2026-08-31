@@ -11,6 +11,7 @@ import {
   OptimizationResultWithStrategy,
   SimulationParams,
 } from "@/lib/api";
+import { formatWeightLimits, toWeightBounds } from "@/lib/asset-limits";
 import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
@@ -122,6 +123,13 @@ export function MarkowitzResults({
     [result.weights]
   );
 
+  // The frontier has to obey the same per-asset limits as the optimal
+  // portfolio, or the point would not sit on the curve it is drawn against.
+  const weightBounds = useMemo(
+    () => toWeightBounds(params.assets, params.assetLimits),
+    [params.assets, params.assetLimits]
+  );
+
   const { data: frontierData } = useEfficientFrontierTickers(
     params.showFrontier ? selectedTickers : [],
     startDate,
@@ -129,7 +137,9 @@ export function MarkowitzResults({
     params.enforceFullInvestment,
     params.allowShortSelling,
     params.useLeverage ? params.maxLeverage : 1.0,
-    params.assetConstraints ? params.wMax : 1.0
+    params.assetConstraints ? params.wMax : 1.0,
+    weightBounds?.wMinPerAsset,
+    weightBounds?.wMaxPerAsset
   );
 
   const { data: cumulativeData } = usePortfolioCumulativeReturnsTickers(
@@ -488,6 +498,7 @@ export function MarkowitzResults({
       tableExpReturn: t("tableExpReturn"),
       tableVolatility: t("tableVolatility"),
       tableWeight: t("tableWeight"),
+      tableLimits: t("tableLimits"),
       horizonHeader: tPdf("horizonHeader"),
       probabilityHeader: tPdf("probabilityHeader"),
       horizon1m: t("horizon1m"),
@@ -701,6 +712,11 @@ export function MarkowitzResults({
                 <thead>
                   <tr className="border-b border-border">
                     <th className="px-2 py-2 text-left font-medium">{t("tableAsset")}</th>
+                    {params.assetLimits && (
+                      <th className="px-2 py-2 text-right font-medium">
+                        {t("tableLimits")}
+                      </th>
+                    )}
                     <th className="px-2 py-2 text-right font-medium">
                       {t("tableExpReturn")}
                     </th>
@@ -711,9 +727,14 @@ export function MarkowitzResults({
                   </tr>
                 </thead>
                 <tbody>
-                  {result.weights.map((w) => (
+                  {result.weights.map((w, index) => (
                     <tr key={w.fund_name} className="border-b border-border/50">
                       <td className="px-2 py-2 font-medium">{w.fund_name}</td>
+                      {params.assetLimits && (
+                        <td className="px-2 py-2 text-right text-muted-foreground">
+                          {formatWeightLimits(params.assets[index]) ?? "—"}
+                        </td>
+                      )}
                       <td className="px-2 py-2 text-right">
                         {formatPercent(w.exp_ret)}
                       </td>

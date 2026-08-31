@@ -42,7 +42,8 @@
     "@types/react": "~19.2.2",
     "eslint": "^9.39.2",
     "eslint-config-expo": "~56.0.4",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "^2.1.8"
   },
   "scripts": {
     "dev": "expo start",
@@ -51,7 +52,9 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "clean": "rm -rf .expo dist node_modules/.cache"
+    "clean": "rm -rf .expo dist node_modules/.cache",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "private": true
 }

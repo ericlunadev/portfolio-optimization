@@ -1,6 +1,7 @@
 import type { jsPDF } from "jspdf";
 import type { OptimizationResultWithStrategy, SimulationParams } from "@/lib/api";
 import { formatNumber, formatPercent } from "@/lib/utils";
+import { formatWeightLimits } from "@/lib/asset-limits";
 
 /**
  * Builds the "export simulation to PDF" report.
@@ -72,6 +73,8 @@ export interface SimulationPdfLabels {
   tableExpReturn: string;
   tableVolatility: string;
   tableWeight: string;
+  /** Header for the per-asset min/max weight column. */
+  tableLimits: string;
   horizonHeader: string;
   probabilityHeader: string;
   horizon1m: string;
@@ -494,27 +497,52 @@ function drawParameters(ctx: DrawContext, input: SimulationPdfInput): void {
 }
 
 function drawAllocationTable(ctx: DrawContext, input: SimulationPdfInput): void {
-  const { labels, result } = input;
+  const { labels, result, params } = input;
   drawSectionHeading(ctx, labels.allocationHeading);
+
+  // With per-asset limits on, the assigned weight only makes sense next to the
+  // band it had to fall in, so the table grows a column.
+  const showLimits = !!params.assetLimits;
+  const assetWidth = showLimits ? 0.28 : 0.4;
+  const numericWidth = showLimits ? 0.18 : 0.2;
 
   drawTable(
     ctx,
     [
-      { header: labels.tableAsset, width: CONTENT_WIDTH * 0.4 },
+      { header: labels.tableAsset, width: CONTENT_WIDTH * assetWidth },
+      ...(showLimits
+        ? [
+            {
+              header: labels.tableLimits,
+              width: CONTENT_WIDTH * numericWidth,
+              align: "right" as const,
+            },
+          ]
+        : []),
       {
         header: labels.tableExpReturn,
-        width: CONTENT_WIDTH * 0.2,
+        width: CONTENT_WIDTH * numericWidth,
         align: "right",
       },
       {
         header: labels.tableVolatility,
-        width: CONTENT_WIDTH * 0.2,
+        width: CONTENT_WIDTH * numericWidth,
         align: "right",
       },
-      { header: labels.tableWeight, width: CONTENT_WIDTH * 0.2, align: "right" },
+      {
+        header: labels.tableWeight,
+        width: CONTENT_WIDTH * numericWidth,
+        align: "right",
+      },
     ],
-    result.weights.map((weight) => [
+    result.weights.map((weight, index) => [
       weight.fund_name,
+      ...(showLimits
+        ? [
+            formatWeightLimits(params.assets[index], { ascii: true }) ??
+              labels.notAvailable,
+          ]
+        : []),
       formatPercent(weight.exp_ret),
       formatPercent(weight.volatility),
       formatPercent(weight.weight),

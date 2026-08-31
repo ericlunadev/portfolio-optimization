@@ -16,28 +16,78 @@ export interface AssetRow {
   id: string;
   ticker: string;
   allocation: number | null;
+  /** Minimum weight the optimizer may assign, in percent. Null for no floor. */
+  minWeight: number | null;
+  /** Maximum weight the optimizer may assign, in percent. Null for no cap. */
+  maxWeight: number | null;
 }
 
 interface AssetAllocationFormProps {
   assets: AssetRow[];
   onChange: (assets: AssetRow[]) => void;
+  /** When on, each row exposes the min/max weight the optimizer must respect. */
+  showLimits?: boolean;
+  /** Rendered under the rows when the limits cannot all be satisfied. */
+  limitsError?: string | null;
 }
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
 }
 
+/** Small right-aligned percentage field, shared by allocation and the limits. */
+function PercentInput({
+  value,
+  onChange,
+  label,
+  placeholder,
+  className,
+}: {
+  value: number | null;
+  onChange: (value: number | null) => void;
+  label: string;
+  placeholder?: string;
+  className?: string;
+}) {
+  return (
+    <div className={cn("relative", className)}>
+      <input
+        type="number"
+        inputMode="decimal"
+        aria-label={label}
+        min={0}
+        max={100}
+        step={0.1}
+        placeholder={placeholder}
+        value={value ?? ""}
+        onChange={(e) => {
+          const val = e.target.value;
+          onChange(val === "" ? null : Number(val));
+        }}
+        className="w-full rounded-md border border-input bg-background px-2 py-2 pr-6 text-right text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 sm:px-3 sm:pr-8"
+      />
+      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground sm:right-3">
+        %
+      </span>
+    </div>
+  );
+}
+
 function AssetRowInput({
   index,
   asset,
+  showLimits,
   onTickerChange,
   onAllocationChange,
+  onLimitChange,
   onRemove,
 }: {
   index: number;
   asset: AssetRow;
+  showLimits: boolean;
   onTickerChange: (ticker: string) => void;
   onAllocationChange: (allocation: number | null) => void;
+  onLimitChange: (updates: Partial<Pick<AssetRow, "minWeight" | "maxWeight">>) => void;
   onRemove: () => void;
 }) {
   const t = useTranslations("Forms.AssetAllocation");
@@ -106,6 +156,7 @@ function AssetRowInput({
   };
 
   return (
+    <div className="space-y-1.5">
     <div className="flex items-center gap-2 sm:gap-3">
       <span className="w-10 shrink-0 text-xs text-muted-foreground sm:w-16 sm:text-sm">
         <span className="sm:hidden">#{index + 1}</span>
@@ -167,25 +218,12 @@ function AssetRowInput({
         )}
       </div>
 
-      <div className="relative w-20 shrink-0 sm:w-24">
-        <input
-          type="number"
-          inputMode="decimal"
-          min={0}
-          max={100}
-          step={0.1}
-          placeholder=""
-          value={asset.allocation ?? ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            onAllocationChange(val === "" ? null : Number(val));
-          }}
-          className="w-full rounded-md border border-input bg-background px-2 py-2 pr-6 text-right text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 sm:px-3 sm:pr-8"
-        />
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground sm:right-3">
-          %
-        </span>
-      </div>
+      <PercentInput
+        value={asset.allocation}
+        onChange={onAllocationChange}
+        label={t("headerAllocation")}
+        className="w-20 shrink-0 sm:w-24"
+      />
 
       <button
         onClick={onRemove}
@@ -194,10 +232,39 @@ function AssetRowInput({
         <X className="h-4 w-4" />
       </button>
     </div>
+
+    {/* Indented under the ticker field on desktop; flush left on phones, where
+        the indent would push the two fields past the edge of the row. */}
+    {showLimits && (
+      <div className="flex items-center gap-2 sm:gap-3 sm:pl-[4.75rem]">
+        <label className="shrink-0 text-xs text-muted-foreground">{t("limitMin")}</label>
+        <PercentInput
+          value={asset.minWeight}
+          onChange={(minWeight) => onLimitChange({ minWeight })}
+          label={t("limitMinAria", { ticker: asset.ticker || String(index + 1) })}
+          placeholder="0"
+          className="w-20 shrink-0 sm:w-24"
+        />
+        <label className="shrink-0 text-xs text-muted-foreground">{t("limitMax")}</label>
+        <PercentInput
+          value={asset.maxWeight}
+          onChange={(maxWeight) => onLimitChange({ maxWeight })}
+          label={t("limitMaxAria", { ticker: asset.ticker || String(index + 1) })}
+          placeholder="100"
+          className="w-20 shrink-0 sm:w-24"
+        />
+      </div>
+    )}
+    </div>
   );
 }
 
-export function AssetAllocationForm({ assets, onChange }: AssetAllocationFormProps) {
+export function AssetAllocationForm({
+  assets,
+  onChange,
+  showLimits = false,
+  limitsError = null,
+}: AssetAllocationFormProps) {
   const t = useTranslations("Forms.AssetAllocation");
   const updateAsset = (index: number, updates: Partial<AssetRow>) => {
     const updated = [...assets];
@@ -210,11 +277,22 @@ export function AssetAllocationForm({ assets, onChange }: AssetAllocationFormPro
   };
 
   const addAsset = () => {
-    onChange([...assets, { id: generateId(), ticker: "", allocation: null }]);
+    onChange([
+      ...assets,
+      { id: generateId(), ticker: "", allocation: null, minWeight: null, maxWeight: null },
+    ]);
   };
 
   const clearAll = () => {
-    onChange(assets.map((a) => ({ ...a, ticker: "", allocation: null })));
+    onChange(
+      assets.map((a) => ({
+        ...a,
+        ticker: "",
+        allocation: null,
+        minWeight: null,
+        maxWeight: null,
+      }))
+    );
   };
 
   return (
@@ -236,18 +314,24 @@ export function AssetAllocationForm({ assets, onChange }: AssetAllocationFormPro
         <span className="w-4 shrink-0" />
       </div>
 
-      <div className="space-y-2">
+      <div className={showLimits ? "space-y-4" : "space-y-2"}>
         {assets.map((asset, index) => (
           <AssetRowInput
             key={asset.id}
             index={index}
             asset={asset}
+            showLimits={showLimits}
             onTickerChange={(ticker) => updateAsset(index, { ticker })}
             onAllocationChange={(allocation) => updateAsset(index, { allocation })}
+            onLimitChange={(updates) => updateAsset(index, updates)}
             onRemove={() => removeAsset(index)}
           />
         ))}
       </div>
+
+      {limitsError && (
+        <p className="text-xs text-destructive">{limitsError}</p>
+      )}
 
       <button
         onClick={addAsset}
