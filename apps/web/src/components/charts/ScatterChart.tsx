@@ -40,12 +40,18 @@ interface PortfolioPoint {
   ret: number;
 }
 
+/** A reference portfolio, carrying the colour it was assigned in the legend. */
+interface BenchmarkPoint extends PortfolioPoint {
+  color: string;
+}
+
 interface ScatterChartProps {
   data: DataPoint[];
   frontier?: FrontierPoint[];
   frontierTickers?: string[];
   optimizedPortfolio?: PortfolioPoint | null;
   userPortfolio?: PortfolioPoint | null;
+  benchmarks?: BenchmarkPoint[];
   onPointClick?: (name: string) => void;
   showLabels?: boolean;
   showTangentSlope?: boolean;
@@ -209,12 +215,29 @@ function UserDiamond(props: ShapeProps) {
   );
 }
 
+function BenchmarkTriangle(props: ShapeProps & { color?: string }) {
+  const { cx, cy, color, colors } = props;
+  if (cx == null || cy == null || !colors || !color) return null;
+  return (
+    <g>
+      <circle cx={cx} cy={cy} r={10} fill={color} fillOpacity={0.12} />
+      <path
+        d={`M ${cx} ${cy - 6} L ${cx + 5.5} ${cy + 4.5} L ${cx - 5.5} ${cy + 4.5} Z`}
+        fill={color}
+        stroke={colors.markerOutline}
+        strokeWidth={1}
+      />
+    </g>
+  );
+}
+
 export function RiskReturnScatterChart({
   data,
   frontier,
   frontierTickers,
   optimizedPortfolio,
   userPortfolio,
+  benchmarks,
   onPointClick,
   showTangentSlope = false,
   animate = true,
@@ -235,9 +258,11 @@ export function RiskReturnScatterChart({
       ? sortedFrontier[selectedFrontierIndex]
       : null;
 
+  const benchmarkPoints = benchmarks ?? [];
   const portfolioPoints = [
     ...(optimizedPortfolio ? [optimizedPortfolio] : []),
     ...(userPortfolio ? [userPortfolio] : []),
+    ...benchmarkPoints,
   ];
   const allPoints = [...data, ...sortedFrontier, ...portfolioPoints];
   const minVol = Math.min(...allPoints.map((p) => p.vol)) * 0.9;
@@ -249,7 +274,11 @@ export function RiskReturnScatterChart({
     setSelectedFrontierIndex((prev) => (prev === index ? null : index));
   };
 
-  const legendItems: { label: string; color: string; variant?: "line" | "dot" | "dashed" | "star" | "diamond" }[] = [];
+  const legendItems: {
+    label: string;
+    color: string;
+    variant?: "line" | "dot" | "dashed" | "star" | "diamond" | "triangle";
+  }[] = [];
   if (sortedFrontier.length > 0) {
     legendItems.push({
       label: t("legendFrontier"),
@@ -270,6 +299,13 @@ export function RiskReturnScatterChart({
       label: t("legendUser"),
       color: colors.user,
       variant: "diamond",
+    });
+  }
+  for (const benchmark of benchmarkPoints) {
+    legendItems.push({
+      label: benchmark.name,
+      color: benchmark.color,
+      variant: "triangle",
     });
   }
 
@@ -456,6 +492,24 @@ export function RiskReturnScatterChart({
                 animationDuration={900}
               />
             )}
+
+            {benchmarkPoints.map((benchmark) => (
+              <Scatter
+                key={`benchmark-${benchmark.name}`}
+                data={[benchmark]}
+                fill={benchmark.color}
+                shape={
+                  <BenchmarkTriangle
+                    color={benchmark.color}
+                    colors={colors}
+                    isDark={isDark}
+                  />
+                }
+                name={benchmark.name}
+                isAnimationActive={animate}
+                animationDuration={900}
+              />
+            ))}
           </ScatterChart>
         </ResponsiveContainer>
       </div>

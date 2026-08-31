@@ -272,6 +272,47 @@
     "exportPdfPreparing": "Generando PDF...",
     "exportPdfError": "No se pudo generar el PDF. Inténtalo de nuevo."
   },
+  "Benchmarks": {
+    "title": "Comparar contra un índice de referencia",
+    "subtitle": "Mide este portafolio frente a índices de referencia en la misma ventana.",
+    "pickerLegend": "Índices de referencia a comparar",
+    "category": {
+      "equity": "Índices accionarios",
+      "global": "Globales",
+      "diversified": "Diversificados"
+    },
+    "name": {
+      "sp500": "S&P 500",
+      "nasdaq-100": "Nasdaq 100",
+      "dow-jones": "Dow Jones",
+      "russell-2000": "Russell 2000",
+      "ipc-mexico": "IPC (México)",
+      "euro-stoxx-50": "Euro Stoxx 50",
+      "ftse-100": "FTSE 100",
+      "nikkei-225": "Nikkei 225",
+      "msci-world": "MSCI World",
+      "emerging-markets": "Mercados Emergentes",
+      "classic-60-40": "Portafolio 60/40",
+      "us-bonds": "Bonos EE. UU.",
+      "gold": "Oro",
+      "bitcoin": "Bitcoin"
+    },
+    "empty": "Elige uno o más índices para comparar este portafolio.",
+    "loading": "Cargando índices...",
+    "error": "No se pudieron cargar los índices. Inténtalo de nuevo en un momento.",
+    "unavailable": "Sin datos de precios para: {names}.",
+    "maxSelected": "Puedes comparar hasta {count} índices a la vez.",
+    "colPortfolio": "Portafolio",
+    "colReturn": "Rend. Anual",
+    "colVolatility": "Volatilidad",
+    "colSharpe": "Sharpe",
+    "colDrawdown": "Caída Máxima",
+    "colTotalReturn": "Rend. Total",
+    "growthTitle": "Rendimiento acumulado",
+    "growthSubtitle": "Del {start} al {end}, con rebalanceo diario",
+    "pdfSubtitle": "El portafolio frente a los índices seleccionados",
+    "note": "Las cifras de los índices se calculan con la misma ventana y la misma anualización que las del portafolio. No incluyen comisiones, impuestos ni costos de rebalanceo."
+  },
   "Pdf": {
     "documentTitle": "Reporte de Optimización de Portafolio",
     "generatedAt": "Generado el",

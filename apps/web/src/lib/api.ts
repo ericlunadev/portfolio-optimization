@@ -199,6 +199,37 @@ export const api = {
     return handleResponse<RollingVolatilityResponse>(res);
   },
 
+  // Benchmarks
+  async getBenchmarkCatalog() {
+    const res = await apiFetch(`${API_BASE}/optimization/benchmarks`);
+    return handleResponse<{ benchmarks: BenchmarkCatalogEntry[] }>(res);
+  },
+
+  async getBenchmarkComparison(
+    benchmarks: string[],
+    tickers: string[],
+    weights: number[],
+    options: {
+      startDate?: string;
+      endDate?: string;
+      riskFreeRate?: number;
+    } = {}
+  ) {
+    const res = await apiFetch(`${API_BASE}/optimization/benchmark-comparison`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        benchmarks,
+        tickers,
+        weights,
+        start_date: options.startDate,
+        end_date: options.endDate,
+        risk_free_rate: options.riskFreeRate ?? 0,
+      }),
+    });
+    return handleResponse<BenchmarkComparisonResponse>(res);
+  },
+
   // Tasks
   async startYahooUpdate() {
     const res = await apiFetch(`${API_BASE}/tasks/yahoo-update`, { method: "POST" });
@@ -455,6 +486,43 @@ export interface EfficientFrontierResponse {
   points: { ret: number; vol: number; weights: number[] }[];
 }
 
+// Benchmark Types
+export type BenchmarkCategory = "equity" | "global" | "diversified";
+
+export interface BenchmarkCatalogEntry {
+  id: string;
+  category: BenchmarkCategory;
+  /** Underlying symbols, shown as the subtitle of a benchmark's row. */
+  tickers: string[];
+}
+
+/** Performance of a portfolio or benchmark over the comparison window. */
+export interface BenchmarkPerformance {
+  expected_return: number;
+  volatility: number;
+  sharpe_ratio: number;
+  /** Deepest peak-to-trough fall, as a negative decimal. */
+  max_drawdown: number;
+  /** Cumulative return across the whole window. */
+  total_return: number;
+  series: { date: string; value: number }[];
+}
+
+export interface BenchmarkComparisonEntry extends BenchmarkPerformance {
+  id: string;
+  category: BenchmarkCategory;
+  tickers: string[];
+}
+
+export interface BenchmarkComparisonResponse {
+  window: { start: string; end: string };
+  /** Null when the portfolio's own tickers could not be priced. */
+  portfolio: BenchmarkPerformance | null;
+  benchmarks: BenchmarkComparisonEntry[];
+  /** Ids the provider had no usable prices for. */
+  unavailable: string[];
+}
+
 export interface CumulativeReturnsSeries {
   series: { name: string; data: { date: string; value: number }[] }[];
 }
@@ -518,6 +586,11 @@ export interface SimulationParams {
   /** Whether the per-asset min/max limits carried on `assets` are applied. */
   assetLimits?: boolean;
   showFrontier: boolean;
+  /**
+   * Ids of the benchmarks the results are compared against. Absent on
+   * simulations saved before benchmark comparison existed.
+   */
+  benchmarks?: string[];
 }
 
 export interface SavedSimulation {
