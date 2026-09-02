@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   useEfficientFrontierTickers,
   usePortfolioCumulativeReturnsTickers,
@@ -19,6 +19,9 @@ import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsCha
 import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
 import { MatrixTable } from "@/components/tables/MatrixTable";
+import { BenchmarkComparison } from "@/components/benchmarks/BenchmarkComparison";
+import { useBenchmarkComparison } from "@/hooks/useBenchmarks";
+import { buildBenchmarkChartData } from "@/lib/benchmark-chart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
@@ -61,10 +64,16 @@ export function MarkowitzResults({
   const tAssetVolatility = useTranslations("AssetVolatilityChart");
   const tRollingVolatility = useTranslations("RollingVolatilityChart");
   const tPdf = useTranslations("Pdf");
+  const tBenchmarks = useTranslations("Benchmarks");
   // The PDF legends must use the same palette as the offscreen chart nodes they
   // describe, so they follow the active theme rather than a fixed set.
   const chartColors = useChartColors();
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
+  // A saved simulation carries its own selection; anything older opens on the
+  // S&P 500, so the comparison is there without the user having to find it.
+  const [selectedBenchmarks, setSelectedBenchmarks] = useState<string[]>(
+    () => params.benchmarks ?? ["sp500"]
+  );
 
   const selectedTickers = params.tickers;
 
@@ -154,6 +163,52 @@ export function MarkowitzResults({
     startDate,
     endDate
   );
+
+  // Benchmarks are priced over the simulation's own window, so their figures
+  // are directly comparable with the stat cards above.
+  const {
+    data: benchmarkData,
+    isFetching: isBenchmarkFetching,
+    isError: isBenchmarkError,
+  } = useBenchmarkComparison(
+    selectedBenchmarks,
+    selectedTickers,
+    optimalWeights,
+    { startDate, endDate, riskFreeRate: params.riskFreeRate }
+  );
+
+  const benchmarkColorById = useMemo(() => {
+    const entries = selectedBenchmarks.map((id, i) => [
+      id,
+      chartColors.benchmarks[i % chartColors.benchmarks.length],
+    ]);
+    return Object.fromEntries(entries) as Record<string, string>;
+  }, [selectedBenchmarks, chartColors.benchmarks]);
+
+  // A benchmark added to the catalog without a translation yet falls back to
+  // its id rather than rendering next-intl's missing-key marker.
+  const benchmarkName = useCallback(
+    (id: string) =>
+      tBenchmarks.has(`name.${id}`) ? tBenchmarks(`name.${id}`) : id,
+    [tBenchmarks]
+  );
+
+  const benchmarkPoints = useMemo(() => {
+    if (!benchmarkData) return [];
+    const byId = new Map(benchmarkData.benchmarks.map((b) => [b.id, b]));
+    return selectedBenchmarks.flatMap((id) => {
+      const entry = byId.get(id);
+      if (!entry) return [];
+      return [
+        {
+          name: benchmarkName(id),
+          vol: entry.volatility,
+          ret: entry.expected_return,
+          color: benchmarkColorById[id],
+        },
+      ];
+    });
+  }, [benchmarkData, selectedBenchmarks, benchmarkName, benchmarkColorById]);
 
   const userPortfolioStats = useMemo(() => {
     if (
@@ -322,6 +377,26 @@ export function MarkowitzResults({
     return { data, series: seriesNames };
   }, [rollingVolData]);
 
+  const benchmarkChartData = useMemo(
+    () =>
+      buildBenchmarkChartData({
+        comparison: benchmarkData,
+        selected: selectedBenchmarks,
+        portfolioLabel: optimalPortfolioLabel,
+        portfolioColor: chartColors.optimal,
+        colorById: benchmarkColorById,
+        nameById: benchmarkName,
+      }),
+    [
+      benchmarkData,
+      selectedBenchmarks,
+      optimalPortfolioLabel,
+      chartColors.optimal,
+      benchmarkColorById,
+      benchmarkName,
+    ]
+  );
+
   const weightsChartData = useMemo(
     () =>
       result.weights.map((w) => ({
@@ -345,6 +420,10 @@ export function MarkowitzResults({
       ...(userPortfolioPoint
         ? [{ label: userPortfolioLabel, color: chartColors.user }]
         : []),
+      ...benchmarkPoints.map((point) => ({
+        label: point.name,
+        color: point.color,
+      })),
     ];
 
     specs.push({
@@ -360,6 +439,7 @@ export function MarkowitzResults({
           frontierTickers={frontierData?.tickers}
           optimizedPortfolio={optimizedPortfolioPoint}
           userPortfolio={userPortfolioPoint}
+          benchmarks={benchmarkPoints}
           animate={false}
         />
       ),
@@ -404,6 +484,28 @@ export function MarkowitzResults({
       });
     }
 
+    if (benchmarkChartData.data.length > 0) {
+      specs.push({
+        key: "benchmark-comparison",
+        title: tBenchmarks("growthTitle"),
+        subtitle: tBenchmarks("pdfSubtitle"),
+        legend: benchmarkChartData.series.map((name) => ({
+          label: name,
+          color: benchmarkChartData.seriesColors[name],
+        })),
+        tall: true,
+        node: (
+          <CumulativeReturnsChart
+            data={benchmarkChartData.data}
+            series={benchmarkChartData.series}
+            highlightSeries={optimalPortfolioLabel}
+            seriesColors={benchmarkChartData.seriesColors}
+            animate={false}
+          />
+        ),
+      });
+    }
+
     if (assetVolatilityData.length > 0) {
       specs.push({
         key: "asset-volatility",
@@ -438,8 +540,11 @@ export function MarkowitzResults({
     return specs;
   }, [
     assetVolatilityData,
+    benchmarkChartData,
+    benchmarkPoints,
     chartColors,
     cumRetChartData,
+    tBenchmarks,
     frontierData?.tickers,
     frontierPoints,
     optimalPortfolioLabel,
@@ -632,6 +737,7 @@ export function MarkowitzResults({
                 frontierTickers={frontierData?.tickers}
                 optimizedPortfolio={optimizedPortfolioPoint}
                 userPortfolio={userPortfolioPoint}
+                benchmarks={benchmarkPoints}
                 showTangentSlope={debugTangentSlope}
               />
             </ChartReveal>
@@ -699,6 +805,17 @@ export function MarkowitzResults({
               </ChartReveal>
             </div>
           )}
+
+          <BenchmarkComparison
+            selected={selectedBenchmarks}
+            onSelectedChange={setSelectedBenchmarks}
+            comparison={benchmarkData}
+            isLoading={isBenchmarkFetching}
+            isError={isBenchmarkError}
+            portfolioLabel={optimalPortfolioLabel}
+            colorById={benchmarkColorById}
+            nameById={benchmarkName}
+          />
 
         </Tabs.Content>
 
