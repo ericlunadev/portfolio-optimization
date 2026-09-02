@@ -26,7 +26,9 @@ app.use(
     origin: env.FRONTEND_URL,
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    // Idempotency-Key is sent by the web and mobile clients on billing writes;
+    // leaving it out fails the preflight on those endpoints.
+    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
   })
 );
 

@@ -30,9 +30,14 @@ historical.get(
     const { q } = c.req.valid("query");
 
     try {
-      const results = await yahooFinance.search(q, { quotesCount: 10 }, { validateResult: false });
+      // `validateResult: false` widens the library's return type to `unknown`.
+      const results = (await yahooFinance.search(
+        q,
+        { quotesCount: 10 },
+        { validateResult: false }
+      )) as { quotes: YahooSearchQuote[] };
 
-      const tickers = (results.quotes as YahooSearchQuote[])
+      const tickers = results.quotes
         .filter((quote) => quote.symbol && (quote.quoteType === "EQUITY" || quote.quoteType === "ETF"))
         .map((quote) => ({
           symbol: quote.symbol,
