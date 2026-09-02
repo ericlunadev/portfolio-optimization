@@ -1,4 +1,9 @@
-import { OptimizationStrategy, OPTIMIZATION_STRATEGIES } from "@/lib/api";
+import {
+  OptimizationStrategy,
+  OPTIMIZATION_STRATEGIES,
+  RiskFreeSource,
+  isRiskFreeInstrumentId,
+} from "@/lib/api";
 import { DateRange } from "@/components/forms/DateRangePicker";
 import { AssetRow } from "@/components/forms/AssetAllocationForm";
 
@@ -16,6 +21,8 @@ export interface OptimizationFormState {
   targetReturn: number;
   targetRisk: number;
   riskFreeRate: number;
+  /** Which reference instrument the rate came from, or "manual" if typed. */
+  riskFreeSource: RiskFreeSource;
   enforceFullInvestment: boolean;
   allowShortSelling: boolean;
   useLeverage: boolean;
@@ -28,6 +35,13 @@ export interface OptimizationFormState {
 }
 
 const VALID_STRATEGIES = new Set(OPTIMIZATION_STRATEGIES.map((s) => s.value));
+
+function parseRiskFreeSource(value: string | null, fallback: RiskFreeSource): RiskFreeSource {
+  if (value === "manual" || (value !== null && isRiskFreeInstrumentId(value))) {
+    return value;
+  }
+  return fallback;
+}
 
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
@@ -55,6 +69,7 @@ export function defaultFormState(currentYear: number): OptimizationFormState {
     targetReturn: 0.1,
     targetRisk: 0.15,
     riskFreeRate: 0.05,
+    riskFreeSource: "manual",
     enforceFullInvestment: true,
     allowShortSelling: false,
     useLeverage: false,
@@ -178,6 +193,9 @@ export function encodeFormState(
   if (state.strategy === "max-sharpe" && state.riskFreeRate !== defaults.riskFreeRate) {
     params.set("riskFreeRate", String(state.riskFreeRate));
   }
+  if (state.strategy === "max-sharpe" && state.riskFreeSource !== defaults.riskFreeSource) {
+    params.set("riskFreeSource", state.riskFreeSource);
+  }
 
   if (state.enforceFullInvestment !== defaults.enforceFullInvestment) {
     params.set("enforceFullInvestment", bool(state.enforceFullInvestment));
@@ -237,6 +255,7 @@ export function decodeFormState(
     targetReturn: parseNum(params.get("targetReturn"), defaults.targetReturn),
     targetRisk: parseNum(params.get("targetRisk"), defaults.targetRisk),
     riskFreeRate: parseNum(params.get("riskFreeRate"), defaults.riskFreeRate),
+    riskFreeSource: parseRiskFreeSource(params.get("riskFreeSource"), defaults.riskFreeSource),
     enforceFullInvestment: parseBool(
       params.get("enforceFullInvestment"),
       defaults.enforceFullInvestment

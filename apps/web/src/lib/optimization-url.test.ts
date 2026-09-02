@@ -84,3 +84,53 @@ describe("optimization-url asset weight limits", () => {
     ]);
   });
 });
+
+describe("optimization-url risk-free rate source", () => {
+  it("round-trips a reference instrument alongside its rate", () => {
+    const state = stateWith({
+      strategy: "max-sharpe",
+      riskFreeRate: 0.04758,
+      riskFreeSource: "us-treasury-10y",
+    });
+
+    const decoded = decodeFormState(encodeFormState(state, YEAR), YEAR);
+
+    expect(decoded.riskFreeSource).toBe("us-treasury-10y");
+    expect(decoded.riskFreeRate).toBe(0.04758);
+  });
+
+  it("omits the source when the rate is typed by hand", () => {
+    const state = stateWith({
+      strategy: "max-sharpe",
+      riskFreeRate: 0.03,
+      riskFreeSource: "manual",
+    });
+
+    expect(encodeFormState(state, YEAR).has("riskFreeSource")).toBe(false);
+  });
+
+  it("drops the source for a strategy that has no risk-free rate", () => {
+    const state = stateWith({
+      strategy: "min-risk",
+      riskFreeSource: "us-treasury-10y",
+    });
+
+    expect(encodeFormState(state, YEAR).has("riskFreeSource")).toBe(false);
+  });
+
+  it("falls back to manual for an unknown instrument id", () => {
+    const decoded = decodeFormState(
+      new URLSearchParams("riskFreeSource=mx-cetes-28d"),
+      YEAR
+    );
+
+    expect(decoded.riskFreeSource).toBe("manual");
+  });
+
+  it("defaults a link written before the picker existed to manual", () => {
+    const decoded = decodeFormState(new URLSearchParams("riskFreeRate=0.02"), YEAR);
+
+    expect(decoded.riskFreeSource).toBe("manual");
+    expect(decoded.riskFreeRate).toBe(0.02);
+  });
+});

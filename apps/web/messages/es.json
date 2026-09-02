@@ -143,6 +143,12 @@
     "rerunAlreadyCurrent": "Ya está actualizada",
     "rerunInProgress": "Re-ejecutando..."
   },
+  "RiskFreeInstruments": {
+    "us-t-bill-3m": "Letra del Tesoro EE. UU. 3 meses",
+    "us-treasury-5y": "Bono del Tesoro EE. UU. 5 años",
+    "us-treasury-10y": "Bono del Tesoro EE. UU. 10 años",
+    "us-treasury-30y": "Bono del Tesoro EE. UU. 30 años"
+  },
   "NewOptimization": {
     "signInTitle": "Inicia sesión para crear una optimización",
     "signInDescription": "Necesitas una cuenta para correr y guardar tus optimizaciones de portafolio.",
@@ -191,7 +197,14 @@
     "targetRiskInfoHow": "El optimizador busca el portafolio con el mayor rendimiento esperado cuya volatilidad no exceda el valor objetivo. Si existen múltiples portafolios que cumplen la restricción, se selecciona el de mayor rendimiento.",
     "targetRiskInfoFeasLabel": "Factibilidad:",
     "targetRiskInfoFeas": "Si el riesgo objetivo es menor que la volatilidad mínima alcanzable (portafolio de mínima varianza), el optimizador devolverá el portafolio de menor riesgo posible. Valores típicos están entre 10% y 25% anual.",
-    "riskFreeRateLabel": "Tasa libre de riesgo (%)",
+    "riskFreeRateLabel": "Tasa libre de riesgo",
+    "riskFreeSourceManual": "Manual",
+    "riskFreeInstrumentOption": "{name} — {rate}%",
+    "riskFreeRateInputAria": "Tasa libre de riesgo en porcentaje",
+    "riskFreeRateQuoteNote": "Rendimiento de {ticker} al {date}.",
+    "riskFreeRateManualNote": "Tasa introducida manualmente.",
+    "riskFreeRatesLoading": "Cargando rendimientos actuales…",
+    "riskFreeRatesUnavailable": "No se pudieron cargar los rendimientos; introduce la tasa manualmente.",
     "assetConstraintsLabel": "Restricciones de Activos",
     "assetConstraintsInfoAria": "Información sobre restricciones de activos",
     "assetConstraintsInfoTitle": "Restricciones de Activos",
