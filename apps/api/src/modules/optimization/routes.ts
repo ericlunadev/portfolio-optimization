@@ -18,6 +18,12 @@ import { authMiddleware } from "../../middleware/auth.js";
 import { meterRequest, newIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
 import { defaultLookbackPeriod } from "../../lib/dates.js";
 import { fetchTickerPrices } from "../../lib/yahoo.js";
+import {
+  BENCHMARKS,
+  benchmarkTickers,
+  buildWeightedSeries,
+  findBenchmark,
+} from "../../lib/benchmarks.js";
 
 const optimization = new Hono();
 
@@ -621,6 +627,109 @@ optimization.post(
     });
 
     return c.json({ series });
+  }
+);
+
+// GET /api/optimization/benchmarks - Catalog of reference portfolios to compare against
+optimization.get("/benchmarks", (c) => {
+  return c.json({
+    benchmarks: BENCHMARKS.map((benchmark) => ({
+      id: benchmark.id,
+      category: benchmark.category,
+      tickers: benchmark.components.map((component) => component.ticker),
+    })),
+  });
+});
+
+// POST /api/optimization/benchmark-comparison - Measure a portfolio against selected benchmarks
+optimization.post(
+  "/benchmark-comparison",
+  zValidator(
+    "json",
+    z.object({
+      benchmarks: z.array(z.string()).max(BENCHMARKS.length),
+      tickers: z.array(z.string()).min(1),
+      weights: z.array(z.number()),
+      start_date: z.string().optional(),
+      end_date: z.string().optional(),
+      risk_free_rate: z.number().min(0).default(0),
+    })
+  ),
+  async (c) => {
+    const { benchmarks, tickers, weights, start_date, end_date, risk_free_rate } =
+      c.req.valid("json");
+
+    if (weights.length !== tickers.length) {
+      return c.json({ error: "weights must have one entry per ticker" }, 400);
+    }
+
+    const defaults = defaultLookbackPeriod();
+    const period1 = start_date || defaults.period1;
+    const period2 = end_date || defaults.period2;
+
+    // Unknown ids are dropped rather than rejected: a saved simulation may
+    // still name a benchmark that has since left the catalog.
+    const definitions = benchmarks
+      .map(findBenchmark)
+      .filter((definition): definition is NonNullable<typeof definition> => !!definition);
+
+    // The portfolio and every benchmark are priced over the same window and
+    // through the same math, so the figures on both sides are comparable.
+    const pricesByTicker = await fetchTickerPrices(
+      [...new Set([...tickers, ...benchmarkTickers(definitions)])],
+      period1,
+      period2
+    );
+
+    const portfolio = buildWeightedSeries(
+      tickers.map((ticker, i) => ({ ticker, weight: weights[i] ?? 0 })),
+      pricesByTicker,
+      risk_free_rate
+    );
+
+    const unavailable: string[] = [];
+    const comparisons = definitions.flatMap((definition) => {
+      const series = buildWeightedSeries(
+        definition.components,
+        pricesByTicker,
+        risk_free_rate
+      );
+      // A benchmark Yahoo could not price at all is reported back by id, so the
+      // client can say so instead of silently dropping the user's selection.
+      if (!series) {
+        unavailable.push(definition.id);
+        return [];
+      }
+      return [
+        {
+          id: definition.id,
+          category: definition.category,
+          tickers: definition.components.map((component) => component.ticker),
+          expected_return: series.expectedReturn,
+          volatility: series.volatility,
+          sharpe_ratio: series.sharpeRatio,
+          max_drawdown: series.maxDrawdown,
+          total_return: series.totalReturn,
+          series: series.points,
+        },
+      ];
+    });
+
+    return c.json({
+      window: { start: period1, end: period2 },
+      portfolio: portfolio
+        ? {
+            expected_return: portfolio.expectedReturn,
+            volatility: portfolio.volatility,
+            sharpe_ratio: portfolio.sharpeRatio,
+            max_drawdown: portfolio.maxDrawdown,
+            total_return: portfolio.totalReturn,
+            series: portfolio.points,
+          }
+        : null,
+      benchmarks: comparisons,
+      unavailable,
+    });
   }
 );
 

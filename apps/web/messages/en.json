@@ -272,6 +272,47 @@
     "exportPdfPreparing": "Generating PDF...",
     "exportPdfError": "The PDF could not be generated. Please try again."
   },
+  "Benchmarks": {
+    "title": "Compare with a benchmark",
+    "subtitle": "Measure this portfolio against reference indices over the same window.",
+    "pickerLegend": "Benchmarks to compare",
+    "category": {
+      "equity": "Equity indices",
+      "global": "Global",
+      "diversified": "Diversified"
+    },
+    "name": {
+      "sp500": "S&P 500",
+      "nasdaq-100": "Nasdaq 100",
+      "dow-jones": "Dow Jones",
+      "russell-2000": "Russell 2000",
+      "ipc-mexico": "IPC (Mexico)",
+      "euro-stoxx-50": "Euro Stoxx 50",
+      "ftse-100": "FTSE 100",
+      "nikkei-225": "Nikkei 225",
+      "msci-world": "MSCI World",
+      "emerging-markets": "Emerging Markets",
+      "classic-60-40": "60/40 Portfolio",
+      "us-bonds": "US Bonds",
+      "gold": "Gold",
+      "bitcoin": "Bitcoin"
+    },
+    "empty": "Pick one or more benchmarks to compare this portfolio against.",
+    "loading": "Loading benchmarks...",
+    "error": "The benchmarks could not be loaded. Try again in a moment.",
+    "unavailable": "No price data available for: {names}.",
+    "maxSelected": "You can compare up to {count} benchmarks at a time.",
+    "colPortfolio": "Portfolio",
+    "colReturn": "Ann. Return",
+    "colVolatility": "Volatility",
+    "colSharpe": "Sharpe",
+    "colDrawdown": "Max Drawdown",
+    "colTotalReturn": "Total Return",
+    "growthTitle": "Cumulative performance",
+    "growthSubtitle": "From {start} to {end}, rebalanced daily",
+    "pdfSubtitle": "The portfolio against the selected benchmarks",
+    "note": "Benchmark figures use the same window and the same annualization as the portfolio's. They exclude commissions, taxes and rebalancing costs."
+  },
   "Pdf": {
     "documentTitle": "Portfolio Optimization Report",
     "generatedAt": "Generated on",
