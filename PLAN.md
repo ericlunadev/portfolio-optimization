@@ -17,30 +17,26 @@ override anything here), `PAYMENTS.md` (the billing model this modifies).
 
 ## 0. Read this first
 
-### 0.1 Three live bugs, unrelated to whitelabel, that Phase 0 must fix
+### 0.1 Live bugs, unrelated to whitelabel, that Phase 0 must fix
 
-These exist in production **today**. They are not caused by this project, but multi-tenancy makes two
-of them dramatically worse, and the third makes Phase 0's acceptance test unachievable.
+These exist in production **today**. They are not caused by this project, but multi-tenancy makes some
+of them dramatically worse, and two make Phase 0's acceptance test unachievable.
 
 | # | Bug | Impact |
 | --- | --- | --- |
 | **B1** | **Unscoped idempotency replay.** `spend.ts:21-23` looks up `credit_ledger` by `idempotencyKey` alone — no user, no org predicate — and returns early at :40-41 before deducting. The key is a raw client header (`optimization/routes.ts:47,195,275,360`; `billing/routes.ts:490`), and two server-written formats are **guessable with no leak**: `signup-grant:${user.id}` (`onboarding/routes.ts:181`) and `purchase:${stripe session id}` (`billing/routes.ts:148`, where that session id is handed to the browser at :339). | Replaying either yields **unlimited free metered optimizations and free 100-credit advisor calls**. Billing-integrity bug. |
 | **B2** | **`GET /api/tasks/:taskId` has no authentication at all** — `tasks/routes.ts:56`, no middleware, no owner filter, returns `result_data`. | Any unauthenticated caller reads any task result. |
 | **B3** | **`DELETE /api/tasks/:taskId` is authenticated but not owner-scoped** — :88-89 and :100-103 filter on `id` only and never read `c.get("user")`. | Any user deletes any user's task. |
+| **B4** | **The race-loser recovery commits an orphan decrement.** `return winner` inside the catch at `spend.ts:71-77` and `:123-127` returns *normally* from the transaction callback, so Drizzle commits and the wallet decrement at :47-50 survives with no ledger row behind it. Reproduced against a real libSQL database: the wallet fell to 9 with no matching ledger row. [verified] | Silent wallet/ledger drift under concurrency. Fixed in **Task 0.0**. |
+| **B5** | **`Idempotency-Key` is not in the CORS allowlist.** `index.ts:29` is `allowHeaders: ["Content-Type", "Authorization"]` with `origin` pinned to a fixed string and `credentials: true`, while `apps/web/src/lib/api.ts:324` sends `Idempotency-Key` on `POST /api/billing/advisor-call`. The header was added two months after the cross-origin switch and the allowlist was never widened. | Live preflight failure on a paid endpoint. Two-line fix, independent of the §3.2 gate. |
 
 **Explicitly refuted, so severity is not overstated** [verified]: B1 does **not** yield cross-tenant
 credit *injection* (`spend.ts:146` guards `reason !== "spend" || delta >= 0`) and does **not** disclose
 balances (`balanceAfter` never reaches a response body outside the user-scoped ledger endpoint).
 
-There is also a **fourth**, subtler one worth its own PR (see Task 2.0): the race-loser recovery in
-`spend.ts:71-77` and `:123-127` **commits an orphan decrement** — `return winner` inside the catch
-returns *normally* from the transaction callback, so Drizzle commits and the wallet decrement at
-:47-50 survives with no ledger row behind it. Reproduced against a real libSQL database: the wallet
-fell to 9 with no matching ledger row. [verified]
-
 ### 0.2 What genuinely needs a human before Phase 0 can finish
 
-Everything else in this plan is decided. These are not:
+Everything not flagged inline is decided. These are not:
 
 1. **A fresh production dump.** Needs `DATABASE_URL` / `DATABASE_AUTH_TOKEN` from the Render dashboard
    (both are `sync: false`). See Task 0.3 — the migration cannot be rehearsed without it.
@@ -51,10 +47,16 @@ Everything else in this plan is decided. These are not:
    provisioning a real tenant needs them. *If no privacy policy or ToS exists at all, that escalates
    to §9.3.*
 4. **Which org owns the D2C hostname** after the backfill, and what it is called.
-5. **Whether a short 5xx window is acceptable** on the deploy that lands the NOT NULL flip, or whether
-   `db:migrate` must move out of `render.yaml`'s `buildCommand`. There is no `preDeployCommand` today.
+5. **Whether a short 5xx window is acceptable on Deploy 3**, which drops `wallet_balance.user_id`
+   while the previous release still runs raw `WHERE user_id = ?` (`spend.ts:46-50`, `:101-105`) — or
+   whether to take the cheaper alternative in Migration (D) and skip Deploy 3 entirely. *(The NOT NULL
+   flip is **not** the risky step; the three-deploy split already makes it safe.)* There is no
+   `preDeployCommand` on the Render service today.
 6. **The realistic tenant count** (§9.1). Still the question that decides whether this architecture is
    right at all.
+7. **Wildcard DNS and a wildcard TLS certificate for `*.optim.app`, attached to the Vercel project.**
+   D6 depends on it, nothing has verified it exists, and it has ops lead time — start it during
+   Phase 0, not when Phase 1 needs it.
 
 ---
 
@@ -83,7 +85,7 @@ likely to get cut under schedule pressure. Do not cut it.
 | D1 | **Shared deployment**, tenant resolved from hostname | One Vercel + one Render + one Turso. Rationale is **operational** — N isolated deploys means N deploys per release and N× the ops. **[v1 was wrong]** v1 justified this with "the shared price cache"; **nothing reads the `prices` table** [verified]. It is written by `yahoo-updater.ts:82-89` and read only by that file's own `max(date)` query at :35-42; the optimizer's `fetchTickerPrices` in `lib/yahoo.ts` contains no `db.` reference and hits Yahoo live. Keep the decision, not the reason. |
 | D2 | **`organization_id` columns**, one database | Not per-tenant Turso DBs: `db/index.ts` builds one client at module scope, and per-tenant DBs would mean a client factory touching every import site. |
 | D3 | **One user belongs to exactly one org** | Unique constraint on `organization_member.user_id`. No org switcher, no active-org session state. |
-| D4 | **`organization_id` is `NOT NULL`, with exactly one named exception** | See D16. **[v1 was wrong]** v1 said "no `OR organization_id IS NULL` anywhere, ever" — unachievable as stated. |
+| D4 | **`organization_id` is `NOT NULL` on every scoped table — no exceptions** | The one candidate, `background_tasks`, is closed by D16 rather than excepted. **[v1 was wrong]** v1 asserted this without noticing that two tables have a nullable `user_id`, which is what made it unachievable as stated. |
 | D5 | **The D2C product becomes tenant #1** | Dogfooding is the only reliable way to keep tenancy working. |
 | D6 | **Subdomains of ours only** (`acme.optim.app`) | Assumes wildcard DNS + wildcard TLS on the Vercel project. **That is an ops prerequisite with real lead time and nothing has verified it exists.** |
 | D7 | **Org-level wallet**, per-user attribution in the ledger | `wallet_balance` PK moves to `organization_id`; `credit_ledger.user_id` stays. Deliberately reverses a `PAYMENTS.md` non-goal — update that doc in the Phase 2 PR. |
@@ -94,8 +96,8 @@ likely to get cut under schedule pressure. Do not cut it.
 | D12 | **Mobile app is out of scope** — but not untouched | See §8: mobile users still hit Task 0.4's membership rule and D7's shared wallet. |
 | D13 | **Provisioning is an internal CLI**; branding is self-serve | The CLI is also **the only way a second analyst gets an account** — no invite flow, no email. See Task 0.9. |
 | D14 | **Two commercial tiers**: co-branded and full whitelabel | `organization.tier`. Only difference in code: whether "Powered by" renders in the footer and PDF. |
-| D15 | **Out of v1:** SSO, custom domains, per-seat credit limits, data residency, tenant-uploaded instruments | Named in §8 so they are not surprises in a sales call. |
-| D16 | **`background_tasks` is the one nullable exception — resolved by requiring auth** | `POST /api/tasks/yahoo-update` becomes authenticated, so the column can be `NOT NULL` after all. The web hook `useYahooUpdate.ts` **has zero consumers** [verified], so nothing user-visible changes. This also gives Task 0.6 a session to test against. |
+| D15 | **Out of the first release:** SSO, custom domains, per-seat credit limits, data residency, tenant-uploaded instruments | Named in §8 so they are not surprises in a sales call. |
+| D16 | **`POST /api/tasks/yahoo-update` becomes authenticated** | That is what lets `background_tasks.organization_id` be `NOT NULL`, preserving D4 intact. The web hook `useYahooUpdate.ts` **has zero consumers** [verified], so nothing user-visible changes. It also gives Task 0.6 a session to test against. |
 
 ---
 
@@ -124,6 +126,12 @@ client-supplied header (forgeable), and never cached on the session row. Caching
 session is the stale-read hazard that BetterAuth's own `session.activeOrganizationId` exhibits. If the
 per-request lookup ever shows up in a profile, cache in-process keyed by `userId` with a short TTL and
 invalidate on membership write.
+
+**Branding follows the host; data follows the membership row.** A signed-in user loading another org's
+hostname sees that host's brand around their own org's data — cosmetic, permitted, and unavoidable
+while the session cookie is shared across web hosts. **Do not redirect or 401 on the mismatch:** after
+the personal-org backfill most users' org has no `organization_domain` row at all, so a mismatch check
+would lock out every D2C user on day one — the exact opposite of Phase 0's "zero user-visible change".
 
 ### 3.2 Auth cookies — an open gate, not a solved problem
 
@@ -161,18 +169,17 @@ Three riders that v1 missed entirely:
 - **The security claim needs softening.** Per-host cookie isolation is defence-in-depth against a
   stolen cookie. Tenant data isolation comes entirely from `WHERE organization_id`.
 
-Two consequences nobody had costed:
+Three consequences nobody had costed. **Both reworks below belong to Task 1.0, not Phase 0** — no
+tenant hostname serves traffic until Phase 1, and this gate's outcome may change what they should be:
 
 - **`trustedOrigins` must become a request-scoped function** (`auth.ts:77-83`) reading
   `organization_domain` with an in-process cache. A longer static array means provisioning a tenant
-  requires an API env change plus a Render redeploy — directly contradicting D13.
+  requires an API env change plus a Render redeploy — directly contradicting D13. *(Task 1.0)*
 - **CORS does not go away.** `index.ts:26` pins `origin: env.FRONTEND_URL` as a fixed string with
   `credentials: true`; it does not reflect the caller's Origin and emits no `Vary: Origin`. And
   `apps/mobile/src/lib/api/client.ts:32` keeps calling the API directly regardless of what the web
-  does. Replace with an allowlist function. **While you are there: add `Idempotency-Key` to
-  `allowHeaders` (`index.ts:29`)** — `apps/web/src/lib/api.ts:324` sends it on
-  `POST /api/billing/advisor-call` and the header was added two months after the cross-origin switch
-  without the allowlist ever being widened. That is a live bug on a paid endpoint.
+  does. Replace with an allowlist function. *(Task 1.0.* The `Idempotency-Key` half is **B5** and is
+  fixed in Phase 0 — it is a live bug independent of this gate.*)*
 - **Cutover invalidates every live session.** Moving the session cookie from the Render host to the
   web host logs out every existing user — including D2C, which D5 makes tenant #1 — and the recovery
   path is the password-reset email that Task 1.0 shows is itself tenant-blind. Sequence accordingly.
@@ -203,6 +210,35 @@ data URI or a same-origin fetch. Plan for that in Task 1.6 rather than discoveri
 
 **Goal:** every scoped row belongs to an organisation, every scoped query filters by it, and a test
 proves org A cannot reach org B's data. Ships dark.
+
+### Task 0.0 — Fix B4, and measure write contention *(before any schema change)*
+
+*(Throughout this plan, `spend.ts`, `reconcile.ts` and `metering.ts` are under
+`apps/api/src/lib/billing/` — not `modules/billing/`, which holds the routes.)*
+
+**(a) Fix the orphan-commit race (B4).** Roll back explicitly: throw a sentinel out of the transaction
+callback and resolve the winner *outside* it. Note `findExistingLedgerRow` reads via the module-level
+`db`, not `tx`, so the recovery read cannot see the transaction. **This lands as its own PR against
+the current per-user schema** — a concurrency fix and a key migration must not fail together, and
+after Migration (D) the schema it targets no longer exists.
+
+**(b) Measure write contention — it gates D7.** Overlapping `db.transaction()` calls against libSQL do
+**not** serialise and wait; they fail. Measured against a real file DB: with 0ms overlap one succeeded
+and the other returned `database is locked`; with 1ms or 25ms overlap the first got `cannot commit
+transaction - SQL statements in progress` and the second `database is locked`. [verified] Cause:
+`@libsql/client`'s `transaction()` takes the current connection, issues BEGIN, then nulls its handle so
+the next caller opens a *second* connection — and no `busy_timeout` is configured (`config/env.ts:5`
+defaults to a bare `file:portfolio.db` with no `?timeout=`).
+
+Under D7, **N analysts sharing one wallet row means 500s before any drift appears.** And because the
+four optimize routes `await reverseSpendOnError` inside their catch
+(`optimization/routes.ts:169-172, 251, 336, 384`), a locked reversal **swallows the user's original
+error and keeps the credit spent**.
+
+**Measure against a real Turso database, not just locally** — production uses the remote hrana path.
+This is in Phase 0 because a bad result invalidates D7, which is a Phase 0 schema decision.
+
+**(c) Fix B5** — add `Idempotency-Key` to `allowHeaders` (`index.ts:29`). Two lines.
 
 ### Task 0.1 — BetterAuth organization plugin: **decision closed, HAND_ROLL**
 
@@ -238,8 +274,12 @@ deserves a second look. Under D13 it does not.
 
 ### Task 0.2 — Schema
 
-Edit `apps/api/src/db/schema.ts`. Follow the `CLAUDE.md` migration workflow: `pnpm db:generate` from
-`apps/api/`, commit the generated file, let Render run `db:migrate`. **Never `db:push`.**
+This is the **target** schema. **Do not `db:generate` from it in one shot** — reaching it takes six
+migration files across three deploys, and a single generate produces exactly the migration Task 0.3
+shows libSQL rejects in production. **Read Task 0.3 first**; each intermediate `schema.ts` state is
+committed alongside its own migration. The `CLAUDE.md` workflow still holds throughout
+(`pnpm db:generate` from `apps/api/`, commit the generated file, Render runs `db:migrate`), and
+**never `db:push`**.
 
 ```ts
 export const organization = sqliteTable("organization", {
@@ -247,6 +287,8 @@ export const organization = sqliteTable("organization", {
   slug: text("slug").notNull().unique(),                 // internal id — NOT the subdomain
   name: text("name").notNull(),
   tier: text("tier").notNull().default("cobranded"),     // 'cobranded' | 'whitelabel'  (D14)
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),  // the D2C tenant;
+                                                         // Task 1.1's "unknown host" fallback reads this
   logo: text("logo"),                                    // reserved for plugin parity (Task 0.1)
   metadata: text("metadata"),                            // reserved for plugin parity
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
@@ -279,7 +321,7 @@ export const organizationBranding = sqliteTable("organization_branding", {
   fontKey: text("font_key").default("instrument-sans"),
   logoUrl: text("logo_url"),
   faviconUrl: text("favicon_url"),
-  // NULLABLE in v1 — see §0.2 item 3. No value for any of these exists in the repo, so
+  // Nullable for the first release — see §0.2 item 3. No value for any of these exists in the repo, so
   // .notNull() would make the backfill SQL literally unwritable. Enforce at provisioning.
   supportEmail: text("support_email"),
   privacyPolicyUrl: text("privacy_policy_url"),
@@ -314,21 +356,37 @@ export const organizationSettings = sqliteTable("organization_settings", {
 });
 ```
 
-Add `organizationId` to: `simulations`, `user_profile`, `user_assumptions`, `user_correlations`,
+Add `organizationId` — with `.references()`, an **explicit `onDelete`**, and an **`index()` on the new
+column** — to: `simulations`, `user_profile`, `user_assumptions`, `user_correlations`,
 `background_tasks`, `credit_ledger`, `payments`. Add `sharedWithOrg` (boolean, default false) to
 `simulations`.
+
+> **The index is not optional and not automatic.** Drizzle emits only indexes declared in `schema.ts`
+> (every index in the file today is explicit — :70, :83, :259, :277…), and SQLite does not auto-index
+> foreign-key columns. Omit it and all ~46 of Task 0.5's scoped queries filter an unindexed column on
+> every request.
 
 **Specify `onDelete` for every new FK — there is no house default to inherit.** The existing FKs are
 deliberately heterogeneous: cascade on `user_profile` (:168), `wallet_balance` (:225), `credit_ledger`
 (:268); set null on `background_tasks` (:197) and `simulations` (:212); no action on `payments` (:247)
 and `credit_ledger.simulation_id`. **Financial rows (`payments`, `credit_ledger`) must not
-cascade-delete with an org.**
+cascade-delete with an org** — use `no action` for those two and `cascade` for the other five
+(`simulations`, `user_profile`, `user_assumptions`, `user_correlations`, `background_tasks`). After
+migration (C) every new column is `NOT NULL`, so `set null` is not available.
 
 **Fix the ledger cascade while you are here.** After D7, `wallet_balance` cascades from `organization`
 while `credit_ledger.user_id` still cascades from `user` — so **deleting one departing analyst deletes
 their ledger rows and leaves the org wallet intact**, creating drift equal to that analyst's net delta
 on the most routine B2B operation there is. Change `credit_ledger.user_id` to nullable
 `ON DELETE set null` (which a platform-level admin grant needs anyway, having no acting user).
+
+> **That change breaks two things — handle both in the same commit.** `spend.ts:153-154` passes
+> `original.userId` into `grantCredits({ userId: string })`, so `pnpm --filter api typecheck` fails —
+> the DoD's first line. And `GET /api/billing/ledger` (`billing/routes.ts:457-459`) filters
+> `eq(creditLedger.userId, user.id)`, so set-null rows vanish from every user's ledger view while
+> still counting in `reconcile.ts`'s SUM — permanent, silent drift between what a user sees and what
+> the invariant checks. **Decide what a null-user ledger row displays before making the column
+> nullable.**
 
 **Do NOT add `organizationId` to:** `funds`, `prices`, `index_data`, `fund_exposures`, `key_figures`,
 `credit_packages`.
@@ -341,7 +399,7 @@ drops. Delete or repoint it or `tsc --noEmit` fails.
 cookie-attribute and origin-check semantics load-bearing across an 18-patch gap. Bump `apps/web` to
 `^1.6.20`.
 
-### Task 0.3 — Migrations: **four of them, across two deploys**
+### Task 0.3 — Migrations: **six files across three deploys**
 
 **[v1 was wrong]** v1 implied one generated migration plus a hand-written backfill. That cannot apply
 to production. All of the following was verified by running the real tooling against a restored dump.
@@ -366,6 +424,13 @@ DATABASE_URL=file:./prod-copy.db pnpm --filter api db:migrate
 **Migration (A) — generated.** New tables, plus `organization_id` as **NULLABLE** with its
 `.references()` and index, plus `shared_with_org`.
 
+> `db:generate` diffs the whole file, so (A) also carries the `credit_ledger.user_id`
+> nullable/`set null` table rebuild from Task 0.2. Expect it and review it.
+>
+> **The idempotency index swap (Task 0.5, bug B1) lands with (C), not here.** SQLite treats NULLs as
+> distinct in a unique index, so a composite `unique(organization_id, idempotency_key)` created while
+> `organization_id` is still nullable constrains nothing at all.
+
 > It **must** be nullable. For a NOT NULL column with no default, drizzle-kit emits
 > ``ALTER TABLE `simulations` ADD `organization_id` text NOT NULL REFERENCES organization(id);``
 > (`SQLiteAlterTableAddColumnConvertor`), which libSQL rejects with `Cannot add a NOT NULL column with
@@ -389,9 +454,14 @@ DATABASE_URL=file:./prod-copy.db pnpm --filter api db:migrate
 > `SQLITE_UNKNOWN_0: not an error`.
 >
 > End with a guard that aborts on any unbackfilled row:
-> `CREATE TABLE _backfill_guard(x text NOT NULL);` then per table
+> `DROP TABLE IF EXISTS _backfill_guard;` then `CREATE TABLE _backfill_guard(x text NOT NULL);` then
+> per table
 > `INSERT INTO _backfill_guard(x) SELECT NULL FROM <table> WHERE organization_id IS NULL LIMIT 1;`
 > then `DROP TABLE _backfill_guard;`
+>
+> The leading `DROP … IF EXISTS` matters: when the guard fires, the migration aborts *before* its own
+> `DROP`, so a retry would otherwise die at `CREATE TABLE` with a different error — surfaced through
+> the mute-failure mode §10 rule 2 documents.
 
 What (B) does:
 
@@ -408,7 +478,11 @@ What (B) does:
    existing user — inside the phase whose DoD is "zero user-visible change".
 4. **`organization_branding`** with today's values.
 5. **`organization_domain`** rows. v1 omitted these entirely; with no row, no hostname resolves to any
-   org and Task 1.1's lookup returns nothing on day one.
+   org and Task 1.1's lookup returns nothing on day one. **State which org owns the production
+   hostname and sets `is_default = 1`** (§0.2 item 4), and what hostname — if any — the one-org-per-user
+   rows get, since `organization_domain.hostname` is `notNull().unique()` and cannot simply be blank
+   for all of them. The straightforward answer: personal orgs get **no** domain row at all, and reach
+   the app through the default tenant.
 6. **Backfill `organization_id`** on every scoped row.
 
 **Orphan policy — required before step 6.** **[v1 was wrong]** v1 said "backfill from its owning user",
@@ -426,7 +500,11 @@ filters on `eq(simulations.userId, user.id)` at `simulations/routes.ts:22,51,131
 archiving. Deleting requires nulling any `credit_ledger.simulation_id` reference first — that FK is
 `ON DELETE no action` (`drizzle/0004:13`). The alternative is a reserved platform org.
 
-**Migration (C) — generated.** Flip to `.notNull()`.
+**Migration (C) — generated.** Flip to `.notNull()`, and swap in the composite idempotency index.
+
+> **First, re-run the backfill idempotently** (`… WHERE organization_id IS NULL`) **and re-run the
+> guard.** (B)'s guard proved zero NULLs at Deploy 1's *build* time; (C) runs days later, and any row
+> written by the old release during Deploy 1's build window carries a NULL.
 
 > Because `organization_id` carries an FK, Drizzle takes the safe table-rebuild path
 > (`PRAGMA foreign_keys=OFF` / `CREATE TABLE __new_x` / `INSERT…SELECT` / `DROP` / `RENAME`) whose
@@ -447,18 +525,35 @@ archiving. Deleting requires nulling any `credit_ledger.simulation_id` reference
 > emits a rebuild whose `INSERT INTO __new_wallet_balance("organization_id",…) SELECT "organization_id"…`
 > reads a column that does not exist. [all verified]
 >
-> (D1) generated — add nullable `organizationId` + FK, keep `userId` as PK.
-> (D2) `--custom` — backfill driven from `organization` (LEFT JOIN through `organization_member`) so
-> every org gets exactly one row, with a guard against two wallets mapping to one org.
-> (D3) generated — drop `userId`, move the PK.
+> **(D-i)** generated — add nullable `organizationId` + FK, keep `userId` as PK.
+> **(D-ii)** `--custom` — backfill driven from `organization` (LEFT JOIN through
+> `organization_member`) so every org gets exactly one row, with a guard against two wallets mapping
+> to one org.
+> **(D-iii)** generated — drop `userId`, move the PK.
 >
-> **Cheaper alternative worth costing:** keep `user_id` as a deprecated nullable column and add
-> `organization_id UNIQUE NOT NULL` alongside it. Satisfies D7's behaviour with no rebuild, no prompt,
-> and no deploy window.
+> *(Sub-steps are lettered, not numbered, because `D1`/`D2`/`D3` are locked-decision ids — and D7 is
+> cited four lines below.)*
+>
+> **Cheaper alternative — decide it now, do not leave it "worth costing":** keep `user_id` as a
+> deprecated nullable column and add `organization_id UNIQUE NOT NULL` alongside it. That satisfies
+> D7's behaviour with no rebuild, no prompt, and **no Deploy 3 at all**. Take it unless there is a
+> reason not to.
 
-**Deploy A+B with dual-writing code BEFORE deploying C+D.** `render.yaml:5` runs `db:migrate` inside
-`buildCommand`, while the previous release is still serving traffic — so every migration must be
-backward-compatible with deployed code.
+#### Deploy grouping
+
+`render.yaml:5` runs `db:migrate` inside `buildCommand` while the previous release is still serving
+traffic, so **every migration must be backward-compatible with the code already deployed**. That
+forces three deploys:
+
+| Deploy | Migrations | The release that ships with it |
+| --- | --- | --- |
+| **1** | (A), (B), (D-i), (D-ii) | Contains all of Task 0.5's INSERT stamping and Task 0.8's provisioning hook. **This is what "dual-writing" means here** — for the seven single-key tables it is simply stamping the new column; for `wallet_balance` it is writing both keys. Nothing yet *reads* `organization_id`. |
+| **2** | (C) | The release that reads `organization_id` — scoped queries, org context in middleware. |
+| **3** | (D-iii) only | Ships *after* the org-keyed `spend.ts` is live. **Skip this deploy entirely if you take the cheaper alternative above.** |
+
+Deploy 3 is the genuinely dangerous one: it drops `wallet_balance.user_id` while the previous release
+still runs raw `WHERE user_id = ?` (`spend.ts:46-50`, `:101-105`). That is the window §0.2 item 5 asks
+the human about — **not** the NOT NULL flip, which this split already makes safe.
 
 ### Task 0.4 — Org context in the API
 
@@ -466,8 +561,11 @@ In `apps/api/src/middleware/auth.ts`: after resolving the session user, look up 
 `organization_member` row and `c.set("organizationId", ...)`. Extend `ContextVariableMap`. A user with
 no membership throws 500 with a loud log.
 
-**Also extend `optionalAuthMiddleware` (:34-38) with `optionalOrganizationId`**, and add both entries
-to `ContextVariableMap`.
+**Add only `organizationId` to `ContextVariableMap`, and delete `optionalAuthMiddleware`.** It has
+exactly one consumer in the repo — `tasks/routes.ts:16` — which D16 converts to `authMiddleware`
+(also change `:17` from `c.get("optionalUser")` to `c.get("user")`). Drop the `optionalUser` entry
+too; nothing else uses either. [verified by grep: they appear only at `middleware/auth.ts:9,34,36`
+and `tasks/routes.ts:7,16,17`]
 
 #### Org resolution without a session
 
@@ -518,33 +616,54 @@ branches at :123 and :131 `return`, producing a 200 with no retry.
 `billing/routes.ts:492` (`spendCredit`); `spend.ts:153` (`reverseSpend`); `metering.ts:14,:25`;
 `optimization/routes.ts:48,196,276,361` and `:170,251,336,384`.
 
-**`sharedWithOrg` — split read from write.** All six sites in `simulations/routes.ts` currently use the
-byte-identical predicate `and(eq(simulations.id, id), eq(simulations.userId, user.id))` and *will* be
-copy-pasted:
+**`sharedWithOrg` — split read from write.** Five of the six sites in `simulations/routes.ts` (`:51`,
+`:131`, `:165`, `:173`, `:192`) use the byte-identical predicate
+`and(eq(simulations.id, id), eq(simulations.userId, user.id))` and *will* be copy-pasted; the list
+query at `:22` uses `eq(simulations.userId, user.id)` alone.
 
 - **READ** (:22 list, :51, :173): `organizationId = ? AND (userId = ? OR sharedWithOrg = 1)`
 - **WRITE** (:131 PATCH, :165 PUT, :192 DELETE): `organizationId = ? AND userId = ?`
 
 Sharing grants read, never write. This collides with Task 0.6's "404, not 403" rule: a row that is
-readable but not writable cannot honestly 404 on a write. **Use 403 for that specific case.**
+readable but not writable cannot honestly 404 on a write. **Use 403 for that specific case — and
+produce it like this**: each of the three write handlers (PATCH `:128-139`, PUT `:158-170`, DELETE
+`:185-197`) becomes *look up with the READ predicate, then write with the WRITE predicate* — 404 if
+the read finds nothing, 403 if the read finds it but the write matches nothing. Three handlers, one
+shape. As written today the handlers learn only that zero rows changed and cannot tell the two cases
+apart.
 
-**On `simulations/routes.ts:94`** — v1's reasoning was correct and was confirmed: `id` comes from
+**On `simulations/routes.ts:94`** — this read looks unfiltered but is safe: `id` comes from
 `crypto.randomUUID()` at :82, the zod schema at :68-72 accepts only name/params/result, and nothing
-between :82 and :94 can change it. **But change the instruction from "leave it alone" to "add the
-filter anyway"**, or replace the read with `.returning()` on the insert at :85. Task 0.6's verification
-step ("fails if any `where` clause is removed") depends on every query in the file looking the same; a
-deliberate unfiltered exception is indistinguishable from an oversight to the next reviewer.
+between :82 and :94 can change it. [verified] **Apply the WRITE predicate anyway**
+(`organizationId = ? AND userId = ?`), or delete the read and use `.returning()` on the insert at :85.
+Task 0.6's verification step ("fails if any `where` clause is removed") depends on every query in the
+file looking the same; a deliberate unfiltered exception is indistinguishable from an oversight to the
+next reviewer, and the fix costs one line while removing a redundant round-trip.
 
-**Fix bugs B1, B2, B3 (§0.1) in this task.** For B1, namespace the key (`${orgId}:${clientKey}`)
-**and** replace the global `unique()` on `credit_ledger.idempotency_key` (`schema.ts:273`) with a
-composite `unique(organization_id, idempotency_key)`. Adding a scoped predicate to the lookup *without*
-changing the index makes a replayed foreign key deduct credits and then hit the UNIQUE violation,
-rolling back into a 500.
+**Fix bugs B1, B2, B3 (§0.1) in this task.**
+
+For **B1**: add the org predicate to the `spend.ts:21-23` lookup **and** replace the global `unique()`
+on `credit_ledger.idempotency_key` (`schema.ts:273`) with a composite
+`unique(organization_id, idempotency_key)`. Adding the predicate *without* changing the index makes a
+replayed foreign key deduct credits and then hit the UNIQUE violation, rolling back into a 500. (The
+index swap lands with Migration (C) — see Task 0.3.)
+
+> **Do not change the key format.** An earlier draft of this plan said to namespace it as
+> `${orgId}:${clientKey}`. That would orphan every pre-deploy key, and both server-written formats
+> are load-bearing for *real* idempotency: a Stripe retry of `purchase:${session.id}`
+> (`billing/routes.ts:148`; retries run for 3 days, per Task 0.4) and `signup-grant:${user.id}`
+> (`onboarding/routes.ts:177-182`, whose **only** re-grant guard is the key matching an existing row —
+> `POST /api/onboarding/complete` has no already-completed check). Changing the format re-grants on
+> both paths. **The fix for a billing bug must not create one.** If namespacing is adopted for some
+> other reason, Migration (B) must rewrite existing `credit_ledger.idempotency_key` values into the
+> new form in the same statement batch.
 
 **Give `assertWalletLedgerInvariant` a runnable entry point.** Task 0.3 and Phase 2's DoD both require
 it, but it is invoked from exactly one place — `index.ts:59`, guarded by
-`if (process.env.NODE_ENV !== "production")` at :58 — and no package.json script runs it. Add an
-`apps/api/scripts/` tsx script plus a package.json script. **Keep both versions**: the pre-migration run
+`if (process.env.NODE_ENV !== "production")` at :58 — and no package.json script runs it. Add a script
+under **`apps/api/src/scripts/`** (not `apps/api/scripts/` — the latter is outside `tsconfig.json`'s
+`rootDir`/`include` and outside `eslint src/`, so the DoD's own typecheck would not cover it) plus a
+package.json script to run it. **Keep both versions**: the pre-migration run
 must use the existing user-keyed query (`reconcile.ts:9-26`) because `wallet_balance.organization_id`
 does not exist yet; add a second org-keyed function for after. One rewritten function fails with
 `no such column` rather than reporting drift. Rename `DriftRow`'s `user_id` key (:4).
@@ -560,9 +679,21 @@ only `environment: "node"` and an include glob — **no `setupFiles`**. And `app
 builds the libSQL client at **module scope** from `env.DATABASE_URL`, with `spend.ts:4` importing that
 singleton directly — so importing any route module **opens a real connection at import time**.
 
-The harness is: a per-test `file::memory:` or temp-file libSQL client, migrations applied in a setup
-file, two seeded orgs with real BetterAuth sessions, and HTTP-level assertions through `app.fetch` —
-plus a decision on whether `db/index.ts` gains a client factory (which touches every import site).
+The harness is three decisions, all of which belong in **this** task rather than being deferred:
+
+**(a) Extract the composed Hono app into `apps/api/src/app.ts`**, leaving `serve()` and the
+`assertWalletLedgerInvariant()` call in `index.ts`. Today both run at module scope (`index.ts:53-62`),
+so importing the app in a test **binds port 8001 and opens a real libSQL connection**. There is no
+importable `app.fetch` entry point until this extraction happens.
+
+**(b) Add `setupFiles` to `apps/api/vitest.config.ts`** pointing `DATABASE_URL` at a per-worker temp
+file and applying migrations via `migrate()` from `drizzle-orm/libsql/migrator` — **drizzle-kit is a
+CLI and cannot be called in-process.** Decide the `db/index.ts` client-factory question here (it
+touches every import site).
+
+**(c) Seeded sessions cannot come from `auth.api.signUpEmail` unmodified** — `auth.ts:39` sets
+`sendOnSignUp: true` and `lib/email/client.ts:7-11` throws without `RESEND_API_KEY`. Either stub the
+send or insert `user` / `session` rows directly.
 
 Then the assertions, in `apps/api/src/modules/__tests__/tenant-isolation.test.ts`: for every scoped
 endpoint, org A's session cannot read, update, delete, or enumerate org B's rows, returning **404 not
@@ -584,19 +715,41 @@ signup.** `apps/api/src/lib/auth.ts` (99 lines, read in full) has no `databaseHo
 returns 500** — and D5 keeps D2C signup alive.
 
 Preferred: `databaseHooks.user.create.after` creating org + owner membership + `organization_settings`
-+ `organization_branding` in one transaction. Alternative: the existing onboarding `ensureRow` path
-(`onboarding/routes.ts:47-58`). Decide whether a self-signup gets its own personal org or joins the
-D2C org (§0.2 item 4). **Cover it with a test.**
+(`advisor_mode = 'platform'`, `crypto_rail_enabled = 1`, `signup_grant_credits = 3` — **the D2C
+behaviour set, matching backfill step 3, not the Task 0.2 column defaults**, which are the whitelabel
+defaults) + `organization_branding`, in one transaction. Alternative: the existing onboarding
+`ensureRow` path (`onboarding/routes.ts:47-58`).
 
-*Confidence note: `databaseHooks` is the natural mechanism but was not exercised against 1.6.20.*
+Decide whether a self-signup gets its own personal org or joins the D2C org (§0.2 item 4). **These are
+not equivalent options:** joining the D2C org means, under D7, that every self-signup shares one credit
+wallet and one shared-simulation read scope with every other signup. **Cover it with a test.**
+
+*Two cautions: `databaseHooks` is the natural mechanism but was not exercised against 1.6.20; and a
+transaction inside a create hook is exactly the shape Task 0.0(b) measures — overlapping
+`db.transaction()` calls against libSQL fail rather than serialise.*
 
 ### Task 0.9 — Provisioning CLI and local dev seed **(v1 had no task for either)**
 
 D13 makes an internal CLI the only way a tenant exists, and the only way a second analyst gets an
-account — yet v1 had no task for it, and `apps/api` has no `scripts/` directory or CLI entry pattern
-beyond `tsx watch`. Specify which rows it writes (`organization`, `organization_member`,
-`organization_settings`, `organization_branding`, `organization_domain`) and how it validates a
-hostname.
+account — yet v1 had no task for it.
+
+**The pattern to copy already exists:** `apps/api/src/scripts/seed-billing-packages.ts`, a one-shot
+tsx CLI documented at its line 7 as `pnpm tsx src/scripts/seed-billing-packages.ts`. No `package.json`
+script wraps it; add one for the provisioning CLI and for the drift check (Task 0.5).
+
+It writes `organization`, `organization_member`, `organization_settings`, `organization_branding`,
+`organization_domain`. Two things it must specify that nothing currently does:
+
+- **How it creates the analyst's account.** `emailAndPassword` is enabled (`auth.ts:26-27`), so
+  credentials live in BetterAuth's `account` table with its own hashing and **cannot be written by
+  hand**, and no admin plugin is installed (`plugins: [expo()]`). Name the BetterAuth API the CLI
+  calls, how the initial password reaches the analyst, and whether `sendOnSignUp` verification is
+  suppressed or `emailVerified` pre-set.
+- **What happens when the analyst already has a D2C account.** `unique('org_member_user_unique')`
+  (D3) means they cannot simply be added to the tenant org — and for the first customer this is the
+  *normal* case, not the edge case.
+
+The CLI **refuses to provision** without the support email, privacy URL, and terms URL (§0.2 item 3).
 
 **Directly coupled: local dev seeding.** After Phase 0 a fresh `file:portfolio.db` has no
 `organization`, so under Task 0.4's rule **every local signup is broken until someone runs a seed that
@@ -606,14 +759,20 @@ does not exist.** This is the thing that will burn the second engineer on this p
 
 - `pnpm --filter api test` and `pnpm --filter api typecheck` pass. *(Note: there is no root `typecheck`
   script and `turbo.json` has no `typecheck` task — see §10.)*
-- Migrations A–D apply cleanly to a **fresh** production copy.
+- All six migration files apply cleanly, in deploy order, to a **fresh** production copy.
 - `PRAGMA integrity_check` returns `ok` and `PRAGMA foreign_key_check` returns 0 rows.
 - Wallet/ledger invariant holds before (user-keyed) and after (org-keyed).
-- Isolation tests cover every scoped endpoint and fail if any `where` clause is removed.
-- Bugs B1, B2, B3 fixed with regression tests.
+- Isolation tests cover every scoped endpoint and fail if any `where` clause is removed — **verified by
+  a manual mutation pass**: remove one org predicate per table, confirm exactly one test fails, restore.
+  (No mutation-testing tool exists in either package.json.)
+- Bugs **B1–B5** fixed with regression tests.
 - A new signup gets an org (Task 0.8), verified by test.
+- **`pnpm dev` works from an empty database** via the Task 0.9 seed, and the CLI provisions a tenant
+  end to end.
+- A webhook test proves org resolution from the `payments` row, and that failure **throws** (so the
+  provider retries) rather than returning 200.
 - **Zero user-visible change** — including the advisor CTA and crypto rail still rendering for existing
-  users.
+  users, **and for an account created after the deploy**.
 
 ---
 
@@ -645,8 +804,9 @@ illusion than the OAuth consent screen §9.2 discusses at length.
 Create `apps/web/src/middleware.ts`. Read `Host`, look up `organization_domain`, attach `x-org-id` /
 `x-org-slug`. Unknown host serves the default (D2C) tenant, not a 404.
 
-**The data path does not exist yet — v1 assumed one.** `apps/web/src/lib/api.ts` is a *browser-only*
-client: it fetches the relative path `/api` with `credentials: same-origin`, and there is **no
+**The data path does not exist yet — v1 assumed one.** `apps/web/src/lib/api.ts` is browser-only in
+**both** of its branches: absolute URL + `credentials: include` when `NEXT_PUBLIC_API_URL` is set
+(today's production, per §3.2), relative `/api` + `same-origin` otherwise. Either way there is **no
 server-side API client anywhere in `apps/web`**. A relative fetch from a server component throws (no
 base URL), and `next.config.js` rewrites **do not apply to server-side fetches**. So both Task 1.1's
 "in-memory map refreshed from the API" and Task 1.3's "fetch branding server-side" need a mechanism
@@ -734,43 +894,32 @@ Data Cache on any server-side `fetch` added in Phase 1; `generateMetadata`; and 
 with `Vary: Host`. Audit those specifically, then add `Vary: Host` and org-keyed cache keys where they
 apply.
 
-**Phase 1 needs a test harness that does not exist.** `apps/web` has three tests, all pure-function; no
-Playwright, no e2e, no way to drive a request with a synthetic `Host` header. Building it is comparable
-in size to the API harness — and unlike that one, v1 did not even name it as a task.
+### Task 1.9 — Web test harness *(a deliverable, not an assumption)*
+
+`apps/web` has three tests, all pure-function; no Playwright, no e2e, **no way to drive a request with
+a synthetic `Host` header** — which is what both Phase 1 DoD gates require. Build it as its own task,
+the way Task 0.6 does on the API side: Playwright, or a Next request-level test that can set `Host`,
+with two seeded orgs on two hostnames. It gates "two hostnames render two brands" and "cache-bleed
+test passes", so it must land before either can be claimed.
 
 ### Phase 1 definition of done
 
-Two hostnames render two brands with no flash. PDF carries tenant branding across all three colour
-systems. Cache-bleed test passes. `pnpm build` succeeds. Light and dark both pass a contrast check with
-a deliberately awkward accent (pale yellow is the good adversarial case).
+The Task 1.9 harness exists. Two hostnames render two brands with no flash. PDF carries tenant
+branding across all three colour systems. Cache-bleed test passes. `trustedOrigins` is request-scoped
+and the CORS allowlist accepts every tenant host (both from Task 1.0). `pnpm build` succeeds. Light and
+dark both pass a contrast check with a deliberately awkward accent (pale yellow is the good
+adversarial case).
 
 ---
 
 ## 6. Phase 2 — Org billing
 
-### Task 2.0 — Prerequisites, as their own PRs against the current per-user schema
+### Task 2.0 — moved to Phase 0
 
-**(a) Fix the orphan-commit race** (§0.1). Roll back explicitly: throw a sentinel out of the transaction
-callback and resolve the winner outside it. Note `findExistingLedgerRow` reads via the module-level
-`db`, not `tx`, so the recovery read cannot see the transaction. **Land this separately** so a
-concurrency fix and a key migration do not fail together.
-
-**(b) Measure write contention.** Overlapping `db.transaction()` calls against libSQL do **not**
-serialise and wait — they fail. Measured against a real file DB: with 0ms overlap one succeeded and the
-other returned `database is locked`; with 1ms or 25ms overlap the first got `cannot commit transaction
-- SQL statements in progress` and the second `database is locked`. [verified] Cause:
-`@libsql/client`'s `transaction()` takes the current connection, issues BEGIN, then nulls its handle so
-the next caller opens a *second* connection — and no `busy_timeout` is configured (`config/env.ts:5`
-defaults to a bare `file:portfolio.db` with no `?timeout=`).
-
-Under D7, **N analysts sharing one wallet row means 500s before any drift appears.** And because the
-four optimize routes `await reverseSpendOnError` inside their catch
-(`optimization/routes.ts:169-172, 251, 336, 384`), a locked reversal **swallows the user's original
-error and keeps the credit spent**. Phase 2's DoD test "the concurrent-same-key race" will fail on
-connection locking, not on idempotency.
-
-**Measure the same thing against a real Turso database first** — production uses the remote hrana path
-and the local measurement may not transfer.
+Both prerequisites now live in **Task 0.0**: the orphan-commit fix (B4) lands against the current
+per-user schema, which only exists before Migration (D); and the write-contention measurement gates
+D7, a Phase 0 schema decision. Phase 2's DoD test "the concurrent-same-key race" will fail on
+connection locking rather than idempotency until Task 0.0(b) is resolved.
 
 ### Task 2.1 — Wallet moves to the org
 
@@ -781,7 +930,7 @@ Rewrite `spend.ts`: `ensureWalletRow(organizationId)`; both raw SQL statements c
 
 **Preserve** the conditional-`UPDATE` atomicity and the transaction-scoped `balanceAfter` re-read
 (`spend.ts:55-57`, `:107-109` correctly use `tx.query`, not `db.query`). **Do not preserve** the
-unscoped idempotency replay (fixed in Task 0.5) or the race-loser recovery (fixed in Task 2.0a) —
+unscoped idempotency replay (fixed in Task 0.5) or the race-loser recovery (fixed in Task 0.0a) —
 **[v1 was wrong]** v1 said "preserve the existing idempotency semantics exactly", which instructs the
 implementer to preserve two latent bugs that org-keying makes far more reachable.
 
@@ -825,7 +974,7 @@ At 20% of the last top-up, email the owner (branded per Task 1.0). Gate the Coin
 ### Phase 2 definition of done
 
 Org-level wallet/ledger invariant holds. Idempotency tests pass **including the concurrent-same-key
-race** (which requires Task 2.0b). Two users in one org share a balance; another org is unaffected.
+race** (which requires Task 0.0b). Two users in one org share a balance; another org is unaffected.
 `PAYMENTS.md` updated in the same PR (D7 reverses its stated non-goal).
 
 ---
@@ -837,11 +986,16 @@ race** (which requires Task 2.0b). Two users in one org share a balance; another
 Filter the Yahoo search through `organization_settings.fund_allowlist` when non-empty.
 
 **The ticker search exists twice.** `apps/web/src/app/api/historical/search/route.ts:25` is a
-near-identical Next.js App Router handler calling Yahoo directly — and because `next.config.js`'s
-array-form `rewrites()` are applied `afterFiles`, **that colocated route wins over the proxy and never
-reaches the API.** Filtering only the Hono handler (`historical/routes.ts:33`) leaves the allowlist
-trivially bypassable from the tenant's own app. Delete the Next route in favour of the rewrite, or
-apply the allowlist to both.
+near-identical Next.js App Router handler calling Yahoo directly. Which one the app reaches depends on
+`NEXT_PUBLIC_API_URL`: `AssetAllocationForm.tsx:65-67` builds
+`${process.env.NEXT_PUBLIC_API_URL || ""}/api/historical/search`, so it calls the API host directly
+when that is set (today's production, per §3.2) and the relative path otherwise — where array-form
+`rewrites()` are `afterFiles`, so the colocated route wins.
+
+Either way **the Next route stays publicly reachable** at `https://<tenant-host>/api/historical/search`,
+so filtering only the Hono handler (`historical/routes.ts:33`) leaves the allowlist bypassable by hand.
+**Apply the allowlist to both.** Delete the Next route only if Task 1.0's verification proved the
+rewrite reaches the API in production.
 
 ### Task 3.2 — Academia toggle
 
@@ -884,7 +1038,7 @@ its runner calls `spendCredit({userId, …})` from a sessionless `POST /api/inte
 **fourth** sessionless org-resolution path. If CRON ships first, Phase 0 must scope its three tables; if
 Phase 0 ships first, `CRON.md` needs an org-aware `spendCredit` signature.
 
-**Rollback.** Drizzle generates no down-migrations, §10 mandates one phase per PR, and the wallet re-key
+**Rollback.** Drizzle generates no down-migrations, §10 mandates one deployable increment per PR, and the wallet re-key
 is destructive. Because `db:migrate` runs in `buildCommand`, **rolling back the code does not roll back
 the schema.** Write the rollback procedure before Deploy 2.
 
@@ -955,7 +1109,8 @@ typecheck break D7 causes via `walletBalanceRelations` would surface only on som
 
 **Also**: migrations follow the `CLAUDE.md` workflow, never `db:push` · every new user-facing string
 goes in both `es.json` and `en.json` (brand values are the documented exception) · never hardcode a
-colour · DD/MM/YYYY in charts · one phase per PR · every org-scoped table lands with its isolation test
+colour · DD/MM/YYYY in charts · **one deployable increment per PR** (Phase 0 is three PRs, and Task 0.0
+is its own) · every org-scoped table lands with its isolation test
 in the same commit.
 
 **Env and ops, unexamined and needed:** no `API_URL` in `render.yaml`, no env block in `vercel.json`, no
@@ -969,9 +1124,9 @@ project — an ops prerequisite with real lead time that nothing has verified.
 
 | Phase | Ships to users |
 | --- | --- |
-| **0 — Tenancy foundation** (two deploys: A+B, then C+D) | Nothing visible |
+| **0 — Tenancy foundation** (Task 0.0 first, then three deploys — see Task 0.3) | Nothing visible |
 | **1 — Branding** (gated on §3.2 verification) | The demoable feature |
-| **2 — Org billing** (gated on Task 2.0) | Owner-facing |
+| **2 — Org billing** (gated on Task 0.0) | Owner-facing |
 | **3 — Product controls** | Per-tenant configuration |
 
 Phases 2 and 3 are largely independent and can be reordered to suit a customer conversation. **Phase 0
