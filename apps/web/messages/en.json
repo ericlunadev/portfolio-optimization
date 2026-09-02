@@ -325,6 +325,39 @@
     "disclaimer": "Informational document. This is not investment advice. Past performance does not guarantee future results.",
     "page": "Page {current} of {total}"
   },
+  "ReportConfig": {
+    "title": "Configure report",
+    "description": "Choose which sections and fields the PDF includes.",
+    "reportTitleLabel": "Report title",
+    "sections": {
+      "metrics": "Key metrics",
+      "metricsHint": "The headline numbers of the optimal portfolio.",
+      "parameters": "Simulation parameters",
+      "parametersHint": "The inputs the optimization ran with.",
+      "allocation": "Allocation per asset",
+      "allocationHint": "The table of weights and metrics for every asset.",
+      "risk": "Probability of a negative return",
+      "riskHint": "The chance of ending below the starting value, by horizon.",
+      "comparison": "Portfolio comparison",
+      "comparisonHint": "The optimal portfolio next to your own allocation.",
+      "charts": "Charts",
+      "chartsHint": "The charts appended at the end of the report."
+    },
+    "metrics": {
+      "confidenceInterval": "95% confidence interval"
+    },
+    "parameters": {
+      "dateRange": "Date range",
+      "strategy": "Strategy and its target",
+      "constraints": "Constraints",
+      "assets": "Asset list"
+    },
+    "allocationNote": "The asset name column is always included.",
+    "reset": "Reset to defaults",
+    "cancel": "Cancel",
+    "generate": "Generate PDF",
+    "emptyWarning": "Select at least one section."
+  },
   "AdvisorCta": {
     "title": "Questions about these results?",
     "subtitle": "Book a 30-min call with our financial advisor.",

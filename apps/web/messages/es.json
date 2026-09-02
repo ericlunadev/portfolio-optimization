@@ -325,6 +325,39 @@
     "disclaimer": "Documento informativo. No constituye asesoría de inversión. Los rendimientos pasados no garantizan resultados futuros.",
     "page": "Página {current} de {total}"
   },
+  "ReportConfig": {
+    "title": "Configurar reporte",
+    "description": "Elige qué secciones y campos incluye el PDF.",
+    "reportTitleLabel": "Título del reporte",
+    "sections": {
+      "metrics": "Métricas principales",
+      "metricsHint": "Las cifras destacadas del portafolio óptimo.",
+      "parameters": "Parámetros de la simulación",
+      "parametersHint": "Los datos con los que se ejecutó la optimización.",
+      "allocation": "Asignación por activo",
+      "allocationHint": "La tabla de pesos y métricas de cada activo.",
+      "risk": "Probabilidad de rendimiento negativo",
+      "riskHint": "La probabilidad de terminar por debajo del valor inicial, por horizonte.",
+      "comparison": "Comparación de portafolios",
+      "comparisonHint": "El portafolio óptimo junto a tu propia asignación.",
+      "charts": "Gráficos",
+      "chartsHint": "Los gráficos que se agregan al final del reporte."
+    },
+    "metrics": {
+      "confidenceInterval": "Intervalo de confianza del 95%"
+    },
+    "parameters": {
+      "dateRange": "Rango de fechas",
+      "strategy": "Estrategia y su objetivo",
+      "constraints": "Restricciones",
+      "assets": "Lista de activos"
+    },
+    "allocationNote": "La columna con el nombre del activo siempre se incluye.",
+    "reset": "Restablecer valores",
+    "cancel": "Cancelar",
+    "generate": "Generar PDF",
+    "emptyWarning": "Selecciona al menos una sección."
+  },
   "AdvisorCta": {
     "title": "¿Dudas con estos resultados?",
     "subtitle": "Agendá una llamada de 30 min con nuestro asesor financiero.",

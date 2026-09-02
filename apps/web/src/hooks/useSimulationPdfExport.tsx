@@ -13,6 +13,7 @@ import {
   buildSimulationPdf,
   simulationPdfFilename,
 } from "@/lib/simulation-pdf";
+import { ReportConfig, isChartSelected } from "@/lib/report-config";
 import { svgToPng } from "@/lib/svg-to-png";
 
 /** How long to wait for a chart's `<svg>` to appear before giving up on it. */
@@ -28,17 +29,30 @@ const CHART_POLL_INTERVAL_MS = 100;
 const CHART_SETTLE_MS = 150;
 
 export interface UseSimulationPdfExportOptions
-  extends Omit<SimulationPdfInput, "charts" | "generatedAt"> {
+  extends Omit<SimulationPdfInput, "charts" | "generatedAt" | "config"> {
+  /** Every chart this simulation can offer; the config picks from these. */
   charts: PdfChartSpec[];
 }
 
 export interface SimulationPdfExport {
-  /** Kicks off rendering, capture, and download. Safe to call again after it finishes. */
-  exportPdf: () => void;
+  /**
+   * Renders, captures and downloads the report described by `config`. Safe to
+   * call again once the previous run finishes.
+   */
+  exportPdf: (config: ReportConfig) => void;
   isExporting: boolean;
   hasError: boolean;
   /** Must be rendered by the caller — it mounts the off-screen charts. */
   offscreenCharts: ReactNode;
+}
+
+/** The charts a config actually asks for, in report order. */
+export function selectCharts(
+  charts: PdfChartSpec[],
+  config: ReportConfig
+): PdfChartSpec[] {
+  if (!config.sections.charts) return [];
+  return charts.filter((chart) => isChartSelected(config, chart.key));
 }
 
 export function useSimulationPdfExport(
@@ -47,38 +61,49 @@ export function useSimulationPdfExport(
   const [runId, setRunId] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [hasError, setHasError] = useState(false);
+  // Held in state as well as in a ref: the off-screen charts are only the ones
+  // this run needs, so the render has to see the config too.
+  const [activeConfig, setActiveConfig] = useState<ReportConfig | null>(null);
 
   // The export reads its inputs when it runs, not when the button is wired up,
   // so keep them in a ref and off the effect's dependency list.
   const optionsRef = useRef(options);
   optionsRef.current = options;
+  const configRef = useRef(activeConfig);
+  configRef.current = activeConfig;
 
-  const exportPdf = useCallback(() => {
+  const exportPdf = useCallback((config: ReportConfig) => {
     setHasError(false);
     setIsExporting(true);
+    setActiveConfig(config);
     setRunId((previous) => previous + 1);
   }, []);
 
   useEffect(() => {
     if (runId === 0) return;
+    const config = configRef.current;
+    if (!config) return;
 
     let cancelled = false;
 
     (async () => {
       try {
         const { charts, ...rest } = optionsRef.current;
-        const images = await captureCharts(charts);
+        const images = await captureCharts(selectCharts(charts, config));
         if (cancelled) return;
 
         const generatedAt = new Date();
+        const title = config.title.trim() || rest.title;
         const doc = await buildSimulationPdf({
           ...rest,
+          title,
           generatedAt,
           charts: images,
+          config,
         });
         if (cancelled) return;
 
-        doc.save(simulationPdfFilename(rest.title, generatedAt));
+        doc.save(simulationPdfFilename(title, generatedAt));
       } catch (error) {
         console.error("Failed to export simulation PDF", error);
         if (!cancelled) setHasError(true);
@@ -96,13 +121,16 @@ export function useSimulationPdfExport(
     exportPdf,
     isExporting,
     hasError,
-    offscreenCharts: isExporting ? (
-      <SimulationPdfCharts charts={options.charts} />
-    ) : null,
+    offscreenCharts:
+      isExporting && activeConfig ? (
+        <SimulationPdfCharts charts={selectCharts(options.charts, activeConfig)} />
+      ) : null,
   };
 }
 
 async function captureCharts(specs: PdfChartSpec[]): Promise<PdfChartImage[]> {
+  if (specs.length === 0) return [];
+
   const root = document.querySelector<HTMLElement>("[data-pdf-charts-root]");
   if (!root) throw new Error("The off-screen PDF chart container is not mounted");
 
