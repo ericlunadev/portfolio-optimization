@@ -439,7 +439,9 @@ DATABASE_URL=file:./prod-copy.db pnpm --filter api db:migrate
 >
 > Note in the migration file that this `ADD COLUMN` **silently drops `ON DELETE cascade`** — the
 > convertor emits only `REFERENCES table(col)`, so the live FK is NO ACTION while the Drizzle snapshot
-> claims cascade. Migration (C)'s rebuild restores it.
+> claims cascade. Migration (C)'s rebuild installs the **declared** action — `cascade` for the five
+> non-financial tables, `no action` for `payments` and `credit_ledger` per the `onDelete` rule in Task
+> 0.2 — not cascade everywhere. A reviewer who sees `no action` in (C)'s output should not "fix" it.
 
 **Migration (B) — `pnpm db:generate --custom --name=backfill_organizations`.**
 
@@ -534,10 +536,12 @@ archiving. Deleting requires nulling any `credit_ledger.simulation_id` reference
 > *(Sub-steps are lettered, not numbered, because `D1`/`D2`/`D3` are locked-decision ids — and D7 is
 > cited four lines below.)*
 >
-> **Cheaper alternative — decide it now, do not leave it "worth costing":** keep `user_id` as a
-> deprecated nullable column and add `organization_id UNIQUE NOT NULL` alongside it. That satisfies
-> D7's behaviour with no rebuild, no prompt, and **no Deploy 3 at all**. Take it unless there is a
-> reason not to.
+> **Cheaper alternative — take it unless there is a reason not to.** Keep `user_id` as a deprecated
+> nullable column and add `organization_id` alongside it: nullable + FK in (D-i), backfilled in
+> (D-ii), then flipped to `NOT NULL UNIQUE` inside (C) at Deploy 2. Be precise about what this saves —
+> **the PK move and Deploy 3, not the rebuild and not the file count.** It is still the same
+> table-rebuild path, because an FK-carrying column always is (see (C) below), and `ADD COLUMN … NOT
+> NULL` with no default is still rejected by libSQL on a populated table (see (A) above).
 
 #### Deploy grouping
 
@@ -547,8 +551,8 @@ forces three deploys:
 
 | Deploy | Migrations | The release that ships with it |
 | --- | --- | --- |
-| **1** | (A), (B), (D-i), (D-ii) | Contains all of Task 0.5's INSERT stamping and Task 0.8's provisioning hook. **This is what "dual-writing" means here** — for the seven single-key tables it is simply stamping the new column; for `wallet_balance` it is writing both keys. Nothing yet *reads* `organization_id`. |
-| **2** | (C) | The release that reads `organization_id` — scoped queries, org context in middleware. |
+| **1** | (A), (B), (D-i), (D-ii) | Contains **Task 0.4's org-context middleware** (you cannot stamp what you cannot resolve), all of Task 0.5's INSERT stamping, and Task 0.8's provisioning hook. **This is what "dual-writing" means here** — for the seven single-key tables it is simply stamping the new column; for `wallet_balance` it is writing both keys. Nothing yet *reads* `organization_id`. |
+| **2** | (C) | The release whose SELECT / UPDATE / DELETE predicates read the new `organization_id` columns. |
 | **3** | (D-iii) only | Ships *after* the org-keyed `spend.ts` is live. **Skip this deploy entirely if you take the cheaper alternative above.** |
 
 Deploy 3 is the genuinely dangerous one: it drops `wallet_balance.user_id` while the previous release
@@ -683,13 +687,13 @@ The harness is three decisions, all of which belong in **this** task rather than
 
 **(a) Extract the composed Hono app into `apps/api/src/app.ts`**, leaving `serve()` and the
 `assertWalletLedgerInvariant()` call in `index.ts`. Today both run at module scope (`index.ts:53-62`),
-so importing the app in a test **binds port 8001 and opens a real libSQL connection**. There is no
-importable `app.fetch` entry point until this extraction happens.
+so importing the app in a test **binds port 8001 and opens a real libSQL connection**. `index.ts` does
+export the app, but importing it is unusable in a test until those side effects move.
 
 **(b) Add `setupFiles` to `apps/api/vitest.config.ts`** pointing `DATABASE_URL` at a per-worker temp
-file and applying migrations via `migrate()` from `drizzle-orm/libsql/migrator` — **drizzle-kit is a
-CLI and cannot be called in-process.** Decide the `db/index.ts` client-factory question here (it
-touches every import site).
+file and applying the **committed** migrations via `migrate()` from `drizzle-orm/libsql/migrator` — tests must
+exercise the same files production runs, not regenerate schema. Decide the `db/index.ts`
+client-factory question here (it touches every import site).
 
 **(c) Seeded sessions cannot come from `auth.api.signUpEmail` unmodified** — `auth.ts:39` sets
 `sendOnSignUp: true` and `lib/email/client.ts:7-11` throws without `RESEND_API_KEY`. Either stub the
@@ -789,7 +793,10 @@ model, **verifying an email signs the user in on the D2C host and they arrive at
 logged out.** `sendResetPassword` also **ignores** the `redirectTo` the client sends
 (`app/auth/forgot-password/page.tsx:19-22` sends `${window.location.origin}/auth/reset-password`) and
 emails the `FRONTEND_URL` link regardless. Resolve the user's org → its `organization_domain.hostname`
-and build both links from that.
+and build both links from that. **Define the fallback**: when the org has no domain row — which is
+every personal org after the backfill (Migration (B) step 5) — use the default tenant's hostname
+(`organization.is_default`). This is the recovery path from §3.2's session-invalidating cutover, so it
+cannot be left undefined.
 
 **Email is a fourth brand surface nobody had opened.** `apps/api/src/lib/email/i18n.ts` hardcodes
 `brand: "Optimización de Portafolio"` / `"Portfolio Optimization"`, rendered at `VerifyEmail.tsx:31`
@@ -1069,7 +1076,9 @@ first tenant goes live. If no privacy policy or ToS exists at all (§0.2 item 3)
 **9.4 — Reversing a `PAYMENTS.md` non-goal.** D7 contradicts a documented decision. Update
 `PAYMENTS.md` in the Phase 2 PR.
 
-**9.5 — Admin authority model** for Task 2.3. **9.6 — Deploy window** for Migration C/D (§0.2 item 5).
+**9.5 — Admin authority model** for Task 2.3. **9.6 — Deploy window** for Migration (D-iii), which drops `wallet_balance.user_id` under the
+still-serving release — or the decision to take the Migration (D) alternative and skip Deploy 3
+entirely (§0.2 item 5).
 
 ---
 
