@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, or, desc, type SQL } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { simulations } from "../../db/schema.js";
 import { authMiddleware } from "../../middleware/auth.js";
@@ -9,17 +9,49 @@ import { toISOStringOrNow } from "../../lib/dates.js";
 
 const app = new Hono();
 
-// All simulation routes require authentication and are scoped per user
+// All simulation routes require authentication and are scoped per organization
 app.use("*", authMiddleware);
 
-// GET /api/simulations - List all simulations for the current user
+// Reads reach the caller's own simulations plus anything shared with the org.
+function readScope(organizationId: string, userId: string): SQL | undefined {
+  return and(
+    eq(simulations.organizationId, organizationId),
+    or(eq(simulations.userId, userId), eq(simulations.sharedWithOrg, true))
+  );
+}
+
+// Writes reach the caller's own simulations only: sharing grants read, never write.
+function writeScope(organizationId: string, userId: string): SQL | undefined {
+  return and(
+    eq(simulations.organizationId, organizationId),
+    eq(simulations.userId, userId)
+  );
+}
+
+// A write filtered by writeScope alone only learns that zero rows changed, which
+// cannot separate "no such simulation" (404) from "shared with you, so read-only"
+// (403). Every write handler therefore looks the row up with readScope first.
+async function isReadable(
+  id: string,
+  organizationId: string,
+  userId: string
+): Promise<boolean> {
+  const row = await db.query.simulations.findFirst({
+    where: and(eq(simulations.id, id), readScope(organizationId, userId)),
+    columns: { id: true },
+  });
+  return row !== undefined;
+}
+
+// GET /api/simulations - List the simulations visible to the current user
 app.get("/", async (c) => {
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
 
   const rows = await db
     .select()
     .from(simulations)
-    .where(eq(simulations.userId, user.id))
+    .where(readScope(organizationId, user.id))
     .orderBy(desc(simulations.pinned), desc(simulations.createdAt));
 
   const items = rows.map((row) => {
@@ -46,9 +78,10 @@ app.get("/", async (c) => {
 app.get("/:id", async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
 
   const row = await db.query.simulations.findFirst({
-    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
+    where: and(eq(simulations.id, id), readScope(organizationId, user.id)),
   });
 
   if (!row) {
@@ -81,26 +114,29 @@ app.post("/", zValidator("json", createSchema), async (c) => {
 
   const id = crypto.randomUUID();
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
 
-  await db.insert(simulations).values({
-    id,
-    userId: user.id,
-    name,
-    params: JSON.stringify(params),
-    result: JSON.stringify(result),
-  });
-
-  const row = await db.query.simulations.findFirst({
-    where: eq(simulations.id, id),
-  });
+  // `.returning()` instead of a re-read by id: it cannot drift from the row just
+  // written, and it keeps every query in this file org-scoped.
+  const [row] = await db
+    .insert(simulations)
+    .values({
+      id,
+      userId: user.id,
+      organizationId,
+      name,
+      params: JSON.stringify(params),
+      result: JSON.stringify(result),
+    })
+    .returning();
 
   return c.json(
     {
-      id: row!.id,
-      name: row!.name,
-      params: JSON.parse(row!.params),
-      result: JSON.parse(row!.result),
-      createdAt: toISOStringOrNow(row!.createdAt),
+      id: row.id,
+      name: row.name,
+      params: JSON.parse(row.params),
+      result: JSON.parse(row.result),
+      createdAt: toISOStringOrNow(row.createdAt),
     },
     201
   );
@@ -119,16 +155,21 @@ const patchSchema = z
 app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
   const body = c.req.valid("json");
 
   const updates: { name?: string | null; pinned?: boolean } = {};
   if (body.name !== undefined) updates.name = body.name?.trim() || null;
   if (body.pinned !== undefined) updates.pinned = body.pinned;
 
+  if (!(await isReadable(id, organizationId, user.id))) {
+    return c.json({ error: "Simulation not found" }, 404);
+  }
+
   const updated = await db
     .update(simulations)
     .set(updates)
-    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)))
+    .where(and(eq(simulations.id, id), writeScope(organizationId, user.id)))
     .returning({
       id: simulations.id,
       name: simulations.name,
@@ -136,7 +177,7 @@ app.patch("/:id", zValidator("json", patchSchema), async (c) => {
     });
 
   if (updated.length === 0) {
-    return c.json({ error: "Simulation not found" }, 404);
+    return c.json({ error: "Simulation is read-only" }, 403);
   }
 
   return c.json(updated[0]);
@@ -151,10 +192,15 @@ const putSchema = z.object({
 app.put("/:id", zValidator("json", putSchema), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
   const body = c.req.valid("json");
 
   const params = body.params as Record<string, unknown>;
   const result = body.result as Record<string, unknown>;
+
+  if (!(await isReadable(id, organizationId, user.id))) {
+    return c.json({ error: "Simulation not found" }, 404);
+  }
 
   const updated = await db
     .update(simulations)
@@ -162,23 +208,21 @@ app.put("/:id", zValidator("json", putSchema), async (c) => {
       params: JSON.stringify(params),
       result: JSON.stringify(result),
     })
-    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)))
-    .returning({ id: simulations.id });
+    .where(and(eq(simulations.id, id), writeScope(organizationId, user.id)))
+    .returning();
 
   if (updated.length === 0) {
-    return c.json({ error: "Simulation not found" }, 404);
+    return c.json({ error: "Simulation is read-only" }, 403);
   }
 
-  const row = await db.query.simulations.findFirst({
-    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
-  });
+  const row = updated[0];
 
   return c.json({
-    id: row!.id,
-    name: row!.name,
-    params: JSON.parse(row!.params),
-    result: JSON.parse(row!.result),
-    createdAt: toISOStringOrNow(row!.createdAt),
+    id: row.id,
+    name: row.name,
+    params: JSON.parse(row.params),
+    result: JSON.parse(row.result),
+    createdAt: toISOStringOrNow(row.createdAt),
   });
 });
 
@@ -186,14 +230,19 @@ app.put("/:id", zValidator("json", putSchema), async (c) => {
 app.delete("/:id", async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
+
+  if (!(await isReadable(id, organizationId, user.id))) {
+    return c.json({ error: "Simulation not found" }, 404);
+  }
 
   const deleted = await db
     .delete(simulations)
-    .where(and(eq(simulations.id, id), eq(simulations.userId, user.id)))
+    .where(and(eq(simulations.id, id), writeScope(organizationId, user.id)))
     .returning({ id: simulations.id });
 
   if (deleted.length === 0) {
-    return c.json({ error: "Simulation not found" }, 404);
+    return c.json({ error: "Simulation is read-only" }, 403);
   }
 
   return c.json({ success: true });

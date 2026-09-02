@@ -53,6 +53,90 @@ export const verification = sqliteTable("verification", {
   updatedAt: integer("updated_at", { mode: "timestamp" }),
 });
 
+// ==================== ORGANIZATIONS (Whitelabel tenancy) ====================
+
+export const organization = sqliteTable("organization", {
+  id: text("id").primaryKey(), // UUID
+  slug: text("slug").notNull().unique(), // internal identifier — NOT the subdomain
+  name: text("name").notNull(),
+  tier: text("tier").notNull().default("cobranded"), // 'cobranded' | 'whitelabel'
+  // The D2C tenant. The web middleware falls back to this org for unknown hosts.
+  isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+  // `logo` and `metadata` are unused today. They exist so that adopting BetterAuth's
+  // organization plugin later stays a purely additive change.
+  logo: text("logo"),
+  metadata: text("metadata"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+});
+
+export const organizationMember = sqliteTable(
+  "organization_member",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"), // 'owner' | 'member'
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
+  },
+  (t) => [
+    // One user belongs to exactly one organization: there is no org switcher.
+    unique("org_member_user_unique").on(t.userId),
+    index("org_member_org_idx").on(t.organizationId),
+  ]
+);
+
+export const organizationBranding = sqliteTable("organization_branding", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  productName: text("product_name"),
+  productShortName: text("product_short_name"),
+  tagline: text("tagline"),
+  accentHex: text("accent_hex"), // the only colour input a tenant gets
+  fontKey: text("font_key").default("instrument-sans"),
+  logoUrl: text("logo_url"),
+  faviconUrl: text("favicon_url"),
+  // Nullable for the first release: no support address, privacy policy or terms
+  // exist anywhere in the repo yet, so `.notNull()` would make the backfill
+  // unwritable. The provisioning CLI enforces them instead.
+  supportEmail: text("support_email"),
+  privacyPolicyUrl: text("privacy_policy_url"),
+  termsUrl: text("terms_url"),
+  disclaimerText: text("disclaimer_text"),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+});
+
+export const organizationDomain = sqliteTable(
+  "organization_domain",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    hostname: text("hostname").notNull().unique(),
+    isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(true),
+  },
+  (t) => [index("org_domain_host_idx").on(t.hostname)]
+);
+
+export const organizationSettings = sqliteTable("organization_settings", {
+  organizationId: text("organization_id")
+    .primaryKey()
+    .references(() => organization.id, { onDelete: "cascade" }),
+  academiaEnabled: integer("academia_enabled", { mode: "boolean" }).notNull().default(true),
+  advisorMode: text("advisor_mode").notNull().default("off"), // 'off' | 'platform' | 'tenant'
+  advisorBookingUrl: text("advisor_booking_url"),
+  advisorCostCredits: integer("advisor_cost_credits").default(100),
+  cryptoRailEnabled: integer("crypto_rail_enabled", { mode: "boolean" }).notNull().default(false),
+  fundAllowlist: text("fund_allowlist"), // JSON array; NULL or empty = unrestricted
+  overdraftLimit: integer("overdraft_limit").notNull().default(0),
+  signupGrantCredits: integer("signup_grant_credits").notNull().default(3),
+});
+
 // ==================== FUNDS ====================
 
 export const funds = sqliteTable(
@@ -129,6 +213,9 @@ export const userAssumptions = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     fundId: integer("fund_id")
       .notNull()
       .references(() => funds.id, { onDelete: "cascade" }),
@@ -136,7 +223,10 @@ export const userAssumptions = sqliteTable(
     volatility: real("volatility"),
     updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
   },
-  (t) => [unique("user_fund_unique").on(t.userId, t.fundId)]
+  (t) => [
+    unique("user_fund_unique").on(t.userId, t.fundId),
+    index("user_assumptions_org_idx").on(t.organizationId),
+  ]
 );
 
 export const userCorrelations = sqliteTable(
@@ -146,6 +236,9 @@ export const userCorrelations = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     fundId1: integer("fund_id_1")
       .notNull()
       .references(() => funds.id),
@@ -155,74 +248,106 @@ export const userCorrelations = sqliteTable(
     correlation: real("correlation").notNull(),
     updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
   },
-  (t) => [unique("user_corr_unique").on(t.userId, t.fundId1, t.fundId2)]
+  (t) => [
+    unique("user_corr_unique").on(t.userId, t.fundId1, t.fundId2),
+    index("user_correlations_org_idx").on(t.organizationId),
+  ]
 );
 
 // ==================== USER PROFILE (Onboarding) ====================
 
-export const userProfile = sqliteTable("user_profile", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  userId: text("user_id")
-    .notNull()
-    .unique()
-    .references(() => user.id, { onDelete: "cascade" }),
+export const userProfile = sqliteTable(
+  "user_profile",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    userId: text("user_id")
+      .notNull()
+      .unique()
+      .references(() => user.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
 
-  // Step 1 — Localization
-  countryCode: text("country_code"),
-  currency: text("currency"),
+    // Step 1 — Localization
+    countryCode: text("country_code"),
+    currency: text("currency"),
 
-  // Step 2 — Investor profile
-  experience: text("experience"),
-  horizon: text("horizon"),
-  riskBehavior: text("risk_behavior"),
-  riskTolerance: text("risk_tolerance"),
-  goal: text("goal"),
+    // Step 2 — Investor profile
+    experience: text("experience"),
+    horizon: text("horizon"),
+    riskBehavior: text("risk_behavior"),
+    riskTolerance: text("risk_tolerance"),
+    goal: text("goal"),
 
-  // Step 3 — Market preferences (JSON-encoded arrays)
-  marketsOfInterest: text("markets_of_interest"),
-  otherMarkets: text("other_markets"),
-  conceptFamiliarity: text("concept_familiarity"),
+    // Step 3 — Market preferences (JSON-encoded arrays)
+    marketsOfInterest: text("markets_of_interest"),
+    otherMarkets: text("other_markets"),
+    conceptFamiliarity: text("concept_familiarity"),
 
-  // Progress
-  currentStep: integer("current_step").notNull().default(1),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
-});
+    // Progress
+    currentStep: integer("current_step").notNull().default(1),
+    completedAt: integer("completed_at", { mode: "timestamp" }),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  },
+  (t) => [index("user_profile_org_idx").on(t.organizationId)]
+);
 
 // ==================== TASKS ====================
 
-export const backgroundTasks = sqliteTable("background_tasks", {
-  id: text("id").primaryKey(), // UUID
-  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
-  taskType: text("task_type").notNull(),
-  status: text("status").notNull().default("pending"), // pending, running, completed, failed, cancelled
-  progress: real("progress").default(0),
-  resultData: text("result_data"), // JSON string
-  errorMessage: text("error_message"),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
-  startedAt: integer("started_at", { mode: "timestamp" }),
-  completedAt: integer("completed_at", { mode: "timestamp" }),
-});
+export const backgroundTasks = sqliteTable(
+  "background_tasks",
+  {
+    id: text("id").primaryKey(), // UUID
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    taskType: text("task_type").notNull(),
+    status: text("status").notNull().default("pending"), // pending, running, completed, failed, cancelled
+    progress: real("progress").default(0),
+    resultData: text("result_data"), // JSON string
+    errorMessage: text("error_message"),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+    startedAt: integer("started_at", { mode: "timestamp" }),
+    completedAt: integer("completed_at", { mode: "timestamp" }),
+  },
+  (t) => [index("background_tasks_org_idx").on(t.organizationId)]
+);
 
 // ==================== SIMULATIONS ====================
 
-export const simulations = sqliteTable("simulations", {
-  id: text("id").primaryKey(), // UUID
-  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
-  name: text("name"),
-  params: text("params").notNull(), // JSON string with SimulationParams
-  result: text("result").notNull(), // JSON string with OptimizationResultWithStrategy
-  pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
-});
+export const simulations = sqliteTable(
+  "simulations",
+  {
+    id: text("id").primaryKey(), // UUID
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name"),
+    params: text("params").notNull(), // JSON string with SimulationParams
+    result: text("result").notNull(), // JSON string with OptimizationResultWithStrategy
+    pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
+    // Grants the rest of the org read access, never write.
+    sharedWithOrg: integer("shared_with_org", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  },
+  (t) => [index("simulations_org_idx").on(t.organizationId)]
+);
 
 // ==================== BILLING ====================
 
+// Keyed on the organization: one wallet per tenant, with per-user attribution in
+// `credit_ledger`. `userId` is deprecated and survives only so the release still
+// serving traffic during Deploy 2's build — which spends with a raw
+// `WHERE user_id = ?` — does not 5xx. Drop it in a later cleanup migration.
 export const walletBalance = sqliteTable("wallet_balance", {
-  userId: text("user_id")
-    .primaryKey()
-    .references(() => user.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+  organizationId: text("organization_id")
+    .notNull()
+    .unique()
+    .references(() => organization.id, { onDelete: "cascade" }),
   credits: integer("credits").notNull().default(0),
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
@@ -245,6 +370,10 @@ export const payments = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id),
+    // `no action`: a financial record must not disappear with its organization.
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "no action" }),
     packageId: text("package_id").references(() => creditPackages.id),
     rail: text("rail").notNull(),
     externalId: text("external_id").unique(),
@@ -256,25 +385,38 @@ export const payments = sqliteTable(
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
     completedAt: integer("completed_at", { mode: "timestamp" }),
   },
-  (t) => [index("payments_user_idx").on(t.userId)]
+  (t) => [index("payments_user_idx").on(t.userId), index("payments_org_idx").on(t.organizationId)]
 );
 
 export const creditLedger = sqliteTable(
   "credit_ledger",
   {
     id: text("id").primaryKey(),
-    userId: text("user_id")
+    // Nullable `set null`: deleting one departing analyst must not delete the
+    // ledger rows behind their organization's wallet balance, and a
+    // platform-level admin grant has no acting user at all.
+    userId: text("user_id").references(() => user.id, { onDelete: "set null" }),
+    // `no action`: a financial record must not disappear with its organization.
+    organizationId: text("organization_id")
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+      .references(() => organization.id, { onDelete: "no action" }),
     delta: integer("delta").notNull(),
     reason: text("reason").notNull(), // 'purchase' | 'spend' | 'grant' | 'reversal'
     paymentId: text("payment_id").references(() => payments.id),
     simulationId: text("simulation_id").references(() => simulations.id),
-    idempotencyKey: text("idempotency_key").unique(),
+    idempotencyKey: text("idempotency_key"),
     balanceAfter: integer("balance_after").notNull(),
     createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
   },
-  (t) => [index("ledger_user_idx").on(t.userId), index("ledger_created_idx").on(t.createdAt)]
+  (t) => [
+    index("ledger_user_idx").on(t.userId),
+    index("ledger_created_idx").on(t.createdAt),
+    index("ledger_org_idx").on(t.organizationId),
+    // Scoped, not global: `idempotency_key` is a raw client header and two
+    // server-written formats are guessable, so a global unique index let any
+    // caller replay another tenant's spend.
+    unique("ledger_org_idempotency_unique").on(t.organizationId, t.idempotencyKey),
+  ]
 );
 
 // ==================== RELATIONS ====================
@@ -345,9 +487,9 @@ export const userProfileRelations = relations(userProfile, ({ one }) => ({
 }));
 
 export const walletBalanceRelations = relations(walletBalance, ({ one }) => ({
-  user: one(user, {
-    fields: [walletBalance.userId],
-    references: [user.id],
+  organization: one(organization, {
+    fields: [walletBalance.organizationId],
+    references: [organization.id],
   }),
 }));
 
@@ -385,6 +527,17 @@ export type NewUser = typeof user.$inferInsert;
 
 export type Session = typeof session.$inferSelect;
 export type Account = typeof account.$inferSelect;
+
+export type Organization = typeof organization.$inferSelect;
+export type NewOrganization = typeof organization.$inferInsert;
+export type OrganizationMember = typeof organizationMember.$inferSelect;
+export type NewOrganizationMember = typeof organizationMember.$inferInsert;
+export type OrganizationBranding = typeof organizationBranding.$inferSelect;
+export type NewOrganizationBranding = typeof organizationBranding.$inferInsert;
+export type OrganizationDomain = typeof organizationDomain.$inferSelect;
+export type NewOrganizationDomain = typeof organizationDomain.$inferInsert;
+export type OrganizationSettings = typeof organizationSettings.$inferSelect;
+export type NewOrganizationSettings = typeof organizationSettings.$inferInsert;
 
 export type Fund = typeof funds.$inferSelect;
 export type NewFund = typeof funds.$inferInsert;

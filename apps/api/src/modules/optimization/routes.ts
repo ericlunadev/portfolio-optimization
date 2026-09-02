@@ -14,7 +14,7 @@ import {
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 import { authMiddleware } from "../../middleware/auth.js";
-import { meterRequest, newIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
+import { meterRequest, clientIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
 import { defaultLookbackPeriod } from "../../lib/dates.js";
 import { fetchTickerPrices } from "../../lib/yahoo.js";
 
@@ -44,8 +44,9 @@ optimization.post(
   ),
   async (c) => {
     const user = c.get("user");
-    const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
-    const spend = await meterRequest(user, 1, idempotencyKey);
+    const organizationId = c.get("organizationId");
+    const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
+    const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
     try {
     const {
@@ -192,8 +193,9 @@ optimization.post(
   ),
   async (c) => {
     const user = c.get("user");
-    const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
-    const spend = await meterRequest(user, 1, idempotencyKey);
+    const organizationId = c.get("organizationId");
+    const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
+    const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
     try {
     const {
@@ -272,8 +274,9 @@ optimization.post(
   ),
   async (c) => {
     const user = c.get("user");
-    const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
-    const spend = await meterRequest(user, 1, idempotencyKey);
+    const organizationId = c.get("organizationId");
+    const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
+    const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
     try {
     const {
@@ -357,8 +360,9 @@ optimization.post(
   ),
   async (c) => {
     const user = c.get("user");
-    const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
-    const spend = await meterRequest(user, 1, idempotencyKey);
+    const organizationId = c.get("organizationId");
+    const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
+    const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
     try {
     const { tickers, start_date, end_date, w_max, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");

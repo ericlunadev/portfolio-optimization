@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { randomUUID } from "node:crypto";
 import { db } from "../../db/index.js";
@@ -8,18 +8,39 @@ export type LedgerReason = "purchase" | "spend" | "grant" | "reversal";
 
 export type SpendResult = { ledgerId: string; balanceAfter: number };
 
-async function ensureWalletRow(userId: string): Promise<void> {
+// The wallet is keyed on the organization (one balance per tenant); the ledger
+// carries the per-user attribution.
+async function ensureWalletRow(organizationId: string): Promise<void> {
   await db
     .insert(walletBalance)
-    .values({ userId, credits: 0 })
+    .values({ organizationId, credits: 0 })
     .onConflictDoNothing();
 }
 
+// Scoped to the organization, matching unique(organization_id, idempotency_key).
+//
+// `kind` narrows the match to rows of the same sign, and it is load-bearing, not
+// tidiness. The metered routes take `idempotency_key` from a raw client header,
+// and the server writes two formats a caller can reconstruct for themselves —
+// `signup-grant:<their own user id>` and `purchase:<their own checkout session
+// id>`. Without this filter, replaying one of those against a metered endpoint
+// hands the caller their own earlier *credit* row and spends nothing: a free
+// optimization, or a free advisor call. The routes additionally prefix client
+// keys with `client:` (see `clientIdempotencyKey`), so the two namespaces cannot
+// collide even before this filter applies.
 async function findExistingLedgerRow(
-  idempotencyKey: string
+  organizationId: string,
+  idempotencyKey: string,
+  kind: "spend" | "credit"
 ): Promise<SpendResult | null> {
   const existing = await db.query.creditLedger.findFirst({
-    where: eq(creditLedger.idempotencyKey, idempotencyKey),
+    where: and(
+      eq(creditLedger.organizationId, organizationId),
+      eq(creditLedger.idempotencyKey, idempotencyKey),
+      kind === "spend"
+        ? eq(creditLedger.reason, "spend")
+        : ne(creditLedger.reason, "spend")
+    ),
   });
   return existing
     ? { ledgerId: existing.id, balanceAfter: existing.balanceAfter }
@@ -40,44 +61,49 @@ class LedgerInsertFailed extends Error {
 // the transaction because `findExistingLedgerRow` reads through the module-level
 // `db` and cannot see another connection's uncommitted writes.
 async function resolveRaceWinner(
+  organizationId: string,
   idempotencyKey: string,
+  kind: "spend" | "credit",
   err: unknown
 ): Promise<SpendResult> {
   if (!(err instanceof LedgerInsertFailed)) throw err;
-  const winner = await findExistingLedgerRow(idempotencyKey);
+  const winner = await findExistingLedgerRow(organizationId, idempotencyKey, kind);
   if (winner) return winner;
   throw err.cause;
 }
 
-// Atomically deducts `cost` credits and writes a ledger row.
-// Idempotent on `idempotencyKey`. Throws HTTPException(402) on insufficient balance.
+// Atomically deducts `cost` credits from the organization's wallet and writes a
+// ledger row attributed to `userId`.
+// Idempotent on `idempotencyKey` within the organization. Throws HTTPException(402)
+// on insufficient balance.
 export async function spendCredit(opts: {
+  organizationId: string;
   userId: string;
   idempotencyKey: string;
   cost: number;
   simulationId?: string;
 }): Promise<SpendResult> {
-  const { userId, idempotencyKey, cost, simulationId } = opts;
+  const { organizationId, userId, idempotencyKey, cost, simulationId } = opts;
   if (cost <= 0) throw new Error("spendCredit: cost must be positive");
 
-  const replay = await findExistingLedgerRow(idempotencyKey);
+  const replay = await findExistingLedgerRow(organizationId, idempotencyKey, "spend");
   if (replay) return replay;
 
-  await ensureWalletRow(userId);
+  await ensureWalletRow(organizationId);
 
   try {
     return await db.transaction(async (tx) => {
       const update = await tx.run(
         sql`UPDATE wallet_balance
             SET credits = credits - ${cost}, updated_at = unixepoch()
-            WHERE user_id = ${userId} AND credits >= ${cost}`
+            WHERE organization_id = ${organizationId} AND credits >= ${cost}`
       );
       if (Number(update.rowsAffected) === 0) {
         throw new HTTPException(402, { message: "INSUFFICIENT_CREDITS" });
       }
 
       const wallet = await tx.query.walletBalance.findFirst({
-        where: eq(walletBalance.userId, userId),
+        where: eq(walletBalance.organizationId, organizationId),
       });
       const balanceAfter = wallet?.credits ?? 0;
 
@@ -85,6 +111,7 @@ export async function spendCredit(opts: {
       try {
         await tx.insert(creditLedger).values({
           id: ledgerId,
+          organizationId,
           userId,
           delta: -cost,
           reason: "spend",
@@ -101,37 +128,43 @@ export async function spendCredit(opts: {
       return { ledgerId, balanceAfter };
     });
   } catch (err) {
-    return await resolveRaceWinner(idempotencyKey, err);
+    return await resolveRaceWinner(organizationId, idempotencyKey, "spend", err);
   }
 }
 
-// Adds `credits` to a user's wallet and writes a ledger row.
-// Idempotent on `idempotencyKey`. Used for purchases, grants, and reversals.
+// Adds `credits` to an organization's wallet and writes a ledger row.
+// Idempotent on `idempotencyKey` within the organization. Used for purchases,
+// grants, and reversals.
+//
+// `userId` is nullable because a ledger row outlives its user (`ON DELETE set
+// null`) and a platform-level admin grant has no acting user at all.
 export async function grantCredits(opts: {
-  userId: string;
+  organizationId: string;
+  userId: string | null;
   credits: number;
   reason: Exclude<LedgerReason, "spend">;
   idempotencyKey: string;
   paymentId?: string;
 }): Promise<SpendResult> {
-  const { userId, credits, reason, idempotencyKey, paymentId } = opts;
+  const { organizationId, userId, credits, reason, idempotencyKey, paymentId } =
+    opts;
   if (credits <= 0) throw new Error("grantCredits: credits must be positive");
 
-  const replay = await findExistingLedgerRow(idempotencyKey);
+  const replay = await findExistingLedgerRow(organizationId, idempotencyKey, "credit");
   if (replay) return replay;
 
-  await ensureWalletRow(userId);
+  await ensureWalletRow(organizationId);
 
   try {
     return await db.transaction(async (tx) => {
       await tx.run(
         sql`UPDATE wallet_balance
             SET credits = credits + ${credits}, updated_at = unixepoch()
-            WHERE user_id = ${userId}`
+            WHERE organization_id = ${organizationId}`
       );
 
       const wallet = await tx.query.walletBalance.findFirst({
-        where: eq(walletBalance.userId, userId),
+        where: eq(walletBalance.organizationId, organizationId),
       });
       const balanceAfter = wallet?.credits ?? 0;
 
@@ -139,6 +172,7 @@ export async function grantCredits(opts: {
       try {
         await tx.insert(creditLedger).values({
           id: ledgerId,
+          organizationId,
           userId,
           delta: credits,
           reason,
@@ -153,12 +187,14 @@ export async function grantCredits(opts: {
       return { ledgerId, balanceAfter };
     });
   } catch (err) {
-    return await resolveRaceWinner(idempotencyKey, err);
+    return await resolveRaceWinner(organizationId, idempotencyKey, "credit", err);
   }
 }
 
 // Reverses an earlier spend (used when the optimization throws after the credit was deducted).
 // Looks up the original spend's delta and credits the absolute value back, idempotently.
+// Both keys come from the original row: re-deriving the organization from the
+// caller's current membership would refund the wrong tenant.
 export async function reverseSpend(
   ledgerId: string,
   reason: string
@@ -178,6 +214,7 @@ export async function reverseSpend(
   }
 
   await grantCredits({
+    organizationId: original.organizationId,
     userId: original.userId,
     credits: -original.delta,
     reason: "reversal",

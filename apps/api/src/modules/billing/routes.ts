@@ -15,7 +15,7 @@ import {
 import { authMiddleware } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
 import { grantCredits, spendCredit } from "../../lib/billing/spend.js";
-import { newIdempotencyKey } from "../../lib/billing/metering.js";
+import { clientIdempotencyKey } from "../../lib/billing/metering.js";
 import { getStripe, getWebhookSecret } from "./stripe.js";
 import {
   createCharge,
@@ -112,6 +112,8 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session): Promise
   const userId = session.metadata?.userId;
   const packageId = session.metadata?.packageId;
   if (!userId || !packageId) {
+    // Returns rather than throws: the metadata is fixed on the session, so no
+    // retry can ever succeed. Needs a human, not a 3-day retry loop.
     console.error(`[billing] session ${session.id} missing metadata`, session.metadata);
     return;
   }
@@ -120,16 +122,21 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session): Promise
     where: eq(creditPackages.id, packageId),
   });
   if (!pkg) {
-    console.error(`[billing] session ${session.id} references unknown package ${packageId}`);
-    return;
+    // Throw, not return: returning 200 drops a paid session silently. The 500
+    // this becomes makes Stripe retry, which gives an operator the retry window
+    // to seed the missing package.
+    throw new Error(`session ${session.id} references unknown package ${packageId}`);
   }
 
+  // The organization comes from the payments row written at checkout — never
+  // from the buyer's current membership. Stripe retries for up to 3 days, and a
+  // user who moved organization inside that window would otherwise have their
+  // firm's purchase credited to the wrong tenant.
   const paymentRow = await db.query.payments.findFirst({
     where: eq(payments.externalId, session.id),
   });
   if (!paymentRow) {
-    console.error(`[billing] no payments row for session ${session.id}`);
-    return;
+    throw new Error(`no payments row for session ${session.id} — cannot resolve organization`);
   }
 
   // Mark payment succeeded (idempotent — only flip from pending).
@@ -140,8 +147,10 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session): Promise
       .where(eq(payments.id, paymentRow.id));
   }
 
-  // Grant credits idempotently — same idempotencyKey on retry returns the original row.
+  // Grant credits idempotently — same idempotencyKey on retry returns the
+  // original row, now looked up within the organization.
   await grantCredits({
+    organizationId: paymentRow.organizationId,
     userId,
     credits: pkg.credits,
     reason: "purchase",
@@ -222,6 +231,7 @@ async function fulfillCoinbaseCharge(charge: CoinbaseCharge): Promise<void> {
   const userId = charge.metadata?.userId as string | undefined;
   const packageId = charge.metadata?.packageId as string | undefined;
   if (!userId || !packageId) {
+    // Unrecoverable by retry, exactly as in the Stripe path above.
     console.error(`[billing] charge ${charge.id} missing metadata`, charge.metadata);
     return;
   }
@@ -230,16 +240,16 @@ async function fulfillCoinbaseCharge(charge: CoinbaseCharge): Promise<void> {
     where: eq(creditPackages.id, packageId),
   });
   if (!pkg) {
-    console.error(`[billing] charge ${charge.id} references unknown package ${packageId}`);
-    return;
+    throw new Error(`charge ${charge.id} references unknown package ${packageId}`);
   }
 
+  // Organization resolved from the payments row, not from membership — see
+  // fulfillCheckoutSession.
   const paymentRow = await db.query.payments.findFirst({
     where: eq(payments.externalId, charge.id),
   });
   if (!paymentRow) {
-    console.error(`[billing] no payments row for charge ${charge.id}`);
-    return;
+    throw new Error(`no payments row for charge ${charge.id} — cannot resolve organization`);
   }
 
   if (paymentRow.status !== "succeeded") {
@@ -250,6 +260,7 @@ async function fulfillCoinbaseCharge(charge: CoinbaseCharge): Promise<void> {
   }
 
   await grantCredits({
+    organizationId: paymentRow.organizationId,
     userId,
     credits: pkg.credits,
     reason: "purchase",
@@ -264,9 +275,8 @@ app.use("*", authMiddleware);
 
 // GET /api/billing/wallet — current balance
 app.get("/wallet", async (c) => {
-  const user = c.get("user");
   const row = await db.query.walletBalance.findFirst({
-    where: eq(walletBalance.userId, user.id),
+    where: eq(walletBalance.organizationId, c.get("organizationId")),
   });
   return c.json({
     credits: row?.credits ?? 0,
@@ -358,6 +368,9 @@ app.post(
     await db.insert(payments).values({
       id: paymentId,
       userId: user.id,
+      // Stamped here so the webhook can resolve the organization from this row
+      // without a session.
+      organizationId: c.get("organizationId"),
       packageId: pkg.id,
       rail: "stripe",
       externalId: session.id,
@@ -427,6 +440,7 @@ app.post(
     await db.insert(payments).values({
       id: paymentId,
       userId: user.id,
+      organizationId: c.get("organizationId"),
       packageId: pkg.id,
       rail: "coinbase_commerce",
       externalId: charge.id,
@@ -454,9 +468,18 @@ app.get(
     const user = c.get("user");
     const { cursor, limit } = c.req.valid("query");
 
+    // Organization first, then the caller's own rows. The organization predicate
+    // is not redundant: a user who changed organization keeps their old rows,
+    // and those belong to the previous tenant. Rows whose user was deleted
+    // (`user_id` set null) stay invisible here while still counting in the
+    // org-keyed wallet invariant — open question, PLAN Task 0.2.
+    const mine = and(
+      eq(creditLedger.organizationId, c.get("organizationId")),
+      eq(creditLedger.userId, user.id)
+    );
     const where = cursor
-      ? and(eq(creditLedger.userId, user.id), lt(creditLedger.createdAt, new Date(cursor)))
-      : eq(creditLedger.userId, user.id);
+      ? and(mine, lt(creditLedger.createdAt, new Date(cursor)))
+      : mine;
 
     const rows = await db.query.creditLedger.findMany({
       where,
@@ -487,9 +510,10 @@ app.get(
 // Idempotent on the Idempotency-Key header so a double-click does not double-charge.
 app.post("/advisor-call", async (c) => {
   const user = c.get("user");
-  const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
+  const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
 
   await spendCredit({
+    organizationId: c.get("organizationId"),
     userId: user.id,
     idempotencyKey,
     cost: env.ADVISOR_CALL_COST_CREDITS,
