@@ -1,14 +1,60 @@
-# Whitelabel — Implementation Plan
+# Whitelabel — Implementation Plan (v2)
 
-Executable plan for the B2B whitelabel feature. Every open question from `QUESTIONS.md` has been
-resolved to its recommended answer; those decisions are locked in §2 and should not be relitigated.
-Where a decision genuinely could not be made without running code, it appears in §9 as an escalation
-with a defined fallback.
+Executable plan for the B2B whitelabel feature.
 
-**Audience:** an engineer or agent picking this up cold. Read §1–§3, then work the phases in order.
+**v2 supersedes v1.** Every claim below marked **[verified]** was established by *running* something —
+`drizzle-kit generate` against this repo's real snapshot chain, migrations applied to a restored
+production dump, the BetterAuth plugin instantiated, concurrent transactions measured against a real
+libSQL database. v1 was written from reading alone and got several load-bearing things wrong; those
+are called out inline as **[v1 was wrong]** so nobody re-derives the mistake.
+
+**Audience:** an engineer or agent picking this up cold. Read §0–§3, then work the phases in order.
 
 **Companion docs:** `QUESTIONS.md` (why each decision was made), `CLAUDE.md` (project rules that
 override anything here), `PAYMENTS.md` (the billing model this modifies).
+
+---
+
+## 0. Read this first
+
+### 0.1 Three live bugs, unrelated to whitelabel, that Phase 0 must fix
+
+These exist in production **today**. They are not caused by this project, but multi-tenancy makes two
+of them dramatically worse, and the third makes Phase 0's acceptance test unachievable.
+
+| # | Bug | Impact |
+| --- | --- | --- |
+| **B1** | **Unscoped idempotency replay.** `spend.ts:21-23` looks up `credit_ledger` by `idempotencyKey` alone — no user, no org predicate — and returns early at :40-41 before deducting. The key is a raw client header (`optimization/routes.ts:47,195,275,360`; `billing/routes.ts:490`), and two server-written formats are **guessable with no leak**: `signup-grant:${user.id}` (`onboarding/routes.ts:181`) and `purchase:${stripe session id}` (`billing/routes.ts:148`, where that session id is handed to the browser at :339). | Replaying either yields **unlimited free metered optimizations and free 100-credit advisor calls**. Billing-integrity bug. |
+| **B2** | **`GET /api/tasks/:taskId` has no authentication at all** — `tasks/routes.ts:56`, no middleware, no owner filter, returns `result_data`. | Any unauthenticated caller reads any task result. |
+| **B3** | **`DELETE /api/tasks/:taskId` is authenticated but not owner-scoped** — :88-89 and :100-103 filter on `id` only and never read `c.get("user")`. | Any user deletes any user's task. |
+
+**Explicitly refuted, so severity is not overstated** [verified]: B1 does **not** yield cross-tenant
+credit *injection* (`spend.ts:146` guards `reason !== "spend" || delta >= 0`) and does **not** disclose
+balances (`balanceAfter` never reaches a response body outside the user-scoped ledger endpoint).
+
+There is also a **fourth**, subtler one worth its own PR (see Task 2.0): the race-loser recovery in
+`spend.ts:71-77` and `:123-127` **commits an orphan decrement** — `return winner` inside the catch
+returns *normally* from the transaction callback, so Drizzle commits and the wallet decrement at
+:47-50 survives with no ledger row behind it. Reproduced against a real libSQL database: the wallet
+fell to 9 with no matching ledger row. [verified]
+
+### 0.2 What genuinely needs a human before Phase 0 can finish
+
+Everything else in this plan is decided. These are not:
+
+1. **A fresh production dump.** Needs `DATABASE_URL` / `DATABASE_AUTH_TOKEN` from the Render dashboard
+   (both are `sync: false`). See Task 0.3 — the migration cannot be rehearsed without it.
+2. **Live production row counts**, especially `SELECT count(*) FROM simulations WHERE user_id IS NULL`.
+   The only snapshot anyone has is from 2026-05-05 and predates every billing table.
+3. **Three literal strings**: the support email, privacy-policy URL, and terms URL. None exist anywhere
+   in the repo. Task 0.2 makes the columns nullable so this does not block the migration, but
+   provisioning a real tenant needs them. *If no privacy policy or ToS exists at all, that escalates
+   to §9.3.*
+4. **Which org owns the D2C hostname** after the backfill, and what it is called.
+5. **Whether a short 5xx window is acceptable** on the deploy that lands the NOT NULL flip, or whether
+   `db:migrate` must move out of `render.yaml`'s `buildCommand`. There is no `preDeployCommand` today.
+6. **The realistic tenant count** (§9.1). Still the question that decides whether this architecture is
+   right at all.
 
 ---
 
@@ -34,21 +80,22 @@ likely to get cut under schedule pressure. Do not cut it.
 
 | # | Decision | Consequence |
 | --- | --- | --- |
-| D1 | **Shared deployment**, tenant resolved from hostname | One Vercel + one Render + one Turso. `funds`/`prices` stay global and shared — the main reason not to isolate. |
-| D2 | **`organization_id` columns**, one database | Not per-tenant Turso DBs: `db/index.ts` builds one client at module scope, and per-tenant DBs would break the shared price cache. |
-| D3 | **One user belongs to exactly one org** | Unique constraint. No org switcher, no active-org session state. |
-| D4 | **Personal-org backfill**; `organization_id` is `NOT NULL` | Exactly one code path. No `OR organization_id IS NULL` anywhere, ever. |
+| D1 | **Shared deployment**, tenant resolved from hostname | One Vercel + one Render + one Turso. Rationale is **operational** — N isolated deploys means N deploys per release and N× the ops. **[v1 was wrong]** v1 justified this with "the shared price cache"; **nothing reads the `prices` table** [verified]. It is written by `yahoo-updater.ts:82-89` and read only by that file's own `max(date)` query at :35-42; the optimizer's `fetchTickerPrices` in `lib/yahoo.ts` contains no `db.` reference and hits Yahoo live. Keep the decision, not the reason. |
+| D2 | **`organization_id` columns**, one database | Not per-tenant Turso DBs: `db/index.ts` builds one client at module scope, and per-tenant DBs would mean a client factory touching every import site. |
+| D3 | **One user belongs to exactly one org** | Unique constraint on `organization_member.user_id`. No org switcher, no active-org session state. |
+| D4 | **`organization_id` is `NOT NULL`, with exactly one named exception** | See D16. **[v1 was wrong]** v1 said "no `OR organization_id IS NULL` anywhere, ever" — unachievable as stated. |
 | D5 | **The D2C product becomes tenant #1** | Dogfooding is the only reliable way to keep tenancy working. |
-| D6 | **Subdomains of ours only** (`acme.optim.app`) | No custom-domain DNS/TLS verification in v1. |
-| D7 | **Org-level wallet**, per-user attribution in the ledger | `wallet_balance` PK moves to `organization_id`; `credit_ledger.user_id` stays. Deliberately reverses a `PAYMENTS.md` non-goal. |
+| D6 | **Subdomains of ours only** (`acme.optim.app`) | Assumes wildcard DNS + wildcard TLS on the Vercel project. **That is an ops prerequisite with real lead time and nothing has verified it exists.** |
+| D7 | **Org-level wallet**, per-user attribution in the ledger | `wallet_balance` PK moves to `organization_id`; `credit_ledger.user_id` stays. Deliberately reverses a `PAYMENTS.md` non-goal — update that doc in the Phase 2 PR. |
 | D8 | **Tenant end users never transact** | The org pre-purchases credits. Sidesteps merchant-of-record, Stripe Connect, per-tenant tax. |
 | D9 | **Accent colour only** — tenants do not get the full palette | Prevents unreadable apps and unwinnable contrast-ratio support tickets. |
 | D10 | **Semantic colours are never tenant-configurable** | Gain stays green, loss stays red, per `CLAUDE.md`. |
-| D11 | **Fixed menu of ~6 fonts**, no upload | `next/font/google` needs statically-analysable literals; runtime fonts are impossible without self-hosting. |
-| D12 | **Mobile app is out of scope** | Whitelabel mobile is a bigger project than whitelabel web. Tenants get the responsive web app. |
-| D13 | **Provisioning is an internal CLI**; branding is self-serve | At 1–5 tenants a provisioning UI is waste; a branding settings page is the highest value-per-effort item here. |
-| D14 | **Two commercial tiers**: co-branded and full whitelabel | Only difference in code: whether "Powered by" renders in the footer and PDF. |
+| D11 | **Fixed menu of ~6 fonts**, no upload | `next/font/google` needs statically-analysable literals. |
+| D12 | **Mobile app is out of scope** — but not untouched | See §8: mobile users still hit Task 0.4's membership rule and D7's shared wallet. |
+| D13 | **Provisioning is an internal CLI**; branding is self-serve | The CLI is also **the only way a second analyst gets an account** — no invite flow, no email. See Task 0.9. |
+| D14 | **Two commercial tiers**: co-branded and full whitelabel | `organization.tier`. Only difference in code: whether "Powered by" renders in the footer and PDF. |
 | D15 | **Out of v1:** SSO, custom domains, per-seat credit limits, data residency, tenant-uploaded instruments | Named in §8 so they are not surprises in a sales call. |
+| D16 | **`background_tasks` is the one nullable exception — resolved by requiring auth** | `POST /api/tasks/yahoo-update` becomes authenticated, so the column can be `NOT NULL` after all. The web hook `useYahooUpdate.ts` **has zero consumers** [verified], so nothing user-visible changes. This also gives Task 0.6 a session to test against. |
 
 ---
 
@@ -69,31 +116,71 @@ Root layout (server component)
 Page
 ```
 
-Requests to the API carry the session cookie. **The API resolves the org from the authenticated
-user's membership row, never from a client-supplied header** — a header would be trivially forgeable.
-The middleware headers exist only so the *web* layer can brand pages that have no session yet (auth
-screens, marketing surfaces).
+**Tenancy is keyed on `organization_domain.hostname`, not on `organization.slug`.** The slug is an
+internal identifier only. Write this down because it is easy to assume otherwise.
 
-### 3.2 The cookie question, resolved
+**The API resolves the org from the authenticated user's membership row, per request** — never from a
+client-supplied header (forgeable), and never cached on the session row. Caching tenancy on the
+session is the stale-read hazard that BetterAuth's own `session.activeOrganizationId` exhibits. If the
+per-request lookup ever shows up in a profile, cache in-process keyed by `userId` with a short TTL and
+invalidate on membership write.
 
-`QUESTIONS.md` §3.3 worried about `SameSite=None` across N tenant hostnames. Reading
-`apps/web/next.config.js` resolves this better than the question assumed: it already rewrites
-`/api/:path*` to the API service. **Route all tenant traffic through that rewrite** and the browser
-only ever talks to the tenant hostname, so session cookies are **first-party per tenant host** — no
-`SameSite=None`, no third-party-cookie exposure, and per-host cookie isolation becomes a security
-*benefit* rather than a risk.
+### 3.2 Auth cookies — an open gate, not a solved problem
 
-Concretely: whitelabel tenants must **not** set `NEXT_PUBLIC_API_URL`, which flips
-`apps/web/src/lib/api.ts` into external / `credentials: "include"` mode. Keep them on the rewrite
-path.
+**[v1 was wrong, and this is the correction that matters most.]** v1 claimed that because
+`next.config.js` rewrites `/api/:path*` to the API, routing tenant traffic through it makes session
+cookies first-party per tenant hostname, removing the need for `SameSite=None`. It presented as a
+discovery a configuration **this repo already tried and reverted**.
 
-`auth.ts` still needs `trustedOrigins` to include every tenant hostname — today it is a static array
-literal at `apps/api/src/lib/auth.ts:77`.
+Commit **85f1740 (2026-03-20)**, "Switch frontend to direct API calls instead of Vercel rewrites",
+says verbatim: *"Vercel blocks rewrites to Render due to DNS_HOSTNAME_RESOLVED_PRIVATE. Use
+NEXT_PUBLIC_API_URL to call the backend directly with cross-origin credentials for cookie-based
+auth."* That commit introduced the `isExternal` branch in `apps/web/src/lib/api.ts:1-11`, and the
+`rewrites()` block at `next.config.js:8-16` defaults its destination to `http://localhost:8001` — it
+survives as the **local-dev path**.
+
+The cookie *mechanics* v1 described are sound in the abstract: a same-origin proxy really does make
+the session cookie host-only. So this is salvageable — but as a **gate at the start of Phase 1**, not
+as an assumption:
+
+1. **Verify first.** `curl -si https://<prod-web-host>/api/health` (API JSON = rewrite live; Vercel
+   error page = not) and `vercel env ls production`.
+2. **Likely root cause** of the March failure is `API_URL` pointing at Render's *internal* hostname,
+   which resolves to a private address — a one-line env fix.
+3. **Fallback if the public host also fails:** an explicit catch-all proxy at
+   `apps/web/src/app/api/[...path]/route.ts`. Not `rewrites()`.
+
+Three riders that v1 missed entirely:
+
+- **"Tenants must not set `NEXT_PUBLIC_API_URL`" is incoherent with D1.** `NEXT_PUBLIC_*` is inlined at
+  build time into one shared bundle; with a single Vercel deployment the flip is global and
+  all-or-nothing, never per-tenant.
+- **`partitioned: true` must be deleted in the same edit** as the `sameSite` change. `auth.ts:84-96`
+  sets all three attributes as one branch, and a `Partitioned` cookie paired with `SameSite=Lax` is
+  incoherent and rejected by Chrome. v1 named only `SameSite=None`.
+- **The security claim needs softening.** Per-host cookie isolation is defence-in-depth against a
+  stolen cookie. Tenant data isolation comes entirely from `WHERE organization_id`.
+
+Two consequences nobody had costed:
+
+- **`trustedOrigins` must become a request-scoped function** (`auth.ts:77-83`) reading
+  `organization_domain` with an in-process cache. A longer static array means provisioning a tenant
+  requires an API env change plus a Render redeploy — directly contradicting D13.
+- **CORS does not go away.** `index.ts:26` pins `origin: env.FRONTEND_URL` as a fixed string with
+  `credentials: true`; it does not reflect the caller's Origin and emits no `Vary: Origin`. And
+  `apps/mobile/src/lib/api/client.ts:32` keeps calling the API directly regardless of what the web
+  does. Replace with an allowlist function. **While you are there: add `Idempotency-Key` to
+  `allowHeaders` (`index.ts:29`)** — `apps/web/src/lib/api.ts:324` sends it on
+  `POST /api/billing/advisor-call` and the header was added two months after the cross-origin switch
+  without the allowlist ever being widened. That is a live bug on a paid endpoint.
+- **Cutover invalidates every live session.** Moving the session cookie from the Render host to the
+  web host logs out every existing user — including D2C, which D5 makes tenant #1 — and the recovery
+  path is the password-reset email that Task 1.0 shows is itself tenant-blind. Sequence accordingly.
 
 ### 3.3 Branding pipeline
 
-One function is the source of truth for tenant colour, consumed by **three** independent palettes
-that share nothing today:
+One function is the source of truth for tenant colour, consumed by **three** independent palettes that
+share nothing today:
 
 ```
 organization_branding.accent_hex
@@ -106,8 +193,9 @@ deriveTenantPalette(accentHex)  ← NEW: apps/web/src/lib/tenant-palette.ts
    └─→ PDF colour constants    → apps/web/src/lib/simulation-pdf.ts:22-29
 ```
 
-The PDF is the one most likely to be forgotten: it declares its own 8 hex constants, dark-only,
-sharing nothing with `globals.css`. It is also the artifact that leaves the building, so it is v1.
+**The PDF renders client-side** — `simulation-pdf.ts:106` does `await import("jspdf")` [verified]. So
+branding must be threaded through client props, not fetched server-side, and an image logo needs a
+data URI or a same-origin fetch. Plan for that in Task 1.6 rather than discovering it.
 
 ---
 
@@ -116,39 +204,52 @@ sharing nothing with `globals.css`. It is also the artifact that leaves the buil
 **Goal:** every scoped row belongs to an organisation, every scoped query filters by it, and a test
 proves org A cannot reach org B's data. Ships dark.
 
-### Task 0.1 — Spike: BetterAuth organization plugin *(half a day, do this first)*
+### Task 0.1 — BetterAuth organization plugin: **decision closed, HAND_ROLL**
 
-BetterAuth ships an official `organization` plugin providing orgs, members, roles, and invitations.
-Adopting it saves writing all of that; the cost is that it owns its table shapes inside `schema.ts`.
+**[v1 was wrong]** v1 made this a half-day spike defaulting to *adopt*. The spike was run. The plugin
+**does** ship in the pinned 1.6.20, **does** compose with `expo()` (52 mounted paths, zero
+duplicates), and **does** work with `drizzleAdapter({provider:"sqlite"})` [verified by instantiation].
+It fails on none of the criteria v1 named. **Do not re-run the spike.** It is rejected on different
+grounds:
 
-- Read the plugin docs for the pinned BetterAuth version (check `apps/api/package.json`).
-- Verify it works with the `drizzleAdapter` + libSQL/Turso combination in
-  `apps/api/src/lib/auth.ts`, and that it composes with the existing `expo()` plugin.
-- Generate a migration against a scratch DB and inspect the tables it wants.
+- Mounting it exposes **21 public endpoints** under `/api/auth/organization/*`, including
+  `/organization/leave`, which has **no disable option** and lets a member delete their own membership
+  row — turning Task 0.4's rule into a permanent 500 for that user.
+- Its `member` model is many-to-many by construction (`userId` is `index: true`, never unique; the
+  only duplicate guard is per-org), so D3 needs a stack of suppressions.
+- Putting D14's `tier` on its `organization` table as an `additionalField` lets a **tenant owner
+  self-upgrade to full whitelabel and drop the "Powered by" footer** via `/organization/update`
+  (exploit parse reproduced) unless `input: false` is set.
+- `session.activeOrganizationId` caches tenancy in the session row — precisely the stale-read hazard
+  §3.1 exists to prevent.
 
-**Decision gate.** Adopt it if it works cleanly with Turso and does not fight the Expo plugin.
-Otherwise hand-roll the two tables in Task 0.2. **Record which path you took at the top of this file
-before continuing** — everything downstream depends on it.
+**Do not record the reason as "it saves no schema work."** That argument is false:
+`npx @better-auth/cli generate` is the documented Drizzle path and would emit the tables.
 
-If adopting: you still need `organization_branding`, `organization_domain`, and
-`organization_settings` as your own tables, and you must still enforce D3 (one user, one org)
-yourself — the plugin permits many.
+**Keep the door open cheaply.** Shape the hand-rolled tables to match the plugin's models: reserve
+nullable `logo` and `metadata` on `organization`, make both `createdAt` columns `.notNull()`, keep the
+role vocabulary `'owner' | 'member'`. Adopting later is then `CREATE TABLE invitation` +
+`ALTER TABLE session ADD active_organization_id` + a `schema.member.modelName: "organizationMember"`
+remap — purely additive [remap verified].
+
+*The one input that could flip this:* if seat creation ever becomes self-serve invite links with
+email, expiry, and accept/reject, the plugin's invitation lifecycle is real saved work and ADOPT
+deserves a second look. Under D13 it does not.
 
 ### Task 0.2 — Schema
 
-Edit `apps/api/src/db/schema.ts`. Follow the `CLAUDE.md` migration workflow exactly:
-`pnpm db:generate` from `apps/api/`, commit the generated file in `drizzle/`, let Render run
-`db:migrate` on deploy. **Never `db:push`.**
-
-New tables (skip `organization` / `organization_member` if the plugin provides them):
+Edit `apps/api/src/db/schema.ts`. Follow the `CLAUDE.md` migration workflow: `pnpm db:generate` from
+`apps/api/`, commit the generated file, let Render run `db:migrate`. **Never `db:push`.**
 
 ```ts
 export const organization = sqliteTable("organization", {
-  id: text("id").primaryKey(),                          // UUID
-  slug: text("slug").notNull().unique(),                // "acme" → acme.optim.app
-  name: text("name").notNull(),                         // legal / display name
-  tier: text("tier").notNull().default("cobranded"),    // 'cobranded' | 'whitelabel'  (D14)
-  createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  id: text("id").primaryKey(),                           // UUID
+  slug: text("slug").notNull().unique(),                 // internal id — NOT the subdomain
+  name: text("name").notNull(),
+  tier: text("tier").notNull().default("cobranded"),     // 'cobranded' | 'whitelabel'  (D14)
+  logo: text("logo"),                                    // reserved for plugin parity (Task 0.1)
+  metadata: text("metadata"),                            // reserved for plugin parity
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
 });
 
 export const organizationMember = sqliteTable(
@@ -159,12 +260,11 @@ export const organizationMember = sqliteTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     userId: text("user_id").notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    role: text("role").notNull().default("member"),     // 'owner' | 'member'
-    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+    role: text("role").notNull().default("member"),      // 'owner' | 'member'
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
   },
-  // D3: one user, one org. This constraint is the enforcement.
   (t) => [
-    unique("org_member_user_unique").on(t.userId),
+    unique("org_member_user_unique").on(t.userId),       // D3 enforcement
     index("org_member_org_idx").on(t.organizationId),
   ]
 );
@@ -172,17 +272,19 @@ export const organizationMember = sqliteTable(
 export const organizationBranding = sqliteTable("organization_branding", {
   organizationId: text("organization_id").primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
-  productName: text("product_name"),                    // replaces Brand.fullName
-  productShortName: text("product_short_name"),         // replaces Brand.shortName
+  productName: text("product_name"),
+  productShortName: text("product_short_name"),
   tagline: text("tagline"),
-  accentHex: text("accent_hex"),                        // the ONLY colour input (D9)
-  fontKey: text("font_key").default("instrument-sans"), // one of the ~6 allowed (D11)
+  accentHex: text("accent_hex"),                         // the ONLY colour input (D9)
+  fontKey: text("font_key").default("instrument-sans"),
   logoUrl: text("logo_url"),
   faviconUrl: text("favicon_url"),
-  supportEmail: text("support_email").notNull(),        // required at provisioning
-  privacyPolicyUrl: text("privacy_policy_url").notNull(),
-  termsUrl: text("terms_url").notNull(),
-  disclaimerText: text("disclaimer_text"),              // wording editable, presence is not (§7.5)
+  // NULLABLE in v1 — see §0.2 item 3. No value for any of these exists in the repo, so
+  // .notNull() would make the backfill SQL literally unwritable. Enforce at provisioning.
+  supportEmail: text("support_email"),
+  privacyPolicyUrl: text("privacy_policy_url"),
+  termsUrl: text("terms_url"),
+  disclaimerText: text("disclaimer_text"),
   updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
 });
 
@@ -192,317 +294,539 @@ export const organizationDomain = sqliteTable(
     id: text("id").primaryKey(),
     organizationId: text("organization_id").notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    hostname: text("hostname").notNull().unique(),      // "acme.optim.app"
+    hostname: text("hostname").notNull().unique(),
     isPrimary: integer("is_primary", { mode: "boolean" }).notNull().default(true),
   },
   (t) => [index("org_domain_host_idx").on(t.hostname)]
 );
 
-// Per-tenant product toggles (QUESTIONS §7). One row per org.
 export const organizationSettings = sqliteTable("organization_settings", {
   organizationId: text("organization_id").primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
   academiaEnabled: integer("academia_enabled", { mode: "boolean" }).notNull().default(true),
-  advisorMode: text("advisor_mode").notNull().default("off"),  // 'off' | 'platform' | 'tenant'
+  advisorMode: text("advisor_mode").notNull().default("off"),   // 'off' | 'platform' | 'tenant'
   advisorBookingUrl: text("advisor_booking_url"),
   advisorCostCredits: integer("advisor_cost_credits").default(100),
   cryptoRailEnabled: integer("crypto_rail_enabled", { mode: "boolean" }).notNull().default(false),
-  fundAllowlist: text("fund_allowlist"),                // JSON array of tickers; NULL/empty = unrestricted
+  fundAllowlist: text("fund_allowlist"),                 // JSON array; NULL/empty = unrestricted
   overdraftLimit: integer("overdraft_limit").notNull().default(0),
+  signupGrantCredits: integer("signup_grant_credits").notNull().default(3),  // see Task 2.5
 });
 ```
 
-Add `organizationId` (text, `NOT NULL`, FK, indexed) to: `simulations`, `user_profile`,
-`user_assumptions`, `user_correlations`, `background_tasks`, `credit_ledger`, `payments`.
+Add `organizationId` to: `simulations`, `user_profile`, `user_assumptions`, `user_correlations`,
+`background_tasks`, `credit_ledger`, `payments`. Add `sharedWithOrg` (boolean, default false) to
+`simulations`.
 
-Change `wallet_balance`: primary key becomes `organizationId`; drop `userId` (D7).
+**Specify `onDelete` for every new FK — there is no house default to inherit.** The existing FKs are
+deliberately heterogeneous: cascade on `user_profile` (:168), `wallet_balance` (:225), `credit_ledger`
+(:268); set null on `background_tasks` (:197) and `simulations` (:212); no action on `payments` (:247)
+and `credit_ledger.simulation_id`. **Financial rows (`payments`, `credit_ledger`) must not
+cascade-delete with an org.**
+
+**Fix the ledger cascade while you are here.** After D7, `wallet_balance` cascades from `organization`
+while `credit_ledger.user_id` still cascades from `user` — so **deleting one departing analyst deletes
+their ledger rows and leaves the org wallet intact**, creating drift equal to that analyst's net delta
+on the most routine B2B operation there is. Change `credit_ledger.user_id` to nullable
+`ON DELETE set null` (which a platform-level admin grant needs anyway, having no acting user).
 
 **Do NOT add `organizationId` to:** `funds`, `prices`, `index_data`, `fund_exposures`, `key_figures`,
-`credit_packages`. These stay global — that is the whole reason D1 chose a shared deployment.
+`credit_packages`.
 
-Also add to `simulations`: `sharedWithOrg` boolean, default `false` (see Task 3.4).
+**`walletBalanceRelations` at `schema.ts:347-352` references `walletBalance.userId`**, the column D7
+drops. Delete or repoint it or `tsc --noEmit` fails.
 
-### Task 0.3 — Backfill migration
+**Align better-auth versions first.** `apps/api` resolves 1.6.20 (`^1.6.20`) while `apps/web` resolves
+1.6.2 (`^1.6.2`). Inert today because `auth-client.ts` uses no plugins, but Phase 0/1 make
+cookie-attribute and origin-check semantics load-bearing across an 18-patch gap. Bump `apps/web` to
+`^1.6.20`.
 
-Hand-write a data migration (a `.sql` file alongside the generated one, or a one-shot script run
-before the `NOT NULL` constraint lands). SQLite cannot add a `NOT NULL` column without a default to a
-populated table, so sequence it:
+### Task 0.3 — Migrations: **four of them, across two deploys**
 
-1. Add `organization_id` as **nullable** everywhere.
-2. For each existing user: create an `organization` (slug derived from the email local-part, deduped
-   with a numeric suffix), an `organization_member` row with `role = 'owner'`, an
-   `organization_settings` row, and an `organization_branding` row carrying today's defaults.
-3. Backfill `organization_id` on every scoped row from its owning user.
-4. Migrate `wallet_balance`: create the new org-keyed table, copy each user's balance to their
-   personal org, drop the old table.
-5. Add the `NOT NULL` constraints (SQLite does this via table rebuild — Drizzle generates it).
+**[v1 was wrong]** v1 implied one generated migration plus a hand-written backfill. That cannot apply
+to production. All of the following was verified by running the real tooling against a restored dump.
 
-**Verify before and after:** `assertWalletLedgerInvariant()` in
-`apps/api/src/lib/billing/reconcile.ts` must return zero drift rows both times. Note that its SQL
-joins on `user_id` and must be rewritten to group by `organization_id` as part of Task 0.5 — do that
-rewrite first so the check is meaningful on the post-migration side.
+**Prerequisite — get a real rehearsal target.** **[v1 was wrong]** v1 said "the `backups/` directory at
+the repo root is the obvious source". **There is no `backups/` directory in the repo** — `git ls-files`
+tracks no dump, `.gitignore` has no entry, and it is absent from a fresh clone. The one file on the
+original developer's machine is a snapshot from migration `0000` whose table list contains no
+`user_profile`, `wallet_balance`, `credit_ledger`, `payments` or `credit_packages` — it cannot rehearse
+the wallet re-key at all.
 
-Test the whole migration against a **copy of production data**, not an empty dev DB. The `backups/`
-directory at the repo root is the obvious source.
+```bash
+turso db shell <db> ".dump" > /tmp/prod-20260902.sql     # creds from Render (sync: false)
+# restore through libSQL, NOT the system sqlite3 CLI:
+#   stock sqlite3 cannot parse the ALTER COLUMN ... TO ... in 0001_numerous_drax.sql:14,
+#   and its DQS=3 (libSQL is DQS=0) turns loud errors into silent string corruption.
+DATABASE_URL=file:./prod-copy.db pnpm --filter api db:migrate
+# drizzle.config.ts loads no dotenv — without an explicit DATABASE_URL you silently
+# migrate apps/api/portfolio.db instead.
+```
+
+**Migration (A) — generated.** New tables, plus `organization_id` as **NULLABLE** with its
+`.references()` and index, plus `shared_with_org`.
+
+> It **must** be nullable. For a NOT NULL column with no default, drizzle-kit emits
+> ``ALTER TABLE `simulations` ADD `organization_id` text NOT NULL REFERENCES organization(id);``
+> (`SQLiteAlterTableAddColumnConvertor`), which libSQL rejects with `Cannot add a NOT NULL column with
+> default value NULL` on any populated table — and **silently succeeds on an empty dev DB, so it only
+> fails in production.** [verified]
+>
+> Note in the migration file that this `ADD COLUMN` **silently drops `ON DELETE cascade`** — the
+> convertor emits only `REFERENCES table(col)`, so the live FK is NO ACTION while the Drizzle snapshot
+> claims cascade. Migration (C)'s rebuild restores it.
+
+**Migration (B) — `pnpm db:generate --custom --name=backfill_organizations`.**
+
+> Do **not** drop a loose `.sql` into `drizzle/` — the runner iterates `meta/_journal.json`, not the
+> directory.
+>
+> Put `--> statement-breakpoint` between **every** statement. A chunk containing two statements
+> executes only the first, **with no error**, while the migration is still recorded as applied.
+> [verified]
+>
+> Never leave the placeholder comment as a chunk's only content — a comment-only chunk errors with
+> `SQLITE_UNKNOWN_0: not an error`.
+>
+> End with a guard that aborts on any unbackfilled row:
+> `CREATE TABLE _backfill_guard(x text NOT NULL);` then per table
+> `INSERT INTO _backfill_guard(x) SELECT NULL FROM <table> WHERE organization_id IS NULL LIMIT 1;`
+> then `DROP TABLE _backfill_guard;`
+
+What (B) does:
+
+1. **One org per existing user.** `slug = 'u-' || lower(u.id)`. **[v1 was wrong]** v1 derived the slug
+   from the email local-part; of the six real local-parts across both databases, **five are invalid DNS
+   labels** — `luna.eric.santiago` yields a four-label host a `*.optim.app` wildcard cert does not
+   cover, and `devtest+11059`, `proxy3214+27821`, `luna.eric.santiago+1` contain `+`. BetterAuth ids
+   are 32-char alphanumerics: valid single label, unique by construction, no dedupe pass.
+2. **`organization_member`** with `role = 'owner'`.
+3. **`organization_settings` carrying *today's behaviour*, not the column defaults**:
+   `advisor_mode = 'platform'`, `crypto_rail_enabled = 1`. The Task 0.2 defaults (`'off'`, `false`) are
+   the *whitelabel* defaults; using them would silently hide the advisor CTA (rendered unconditionally
+   at `MarkowitzResults.tsx:744`) and remove the crypto rail tab (`PackagePicker.tsx:68-80`) for every
+   existing user — inside the phase whose DoD is "zero user-visible change".
+4. **`organization_branding`** with today's values.
+5. **`organization_domain`** rows. v1 omitted these entirely; with no row, no hostname resolves to any
+   org and Task 1.1's lookup returns nothing on day one.
+6. **Backfill `organization_id`** on every scoped row.
+
+**Orphan policy — required before step 6.** **[v1 was wrong]** v1 said "backfill from its owning user",
+which does not work for the two tables whose `user_id` is nullable with `ON DELETE set null`. In the
+only production snapshot anyone has, **22 of 23 simulations have `user_id IS NULL`** [verified by
+loading the dump and counting]. **Orphans are the dominant case, not an edge case.**
+
+```sql
+SELECT count(*) FROM simulations      WHERE user_id IS NULL;   -- count FIRST
+SELECT count(*) FROM background_tasks WHERE user_id IS NULL;
+```
+
+Then **delete them** (recommended — they are already unreachable, since every read/update/delete path
+filters on `eq(simulations.userId, user.id)` at `simulations/routes.ts:22,51,131,165,173,192`), after
+archiving. Deleting requires nulling any `credit_ledger.simulation_id` reference first — that FK is
+`ON DELETE no action` (`drizzle/0004:13`). The alternative is a reserved platform org.
+
+**Migration (C) — generated.** Flip to `.notNull()`.
+
+> Because `organization_id` carries an FK, Drizzle takes the safe table-rebuild path
+> (`PRAGMA foreign_keys=OFF` / `CREATE TABLE __new_x` / `INSERT…SELECT` / `DROP` / `RENAME`) whose
+> `INSERT…SELECT` rejects remaining NULLs. **Do not rely on that as your only guard.** For a
+> **non-FK** column Drizzle instead emits libSQL's `ALTER TABLE … ALTER COLUMN "c" TO "c" text NOT
+> NULL`, which rewrites the schema **without validating rows** — leaving NULLs in a column declared
+> NOT NULL, where `WHERE col IS NULL` returns zero forever. Reproduced through the real pipeline on 23
+> rows; `apps/api/drizzle/0001_numerous_drax.sql:14` is already this codepath. [verified]
+
+**Migration (D) — the `wallet_balance` re-key, three steps, never one `db:generate`.**
+
+> **[v1 was wrong]** v1 described this in one sentence. Doing it in one generate is unsafe *and*
+> unrunnable: with `user_id` removed and `organization_id` added on the same table, drizzle-kit renders
+> the interactive `Is <col> created or renamed from another column?` prompt and, with no TTY, aborts
+> with `Interactive prompts require a TTY terminal`. Answering "renamed" emits
+> `RENAME COLUMN user_id TO organization_id`, which **committed silently** against the migrated prod
+> copy and left real user IDs sitting in `organization_id` with 2 dangling FK rows. Answering "created"
+> emits a rebuild whose `INSERT INTO __new_wallet_balance("organization_id",…) SELECT "organization_id"…`
+> reads a column that does not exist. [all verified]
+>
+> (D1) generated — add nullable `organizationId` + FK, keep `userId` as PK.
+> (D2) `--custom` — backfill driven from `organization` (LEFT JOIN through `organization_member`) so
+> every org gets exactly one row, with a guard against two wallets mapping to one org.
+> (D3) generated — drop `userId`, move the PK.
+>
+> **Cheaper alternative worth costing:** keep `user_id` as a deprecated nullable column and add
+> `organization_id UNIQUE NOT NULL` alongside it. Satisfies D7's behaviour with no rebuild, no prompt,
+> and no deploy window.
+
+**Deploy A+B with dual-writing code BEFORE deploying C+D.** `render.yaml:5` runs `db:migrate` inside
+`buildCommand`, while the previous release is still serving traffic — so every migration must be
+backward-compatible with deployed code.
 
 ### Task 0.4 — Org context in the API
 
 In `apps/api/src/middleware/auth.ts`: after resolving the session user, look up their
-`organization_member` row and `c.set("organizationId", ...)`. Extend the `ContextVariableMap`
-declaration alongside the existing `user` / `optionalUser` entries.
+`organization_member` row and `c.set("organizationId", ...)`. Extend `ContextVariableMap`. A user with
+no membership throws 500 with a loud log.
 
-A user with no membership is a bug after the backfill — throw 500 with a loud log. Do not silently
-create one; that would paper over exactly the failure this phase exists to prevent.
+**Also extend `optionalAuthMiddleware` (:34-38) with `optionalOrganizationId`**, and add both entries
+to `ContextVariableMap`.
+
+#### Org resolution without a session
+
+**[v1 missed this entirely.]** Task 0.4's middleware is one mechanism; **three code paths write scoped
+rows with no session** and cannot read `c.get("organizationId")`:
+
+1. **Stripe webhook fulfilment** — `billing/routes.ts:35` and `:106-151`. The comment at :31 says
+   webhooks are registered before `app.use("*", authMiddleware)` at :263 *on purpose*. It reads
+   `session.metadata?.userId` at :112 and calls `grantCredits` at :144. **Resolve the org from the
+   `payments` row it already loads at :127-129** — which is exactly why the INSERT at :358 must stamp
+   `organizationId` in **Phase 0**, not Phase 2. Do **not** re-derive from the user's current
+   membership: Stripe retries for up to 3 days, and under D3 a user who moves org in that window would
+   have their firm's purchase credited elsewhere.
+2. **Coinbase**, identical shape: :162, :222, :237-239, :252-258, INSERT at :427.
+3. **Anonymous background tasks** — `tasks/routes.ts:16-28`, resolved by D16 (require auth).
+
+**Make org-resolution failure `throw`**, so the handler's 500 triggers a provider retry. The existing
+branches at :123 and :131 `return`, producing a 200 with no retry.
 
 ### Task 0.5 — Scope every query
 
-The surface is small and fully enumerated below. Add `organizationId` to the `where` of each:
+**[v1 was wrong]** v1 enumerated ~22 sites and claimed the surface was "fully enumerated". There are
+**~46**. Grouped by table:
 
-| File | Sites | Notes |
-| --- | --- | --- |
-| `apps/api/src/modules/simulations/routes.ts` | lines 22, 51, 131, 165, 173, 192 | Line 94 (`where: eq(simulations.id, id)`) looks unfiltered but is **not** a bug — it re-reads the row just inserted in the same POST handler, keyed by a server-generated UUID. Leave it alone; it needs `organizationId` on the *insert*, not the read. |
-| `apps/api/src/modules/onboarding/routes.ts` | lines 49, 55, 96, 104, 107, 153, 174, 185 | Profile is per-user; add org as a second filter. |
-| `apps/api/src/modules/billing/routes.ts` | lines 269, 458–459 | Wallet reads move to the org key entirely in Phase 2. |
-| `apps/api/src/lib/billing/spend.ts` | lines 56, 108, plus the two raw `UPDATE wallet_balance … WHERE user_id` statements | Phase 2 rewrites these wholesale; scope them here only if Phase 2 is not immediately following. |
-| `apps/api/src/lib/billing/reconcile.ts` | the whole query | Rewrite both halves of the `UNION ALL` to group by `organization_id`. |
-| `apps/api/src/modules/tasks/routes.ts` | 1 site | — |
+- **`simulations` (8)** — `simulations/routes.ts`: 22 SELECT · 51 findFirst · **85 INSERT** · 94
+  findFirst · 131 UPDATE · 165 UPDATE · 173 findFirst · 192 DELETE.
+- **`user_profile` (9)** — `onboarding/routes.ts`: 49 · **53 INSERT** · 55 · 96 · 104 · 107 · 153 ·
+  174 · 185.
+- **`user_assumptions` / `user_correlations` (0)** — no query sites anywhere in the repo (schema,
+  relations and exported types only). Add the column, but note there is **no endpoint for Task 0.6 to
+  test**.
+- **`background_tasks` (9)** — `tasks/routes.ts`: 22 INSERT · 33-35 UPDATE · 59-60 findFirst
+  (**unauthenticated — bug B2**) · 88-89 findFirst (**not owner-scoped — bug B3**) · 100-103 UPDATE
+  (not owner-scoped); plus **`apps/api/src/modules/tasks/yahoo-updater.ts`** — *a file v1 never
+  mentions* — :13-16, :47-48, :122-130, :134-141.
+- **`wallet_balance` (7)** — `spend.ts`: 12-15 INSERT · 46-50 raw UPDATE · 55-56 · 101-105 raw UPDATE ·
+  107-108; `billing/routes.ts`:268-269; `reconcile.ts`:9-26.
+- **`credit_ledger` (7)** — `spend.ts`: 21-22 findFirst by idempotencyKey (**unscoped — bug B1**) ·
+  **62-70 INSERT** · **114-122 INSERT** · 139-140; `billing/routes.ts`:457-459 + 461-465;
+  `reconcile.ts`:9-26.
+- **`payments` (7)** — *v1 listed **zero*** — `billing/routes.ts`: 127-129 · 137-140 · 154-157 ·
+  237-239 · 246-249 · **358-368 INSERT** · **427-437 INSERT**. The two INSERTs fail at runtime on the
+  first checkout after `payments.organization_id` becomes NOT NULL.
+- **`schema.ts`** — `walletBalanceRelations` :347-352 (see Task 0.2).
 
-For the `simulations` list and read endpoints, honour `sharedWithOrg`: a user sees their own rows
-**or** rows in their org flagged shared.
+**Indirect call sites needing an `organizationId` argument:** `onboarding/routes.ts:177`
+(`grantCredits`); `billing/routes.ts:144` and `:252` (`grantCredits`, webhooks, no session);
+`billing/routes.ts:492` (`spendCredit`); `spend.ts:153` (`reverseSpend`); `metering.ts:14,:25`;
+`optimization/routes.ts:48,196,276,361` and `:170,251,336,384`.
 
-### Task 0.6 — Isolation tests *(mandatory, not optional)*
+**`sharedWithOrg` — split read from write.** All six sites in `simulations/routes.ts` currently use the
+byte-identical predicate `and(eq(simulations.id, id), eq(simulations.userId, user.id))` and *will* be
+copy-pasted:
 
-`vitest` is already configured in `apps/api` (`pnpm test`). Create
-`apps/api/src/modules/__tests__/tenant-isolation.test.ts`:
+- **READ** (:22 list, :51, :173): `organizationId = ? AND (userId = ? OR sharedWithOrg = 1)`
+- **WRITE** (:131 PATCH, :165 PUT, :192 DELETE): `organizationId = ? AND userId = ?`
 
-- Seed two orgs, each with one user, one simulation, one profile, and a funded wallet.
-- For **every** scoped endpoint, assert org A's session cannot read, update, delete, or enumerate
-  org B's rows — and that the response is **404, not 403**, so row existence is not leaked.
-- Assert `spendCredit` called for a user in org A never moves org B's balance.
+Sharing grants read, never write. This collides with Task 0.6's "404, not 403" rule: a row that is
+readable but not writable cannot honestly 404 on a write. **Use 403 for that specific case.**
 
-**Repo convention to adopt, and to add to `CLAUDE.md`:** a new org-scoped table lands with its
-isolation test in the same commit. A single missing `WHERE organization_id = ?` leaks one client's
-portfolio to a competitor, and nothing except a test reliably prevents that class of bug.
+**On `simulations/routes.ts:94`** — v1's reasoning was correct and was confirmed: `id` comes from
+`crypto.randomUUID()` at :82, the zod schema at :68-72 accepts only name/params/result, and nothing
+between :82 and :94 can change it. **But change the instruction from "leave it alone" to "add the
+filter anyway"**, or replace the read with `.returning()` on the insert at :85. Task 0.6's verification
+step ("fails if any `where` clause is removed") depends on every query in the file looking the same; a
+deliberate unfiltered exception is indistinguishable from an oversight to the next reviewer.
+
+**Fix bugs B1, B2, B3 (§0.1) in this task.** For B1, namespace the key (`${orgId}:${clientKey}`)
+**and** replace the global `unique()` on `credit_ledger.idempotency_key` (`schema.ts:273`) with a
+composite `unique(organization_id, idempotency_key)`. Adding a scoped predicate to the lookup *without*
+changing the index makes a replayed foreign key deduct credits and then hit the UNIQUE violation,
+rolling back into a 500.
+
+**Give `assertWalletLedgerInvariant` a runnable entry point.** Task 0.3 and Phase 2's DoD both require
+it, but it is invoked from exactly one place — `index.ts:59`, guarded by
+`if (process.env.NODE_ENV !== "production")` at :58 — and no package.json script runs it. Add an
+`apps/api/scripts/` tsx script plus a package.json script. **Keep both versions**: the pre-migration run
+must use the existing user-keyed query (`reconcile.ts:9-26`) because `wallet_balance.organization_id`
+does not exist yet; add a second org-keyed function for after. One rewritten function fails with
+`no such column` rather than reporting drift. Rename `DriftRow`'s `user_id` key (:4).
+
+### Task 0.6 — Isolation test harness, then isolation tests
+
+**[v1 was wrong]** v1 said "`vitest` is already configured in `apps/api` (`pnpm test`)" and treated the
+assertions as the work. **The harness does not exist, and building it is the work.** [verified]
+
+The complete test inventory is four files: `apps/api/src/lib/dates.test.ts` (which imports nothing but
+`./dates.js`) plus three pure-function tests in `apps/web/src/lib/`. `apps/api/vitest.config.ts` sets
+only `environment: "node"` and an include glob — **no `setupFiles`**. And `apps/api/src/db/index.ts:5-11`
+builds the libSQL client at **module scope** from `env.DATABASE_URL`, with `spend.ts:4` importing that
+singleton directly — so importing any route module **opens a real connection at import time**.
+
+The harness is: a per-test `file::memory:` or temp-file libSQL client, migrations applied in a setup
+file, two seeded orgs with real BetterAuth sessions, and HTTP-level assertions through `app.fetch` —
+plus a decision on whether `db/index.ts` gains a client factory (which touches every import site).
+
+Then the assertions, in `apps/api/src/modules/__tests__/tenant-isolation.test.ts`: for every scoped
+endpoint, org A's session cannot read, update, delete, or enumerate org B's rows, returning **404 not
+403** (except the shared-simulation write case above). And `spendCredit` for a user in org A never
+moves org B's balance.
 
 ### Task 0.7 — Tenant-tagged logging
 
-Add `organizationId` to the Hono logger context and to every `console.error` in the API. Cheap now,
-impossible to retrofit at 2am when a tenant says "it's slow".
+Add `organizationId` to the logger context and to error reporting. *Note: v1 stated this as though a
+structured Hono logger context already exists and "every `console.error`" is a known enumerable set.
+Nobody has verified either. Scope it when you get there.*
+
+### Task 0.8 — Org provisioning for new signups **(blocker — v1 missed this entirely)**
+
+**Nothing in the codebase or in v1 creates an `organization` + `organization_member` for a new
+signup.** `apps/api/src/lib/auth.ts` (99 lines, read in full) has no `databaseHooks`;
+`emailAndPassword.enabled` is true and three social providers are configured. Combined with Task 0.4's
+"throw 500" rule, **the first authenticated request of every account created after Phase 0 deploys
+returns 500** — and D5 keeps D2C signup alive.
+
+Preferred: `databaseHooks.user.create.after` creating org + owner membership + `organization_settings`
++ `organization_branding` in one transaction. Alternative: the existing onboarding `ensureRow` path
+(`onboarding/routes.ts:47-58`). Decide whether a self-signup gets its own personal org or joins the
+D2C org (§0.2 item 4). **Cover it with a test.**
+
+*Confidence note: `databaseHooks` is the natural mechanism but was not exercised against 1.6.20.*
+
+### Task 0.9 — Provisioning CLI and local dev seed **(v1 had no task for either)**
+
+D13 makes an internal CLI the only way a tenant exists, and the only way a second analyst gets an
+account — yet v1 had no task for it, and `apps/api` has no `scripts/` directory or CLI entry pattern
+beyond `tsx watch`. Specify which rows it writes (`organization`, `organization_member`,
+`organization_settings`, `organization_branding`, `organization_domain`) and how it validates a
+hostname.
+
+**Directly coupled: local dev seeding.** After Phase 0 a fresh `file:portfolio.db` has no
+`organization`, so under Task 0.4's rule **every local signup is broken until someone runs a seed that
+does not exist.** This is the thing that will burn the second engineer on this project.
 
 ### Phase 0 definition of done
 
-- `pnpm test` and `pnpm typecheck` pass in `apps/api`.
-- Migration applies cleanly to a production-data copy; the wallet/ledger invariant holds before and
-  after.
-- The isolation test covers every scoped endpoint, and fails if any `where` clause is removed
-  (verify by actually removing one).
-- **Zero user-visible change.** The app looks and behaves exactly as before.
+- `pnpm --filter api test` and `pnpm --filter api typecheck` pass. *(Note: there is no root `typecheck`
+  script and `turbo.json` has no `typecheck` task — see §10.)*
+- Migrations A–D apply cleanly to a **fresh** production copy.
+- `PRAGMA integrity_check` returns `ok` and `PRAGMA foreign_key_check` returns 0 rows.
+- Wallet/ledger invariant holds before (user-keyed) and after (org-keyed).
+- Isolation tests cover every scoped endpoint and fail if any `where` clause is removed.
+- Bugs B1, B2, B3 fixed with regression tests.
+- A new signup gets an org (Task 0.8), verified by test.
+- **Zero user-visible change** — including the advisor CTA and crypto rail still rendering for existing
+  users.
 
 ---
 
 ## 5. Phase 1 — Branding
 
-**Goal:** a tenant on their own hostname sees their name, logo, accent colour, and font — with no
-flash of our brand — across the app, auth screens, emails, and the PDF export.
+### Task 1.0 — Gate: verify the network path, and fix tenant-blind auth emails
+
+Run the §3.2 verification **before** designing anything else in this phase.
+
+**Transactional email URLs are tenant-blind and this is Phase 1 work, not Phase 2.**
+`apps/api/src/lib/auth.ts:30` and `:43` both build `${env.FRONTEND_URL}/auth/...` — one hardcoded host
+for all tenants — and `:40` sets `autoSignInAfterVerification: true`. Under any host-scoped cookie
+model, **verifying an email signs the user in on the D2C host and they arrive at their tenant hostname
+logged out.** `sendResetPassword` also **ignores** the `redirectTo` the client sends
+(`app/auth/forgot-password/page.tsx:19-22` sends `${window.location.origin}/auth/reset-password`) and
+emails the `FRONTEND_URL` link regardless. Resolve the user's org → its `organization_domain.hostname`
+and build both links from that.
+
+**Email is a fourth brand surface nobody had opened.** `apps/api/src/lib/email/i18n.ts` hardcodes
+`brand: "Optimización de Portafolio"` / `"Portfolio Optimization"`, rendered at `VerifyEmail.tsx:31`
+and `ResetPassword.tsx:31`. Task 1.4 hoists brand values only out of `apps/web/messages/*.json`, so the
+brand string *inside* every transactional email survives untouched. And `EMAIL_FROM` is a single env
+var (`send.ts:19`) — every tenant's mail arrives from our address on our sending domain. Per-tenant
+sender identity needs per-tenant DNS/SPF/DKIM: a real ops project, and a more visible break of the
+illusion than the OAuth consent screen §9.2 discusses at length.
 
 ### Task 1.1 — Host-based tenant resolution
 
-Create `apps/web/src/middleware.ts` (does not exist today):
+Create `apps/web/src/middleware.ts`. Read `Host`, look up `organization_domain`, attach `x-org-id` /
+`x-org-slug`. Unknown host serves the default (D2C) tenant, not a 404.
 
-- Read the `Host` header, look up `organization_domain`, attach `x-org-id` and `x-org-slug` to the
-  request headers.
-- Unknown host → serve the default (D2C) tenant rather than a 404. A misconfigured DNS record should
-  degrade to our brand, not to an error page.
-- Exclude static assets and `/api/*` from the matcher.
-
-The middleware cannot query Turso directly on the Edge runtime. Either run it on the Node runtime, or
-resolve via a cached API call. **Prefer an in-memory map with a short TTL, refreshed from the API** —
-at 1–15 tenants the whole table fits comfortably in memory and this avoids a per-request DB round
-trip on the hot path.
+**The data path does not exist yet — v1 assumed one.** `apps/web/src/lib/api.ts` is a *browser-only*
+client: it fetches the relative path `/api` with `credentials: same-origin`, and there is **no
+server-side API client anywhere in `apps/web`**. A relative fetch from a server component throws (no
+base URL), and `next.config.js` rewrites **do not apply to server-side fetches**. So both Task 1.1's
+"in-memory map refreshed from the API" and Task 1.3's "fetch branding server-side" need a mechanism
+that has to be built — including a new **unauthenticated** endpoint (`GET /api/tenants/by-host`) which
+is itself **a public enumeration surface for your entire client list**. Design it with that in mind.
 
 ### Task 1.2 — `deriveTenantPalette`
 
-Create `apps/web/src/lib/tenant-palette.ts` exporting a pure function from one accent hex to the
-complete derived set, plus unit tests (`vitest` is already set up in `apps/web`).
+Create `apps/web/src/lib/tenant-palette.ts` — a pure function from one accent hex to the complete
+derived set, with unit tests. It must produce, for both light and dark: `--primary`,
+`--primary-emphasis`, `--ring`, `--gradient-gold-from`, `--gradient-gold-to`, `--glow-strong`,
+`--glow-soft`; the `ChartColors` hex set; and the PDF colour constants.
 
-It must produce, for **both** light and dark:
+Three non-negotiable rules:
 
-- `--primary`, `--primary-emphasis`, `--ring`, `--gradient-gold-from`, `--gradient-gold-to`,
-  `--glow-strong`, `--glow-soft` — the accent is load-bearing across all seven.
-- The `ChartColors` hex set for `chart-theme.tsx`.
-- The PDF colour constants for `simulation-pdf.ts`.
-
-Three rules that are not negotiable:
-
-1. **Contrast.** Compute contrast against `--background` in both themes and auto-adjust lightness to
-   reach 4.5:1 — do not reject the tenant's colour. Mirror the trick `--primary-emphasis` already
-   uses: move *away* from the page in each theme (darker on light, brighter on dark).
-2. **Semantic collision (D10).** `optimal` is the accent, but `danger` stays red and gain/loss stay
-   green/red. If the tenant's accent falls in the red hue range, nudge it out for chart series use
-   only — otherwise a tenant with a red brand gets a chart where "your portfolio" reads as "you lost
-   money".
+1. **Contrast.** Compute against `--background` in both themes and auto-adjust lightness to 4.5:1 — do
+   not reject the tenant's colour. Mirror `--primary-emphasis`: move *away* from the page in each theme.
+2. **Semantic collision (D10).** `danger` stays red, gain/loss stay green/red. If the accent falls in
+   the red hue range, nudge it out for chart series use only — otherwise a tenant with a red brand gets
+   a chart where "your portfolio" reads as "you lost money".
 3. **Hex output for charts.** `chart-theme.tsx:44` documents that call sites build alpha by string
-   concatenation (`${color}55`, and `${colors.danger}1f` in `DrawdownChart.tsx:94`). Keep emitting
-   real hex strings; do not convert charts to CSS variables.
+   concatenation (`${color}55`; `${colors.danger}1f` at `DrawdownChart.tsx:94`). Keep emitting real hex.
+
+`simulation-pdf.test.ts` already exists and asserts against the current constants — it will need
+updating.
 
 ### Task 1.3 — Inject branding without a flash
 
-In `apps/web/src/app/layout.tsx`:
-
-- Read the org from the middleware headers, fetch its branding server-side.
-- Emit an inline `<style>` in `<head>` overriding the accent tokens on `:root` and `.dark`.
-- Set `<title>` and favicon from tenant config via `generateMetadata()`.
-
-This mirrors what `THEME_INIT_SCRIPT` already does for dark mode: decide server-side, correct before
-first paint, never fetch branding client-side. Server-rendered CSS means there is no flash to
-correct — no init script needed for colour.
+Read the org from the middleware headers, fetch branding server-side (via the mechanism Task 1.1
+builds), emit an inline `<style>` in `<head>` overriding accent tokens on `:root` and `.dark`, set
+title and favicon via `generateMetadata()`. Server-rendered CSS means there is no flash to correct.
 
 ### Task 1.4 — Hoist `Brand` and `Metadata` out of the message files
 
-This is the most invasive branding change and it is unavoidable. `Brand.shortName` /
-`Brand.fullName` / `Brand.tagline` and the `Metadata` namespace currently live in
-`apps/web/messages/{es,en}.json`, which are static JSON compiled into the bundle — so they cannot
-vary per tenant.
+Remove those namespaces from `apps/web/messages/{es,en}.json`; provide them as runtime tenant config
+from the root layout through a new `TenantProvider` alongside `NextIntlClientProvider`. Update
+`Header.tsx:44-45`, `Sidebar.tsx:25-26`, and anything else calling `useTranslations("Brand")`.
 
-- Remove those namespaces from the message files.
-- Provide them as a runtime tenant-config object from the root layout, threaded through a new
-  `TenantProvider` (client context) alongside the existing `NextIntlClientProvider`.
-- Update consumers: `Header.tsx:44-45`, `Sidebar.tsx:25-26`, and anything else calling
-  `useTranslations("Brand")`.
-
-**Interaction with the `CLAUDE.md` i18n rule.** "Never hardcode UI strings" still holds for every
-other string. Brand values are *tenant data*, not UI copy — they are not translated, and they come
-from the database. Add a sentence to `CLAUDE.md` making that distinction explicit so the next person
+**Add a sentence to `CLAUDE.md`** making the distinction explicit — "never hardcode UI strings" still
+holds for everything else; brand values are *tenant data*, not translated copy — so the next person
 does not "fix" it back into the message files.
-
-The tenant's *locale-independent* fields (product name, logo) are single values. The tagline may need
-per-locale variants; keep it single-valued in v1 and note the limitation.
 
 ### Task 1.5 — Logo, favicon, fonts
 
-- **Storage:** there is no blob storage in the stack (no S3/R2/Cloudinary dependency anywhere). For
-  the first 1–3 tenants, **commit the assets to the repo** under `apps/web/public/tenants/<slug>/`
-  and store the path in `logo_url`. That is genuinely viable and saves standing up infrastructure for
-  a feature with three users. Move to Vercel Blob when self-serve upload lands (Task 1.7 can ship
-  without it).
-- **Fonts:** import ~6 Google fonts in `layout.tsx` (they must stay static literals — that is the
-  `next/font/google` constraint behind D11), expose each as a CSS variable, and switch via a class
-  driven by `font_key`.
+- **Storage.** For the first 1–3 tenants, commit assets to `apps/web/public/tenants/<slug>/`. **Flag the
+  contradiction:** this means a tenant changing their logo requires a code deploy, while D13 and Task
+  1.7 promise self-serve branding. Resolve it by moving to Vercel Blob when Task 1.7 ships, or accept
+  it explicitly for the first customer.
+- **Fonts.** Importing all six at module scope means **every tenant pays the CSS and preload cost of the
+  five they do not use.** Decide how to avoid that (subsetting, `display: optional`, or accepting it).
+- **Favicon.** There is no `favicon.ico` convention in `app/`, so per-tenant icons go through
+  `generateMetadata` — unverified.
 
 ### Task 1.6 — Brand the surfaces
 
-In priority order, all v1:
+Sidebar/header wordmark · tab title + favicon · **PDF export** (replace the 8 constants at
+`simulation-pdf.ts:22-29`; remember it renders **client-side**, so branding comes through client props
+and a logo needs a data URI) · auth screens · onboarding · transactional email (Task 1.0).
 
-| Surface | Files |
-| --- | --- |
-| Sidebar / header wordmark | `components/layout/Sidebar.tsx`, `Header.tsx` |
-| Tab title + favicon | `app/layout.tsx` |
-| **PDF export** | `lib/simulation-pdf.ts` — replace the 8 constants at lines 22–29 with derived values; thread branding through `SimulationPdfInput` |
-| Auth screens | `components/auth/`, `app/auth/` |
-| Onboarding | `components/onboarding/` |
-| Transactional email | `apps/api/src/lib/email/templates/{VerifyEmail,ResetPassword}.tsx` |
+**Do not tint the 3D globe** (`ZoomGlobe.tsx`) — it is a cinematic scene framed by the `--scene-*`
+tokens.
 
-**Do not tint the 3D globe** (`components/academia/ZoomGlobe.tsx`). It is a cinematic scene framed by
-the `--scene-*` tokens, per `CLAUDE.md`; tinting a rendered scene by an arbitrary brand colour looks
-broken more often than not.
+**"Powered by"** renders only when `organization.tier = 'cobranded'` (D14).
 
-**Powered-by (D14):** render the "Powered by" line in the footer and PDF only when
-`organization.tier = 'cobranded'`.
-
-**Open sub-question worth raising with the client:** the PDF is dark-background by design. That is a
-deliberate choice for our brand, but it costs a tenant real toner when their client prints it, and it
-reads as "someone else's template" more than any other surface. Consider a light/paper PDF variant —
-it is a genuine product decision, not a technical one.
+*Open product question worth raising with the client:* the PDF is dark-background by design. That costs
+a tenant real toner when their client prints it, and reads as "someone else's template" more than any
+other surface. Consider a light/paper variant.
 
 ### Task 1.7 — Branding settings page
 
-A page under `app/(app)/settings/branding`, visible to `role = 'owner'` only: product name, accent
-(colour picker with a live contrast warning), font, logo, support email, privacy/terms URLs,
-disclaimer text.
+`app/(app)/settings/branding`, `role = 'owner'` only: product name, accent (colour picker with live
+contrast warning), font, logo, support email, privacy/terms URLs, disclaimer text. Highest ratio of
+perceived value to build cost in the project.
 
-This is the single highest ratio of perceived value to build cost in the whole project — roughly one
-page and one endpoint. It is the difference between shipping a product and shipping a consulting
-deliverable.
+### Task 1.8 — Caching
 
-### Task 1.8 — Caching *(the most likely way this feature causes an incident)*
+**Establish the baseline first — v1's five bullets were written without a file being read.** The app
+today has zero `export const dynamic`, zero `revalidate`, and zero `unstable_cache`; but
+`app/layout.tsx` and `i18n/request.ts` both call `cookies()` from `next/headers`, **which already forces
+dynamic rendering for every page under the root layout.** That substantially lowers the risk v1
+asserted.
 
-The app is host-agnostic today and becomes host-sensitive overnight. Next.js caches aggressively. A
-cache leak here serves Acme's branding — or worse, Acme's data — to Beta Corp.
+The real exposures: the three Next route handlers under `/api` (locale, theme, historical/search); the
+Data Cache on any server-side `fetch` added in Phase 1; `generateMetadata`; and Vercel's CDN behaviour
+with `Vary: Host`. Audit those specifically, then add `Vary: Host` and org-keyed cache keys where they
+apply.
 
-- Audit every `fetch` and route segment config for cacheability.
-- Add `Vary: Host` on tenant-scoped responses.
-- Include the org ID in every cache key.
-- Set `export const dynamic = "force-dynamic"` on tenant-scoped routes unless a specific route has
-  been reasoned about explicitly.
-- **Write an explicit cross-tenant cache-bleed test**: request as tenant A, then as tenant B, assert
-  no A-specific value appears in B's response.
+**Phase 1 needs a test harness that does not exist.** `apps/web` has three tests, all pure-function; no
+Playwright, no e2e, no way to drive a request with a synthetic `Host` header. Building it is comparable
+in size to the API harness — and unlike that one, v1 did not even name it as a task.
 
 ### Phase 1 definition of done
 
-- Two test tenants on two hostnames render two distinct brands with no flash of the other.
-- The PDF export carries tenant branding in all three colour systems.
-- Cache-bleed test passes.
-- `pnpm build` succeeds; light and dark both pass a contrast check with a deliberately awkward accent
-  (pale yellow is the good adversarial case).
+Two hostnames render two brands with no flash. PDF carries tenant branding across all three colour
+systems. Cache-bleed test passes. `pnpm build` succeeds. Light and dark both pass a contrast check with
+a deliberately awkward accent (pale yellow is the good adversarial case).
 
 ---
 
 ## 6. Phase 2 — Org billing
 
-**Goal:** the organisation holds the wallet; the ledger still attributes every credit to the user who
-spent it.
+### Task 2.0 — Prerequisites, as their own PRs against the current per-user schema
+
+**(a) Fix the orphan-commit race** (§0.1). Roll back explicitly: throw a sentinel out of the transaction
+callback and resolve the winner outside it. Note `findExistingLedgerRow` reads via the module-level
+`db`, not `tx`, so the recovery read cannot see the transaction. **Land this separately** so a
+concurrency fix and a key migration do not fail together.
+
+**(b) Measure write contention.** Overlapping `db.transaction()` calls against libSQL do **not**
+serialise and wait — they fail. Measured against a real file DB: with 0ms overlap one succeeded and the
+other returned `database is locked`; with 1ms or 25ms overlap the first got `cannot commit transaction
+- SQL statements in progress` and the second `database is locked`. [verified] Cause:
+`@libsql/client`'s `transaction()` takes the current connection, issues BEGIN, then nulls its handle so
+the next caller opens a *second* connection — and no `busy_timeout` is configured (`config/env.ts:5`
+defaults to a bare `file:portfolio.db` with no `?timeout=`).
+
+Under D7, **N analysts sharing one wallet row means 500s before any drift appears.** And because the
+four optimize routes `await reverseSpendOnError` inside their catch
+(`optimization/routes.ts:169-172, 251, 336, 384`), a locked reversal **swallows the user's original
+error and keeps the credit spent**. Phase 2's DoD test "the concurrent-same-key race" will fail on
+connection locking, not on idempotency.
+
+**Measure the same thing against a real Turso database first** — production uses the remote hrana path
+and the local measurement may not transfer.
 
 ### Task 2.1 — Wallet moves to the org
 
-Rewrite `apps/api/src/lib/billing/spend.ts`:
+Rewrite `spend.ts`: `ensureWalletRow(organizationId)`; both raw SQL statements change
+`WHERE user_id = ?` → `WHERE organization_id = ?`; `spendCredit` / `grantCredits` take
+`{ organizationId, userId, … }`; `reverseSpend` reads both from the original ledger row. Update
+`meterRequest` in `metering.ts`.
 
-- `ensureWalletRow(organizationId)`.
-- Both raw SQL statements change `WHERE user_id = ${userId}` → `WHERE organization_id = ${orgId}`.
-- `spendCredit` / `grantCredits` take `{ organizationId, userId, … }` — org for the balance, user for
-  the ledger row.
-- `reverseSpend` reads both from the original ledger row.
+**Preserve** the conditional-`UPDATE` atomicity and the transaction-scoped `balanceAfter` re-read
+(`spend.ts:55-57`, `:107-109` correctly use `tx.query`, not `db.query`). **Do not preserve** the
+unscoped idempotency replay (fixed in Task 0.5) or the race-loser recovery (fixed in Task 2.0a) —
+**[v1 was wrong]** v1 said "preserve the existing idempotency semantics exactly", which instructs the
+implementer to preserve two latent bugs that org-keying makes far more reachable.
 
-Update `meterRequest` in `apps/api/src/lib/billing/metering.ts` to pass both.
-
-**Preserve the existing idempotency semantics exactly.** The current implementation is careful:
-idempotency-key replay, a conditional `UPDATE … WHERE credits >= cost` for atomicity, and a
-race-loser recovery path in the `catch`. Do not simplify any of that while moving the key.
+*Refuted, so it is not over-scoped:* `grantCredits` not checking `rowsAffected` is worth an assert but
+is **not** a blocker — FKs are enforced (`PRAGMA foreign_keys` returns 1 on a fresh libSQL connection)
+and `ensureWalletRow` throws on a nonexistent org before the unchecked UPDATE is reached. [verified]
 
 ### Task 2.2 — Overdraft
 
-Change the conditional update to `credits - cost >= -overdraft_limit`, reading the limit from
-`organization_settings`. Default 0 preserves today's behaviour exactly.
-
-Rationale: never hard-block a paying enterprise tenant in front of their own client. An analyst
-hitting a 402 mid-meeting is the worst possible failure mode.
+`credits - cost >= -overdraft_limit`, limit from `organization_settings`. Default 0 preserves today's
+behaviour exactly. Never hard-block a paying tenant in front of their own client.
 
 ### Task 2.3 — Admin credit grant
 
-An admin-only endpoint writing a `reason: 'grant'` ledger row against an org. This is how invoiced
-customers (net-30 POs, not cards) get their credits. The ledger already supports `grant`; no
-invoicing system, no automation, one endpoint.
+An admin-only endpoint writing a `reason: 'grant'` ledger row against an org — how invoiced customers
+get credits. **There is no platform-admin concept in the API today** (no role column on `user`, only
+two middlewares, `plugins: [expo()]` only). Options: BetterAuth's `admin` plugin, an `ADMIN_USER_IDS`
+env allowlist, or a shared-secret internal route in the style `CRON.md` proposes. **Security/product
+decision — see §9.**
 
 ### Task 2.4 — Usage view
 
-One page for the org owner: credits by user, simulations run, recent activity — mostly
-`credit_ledger` grouped by `user_id`. This is the main thing an owner logs in for, and it is what
-justifies the platform fee.
+Credits by user, simulations run, recent activity. **Open product question:** after D7, `/wallet`
+becomes org-wide while `/ledger` still filters `eq(creditLedger.userId, user.id)` — so a member sees an
+org balance above a personal subset of rows whose `balanceAfter` cannot reconcile with the visible
+deltas. Decide what a non-owner sees; it changes whether this is one endpoint or two.
 
-### Task 2.5 — Low-balance email
+### Task 2.5 — The signup grant multiplies per seat **(v1 omitted this call site)**
 
-At 20% of the last top-up, email the owner. Reuse the `apps/api/src/lib/email/` machinery; brand it
-per Task 1.6.
+`onboarding/routes.ts:177-182` grants `SIGNUP_GRANT_CREDITS` (a module const of 3 at :10, not an env
+var) with key `signup-grant:${user.id}` on every onboarding completion. Once `grantCredits` writes to
+the org wallet, **a 40-seat tenant injects 120 free credits into the wallet it is being invoiced for** —
+and D8 makes that pure leakage. Hence `organization_settings.signupGrantCredits` in Task 0.2: set it to
+0 for whitelabel tenants.
 
-### Task 2.6 — Hide the crypto rail
+### Task 2.6 — Low-balance email · Task 2.7 — Hide the crypto rail
 
-Gate the Coinbase rail behind `organization_settings.crypto_rail_enabled` (default false). A
-corporate finance department pays by card or invoice.
+At 20% of the last top-up, email the owner (branded per Task 1.0). Gate the Coinbase rail behind
+`crypto_rail_enabled`.
 
 ### Phase 2 definition of done
 
-- Wallet/ledger invariant holds at the org level; `reconcile.ts` reports zero drift.
-- Idempotency tests still pass — including the concurrent-same-key race.
-- Two users in one org share a balance; a user in another org is unaffected.
+Org-level wallet/ledger invariant holds. Idempotency tests pass **including the concurrent-same-key
+race** (which requires Task 2.0b). Two users in one org share a balance; another org is unaffected.
+`PAYMENTS.md` updated in the same PR (D7 reverses its stated non-goal).
 
 ---
 
@@ -510,129 +834,145 @@ corporate finance department pays by card or invoice.
 
 ### Task 3.1 — Fund allowlist
 
-Filter the `/search` handler in `apps/api/src/modules/historical/routes.ts` (the live Yahoo call at
-line 33 is currently unrestricted — any EQUITY/ETF worldwide) through
-`organization_settings.fund_allowlist` when non-empty. Empty preserves today's behaviour.
+Filter the Yahoo search through `organization_settings.fund_allowlist` when non-empty.
 
-Value: partly UX, partly compliance — recommending an instrument the tenant cannot execute is a real
-problem for them.
+**The ticker search exists twice.** `apps/web/src/app/api/historical/search/route.ts:25` is a
+near-identical Next.js App Router handler calling Yahoo directly — and because `next.config.js`'s
+array-form `rewrites()` are applied `afterFiles`, **that colocated route wins over the proxy and never
+reaches the API.** Filtering only the Hono handler (`historical/routes.ts:33`) leaves the allowlist
+trivially bypassable from the tenant's own app. Delete the Next route in favour of the rewrite, or
+apply the allowlist to both.
 
 ### Task 3.2 — Academia toggle
 
-Gate the `/academia` route and its nav entries on `academia_enabled`. Remember `CLAUDE.md`'s rule
-that `Sidebar.tsx` and `MobileTabBar.tsx` nav items stay in sync. Many B2B tenants will want it off —
-their analysts do not need a Markowitz tutorial — and "off" is free to build.
+Gate `/academia` and its nav entries on `academia_enabled`. Keep `Sidebar.tsx` and `MobileTabBar.tsx`
+in sync per `CLAUDE.md`.
 
 ### Task 3.3 — Advisor CTA *(handle before the first tenant demo)*
 
-Today the CTA books a call with "**nuestro** asesor financiero" via our Cal.com, for 100 credits.
-On a tenant's branded app this routes *their* clients to *our* advisor — channel conflict, and in
-most jurisdictions a licensing problem.
+Today the CTA books "**nuestro** asesor financiero" via our Cal.com for 100 credits, rendered
+unconditionally at `MarkowitzResults.tsx:744`. On a tenant's branded app this routes *their* clients to
+*our* advisor — channel conflict, and in most jurisdictions a licensing problem.
 
-Implement the three modes from `organization_settings.advisor_mode`:
+Three modes from `advisor_mode`: `off` (default for whitelabel), `platform` (today's D2C behaviour),
+`tenant` (their own URL and cost). Move `ADVISOR_BOOKING_URL` / `ADVISOR_CALL_COST_CREDITS` off
+`config/env.ts` onto the org row. Fix the possessive in the copy.
 
-- `off` — **the default for every whitelabel tenant.** Hide the CTA entirely.
-- `platform` — our advisor (D2C behaviour today).
-- `tenant` — the tenant's own booking URL and credit cost.
+### Task 3.4 — Org-shared simulations · Task 3.5 — Mandatory disclaimer · Task 3.6 — Data export
 
-Move `ADVISOR_BOOKING_URL` and `ADVISOR_CALL_COST_CREDITS` out of
-`apps/api/src/config/env.ts` onto the org row. Update the `AdvisorCta` copy so the possessive
-("nuestro") is not baked into a string that a tenant will inherit.
-
-### Task 3.4 — Org-shared simulations
-
-Surface the `sharedWithOrg` flag added in Task 0.2: a toggle on the simulation, and an "shared with
-my organisation" filter in the list. Private stays the default. This pre-empts the first feature
-request every B2B customer will make.
-
-### Task 3.5 — Mandatory disclaimer
-
-Render `organization_branding.disclaimer_text` in the app and in the PDF export. The **wording** is
-tenant-editable; the **presence** is not — falling back to our default text if the field is empty.
-
-The app outputs portfolio allocations. Under a tenant's brand, their client sees their logo on a
-recommendation our optimizer produced. See §9.3 — this needs a lawyer's review, not just an
-implementation.
-
-### Task 3.6 — Data export
-
-An org-scoped JSON dump endpoint, admin-triggered. Roughly half a day. Not having an answer during a
-contract review costs more than building it.
+Surface `sharedWithOrg` (read/write split per Task 0.5). Render `disclaimerText` in app and PDF —
+**wording** tenant-editable, **presence** not, falling back to our default. Org-scoped JSON dump,
+admin-triggered.
 
 ---
 
 ## 8. Explicitly out of scope
 
-State these in sales conversations rather than discovering them mid-contract:
+SSO · custom domains · per-tenant OAuth apps · per-seat credit limits · data residency ·
+tenant-uploaded instruments (*possibly the actual killer feature — scope it as its own project*).
 
-- **SSO (SAML/OIDC)** — any buyer above ~50 seats will ask. This is the known enterprise gate.
-- **Custom domains** — subdomains only (D6). Surprising support burden for something that looks like
-  a checkbox.
-- **Per-tenant OAuth apps** — with shared credentials, the Google consent screen shows *our* app name,
-  which breaks the illusion at the highest-stakes moment. See §9.2 for the v1 workaround.
-- **Per-seat credit limits** — needs period accounting the append-only ledger does not model.
-- **Data residency** — an EU tenant requiring EU-hosted data needs the isolated-deployment path.
-- **Tenant-uploaded instruments** — a fund manager wanting *their* funds in the optimizer, not just
-  SPY, may be the actual killer feature. It needs per-tenant rows in the currently-global
-  `funds`/`prices` tables plus a price-upload path. **Scope it as its own project**, not a Phase 3
-  bullet.
-- **Mobile whitelabel** (D12). A tenant's user signing into the shared Expo app gets correct data
-  isolation and their org's wallet, unbranded.
-- **Scheduled-simulation timing** — `CRON.md`'s design works per-tenant as-is (the daily tick fans
-  out per org), but Vercel Hobby's one-cron-per-day limit means "Monday 8am *their* time" across
-  timezones is not deliverable. The fix is a Vercel Pro plan, not code.
+**Mobile (D12) is out of scope but not untouched** — a claim v1 made about code nobody had read.
+`apps/mobile` calls the same optimize/simulations/billing endpoints with a manual Cookie header, so a
+mobile user with no org membership hits **the same Task 0.4 500**; its billing screens read a wallet
+that becomes org-shared under D7; and `apps/mobile/package.json` declares `react-native-web` with an
+`expo start --web` script, which would reintroduce a real browser cookie jar hitting the API cross-site.
+
+**`CRON.md` is unimplemented** (no `modules/schedules`, no `app/api/cron`, no `crons` key in
+`vercel.json`), so "works per-tenant as-is" is untested. It adds **three more user-scoped tables**
+(`simulation_schedules`, `schedule_simulations`, `simulation_runs`) that Task 0.2 does not cover, and
+its runner calls `spendCredit({userId, …})` from a sessionless `POST /api/internal/run-schedules` — a
+**fourth** sessionless org-resolution path. If CRON ships first, Phase 0 must scope its three tables; if
+Phase 0 ships first, `CRON.md` needs an org-aware `spendCredit` signature.
+
+**Rollback.** Drizzle generates no down-migrations, §10 mandates one phase per PR, and the wallet re-key
+is destructive. Because `db:migrate` runs in `buildCommand`, **rolling back the code does not roll back
+the schema.** Write the rollback procedure before Deploy 2.
 
 ---
 
 ## 9. Escalate — do not decide these alone
 
-**9.1 — How many tenants in 12 months?** At three, per-tenant deploys plus a config file would have
-been the right architecture and much of this plan is over-engineering. At fifteen, all of it is
-necessary. This plan assumes **4–15**. If the real answer is 1–3, say so before starting Phase 0 —
-it changes the shape of the work substantially.
+**9.1 — How many tenants in 12 months?** At three, per-tenant deploys plus a config file would have been
+right and much of this is over-engineering. At fifteen, all of it is necessary. This plan assumes 4–15.
 
-**9.2 — OAuth consent screen.** Per-tenant OAuth credentials (encrypted on the org row) are the
-correct fix, but `apps/api/src/lib/auth.ts:51` builds `socialProviders` once at module scope from
-env, so this is a real refactor to per-tenant provider config. **The v1 workaround is
-email+password only for whitelabel tenants**, which is acceptable for B2B internal use and saves
-significant work. Confirm that trade-off with the client rather than assuming it.
+**9.2 — OAuth: nothing to decide, but a constraint to record.** **[v1 was wrong]** v1 asked the client to
+approve "email+password only for whitelabel tenants". **The web app has no social sign-in at all** — a
+grep across `apps/web/src` and both message files returns only a `next/font/google` import;
+`AuthModal.tsx:44,55` uses `signUp.email` / `signIn.email` only. `socialProviders` is configured
+server-side but the web client never calls it; social sign-in exists only in `apps/mobile`, which D12
+puts out of scope. **So it is already the shipped behaviour. Remove the ask.**
 
-**9.3 — Liability for the advice.** The highest non-technical risk in this project. Who is liable
-when a tenant's client acts on an allocation our optimizer produced under the tenant's logo? Task 3.5
-implements a mandatory disclaimer, but the wording and the back-to-back contract clause want a
-lawyer's 30 minutes before the first tenant goes live. `sow.md`'s "not a trading tool" framing is the
-right starting position.
+Record instead the forward-looking constraint: **adding web OAuth under a same-origin proxy design
+breaks outright.** BetterAuth derives `redirect_uri` from `baseURL` (`auth.ts:20` = `BACKEND_URL`) while
+the state/PKCE cookie would be set on the tenant host, so the callback finds no state cookie. Web OAuth
+and the proxy are mutually exclusive without per-tenant redirect URIs — a total failure, not a branding
+problem.
 
-**9.4 — Reversing a `PAYMENTS.md` non-goal.** D7 contradicts a documented decision ("multi-tenant /
-org wallets" listed as out of scope). Update `PAYMENTS.md` in the same PR as Phase 2 so the two docs
-do not disagree in the repo.
+**9.3 — Liability for the advice.** The highest non-technical risk. Task 3.5 implements a mandatory
+disclaimer, but the wording and the back-to-back contract clause want a lawyer's 30 minutes before the
+first tenant goes live. If no privacy policy or ToS exists at all (§0.2 item 3), that is part of this.
+
+**9.4 — Reversing a `PAYMENTS.md` non-goal.** D7 contradicts a documented decision. Update
+`PAYMENTS.md` in the Phase 2 PR.
+
+**9.5 — Admin authority model** for Task 2.3. **9.6 — Deploy window** for Migration C/D (§0.2 item 5).
 
 ---
 
 ## 10. Working agreements
 
-- **Migrations:** `CLAUDE.md` workflow, always. `pnpm db:generate` → commit the file → Render runs
-  `db:migrate`. Never `db:push` in CI.
-- **i18n:** every new user-facing string goes in both `es.json` and `en.json`. Brand values are the
-  documented exception (Task 1.4).
-- **Colour:** never hardcode. Tenant colours arrive as tokens or as `deriveTenantPalette` output —
-  the three-palette rule in §3.3 is the only sanctioned path.
-- **Dates:** DD/MM/YYYY in charts.
-- **One phase per PR.** Phase 0 and Phase 1 stay separate: a schema migration and a visual overhaul
-  failing together is much harder to debug than either failing alone.
-- **Every org-scoped table lands with its isolation test in the same commit.**
+**Migration operations** — all four verified by execution:
+
+1. **`render.yaml:5` runs `db:migrate` inside `buildCommand`** while the previous release serves
+   traffic, so every migration must be backward-compatible with deployed code. There is **no
+   `preDeployCommand`**, so v1's alternative of "a one-shot script run before the constraint lands" has
+   nowhere to run — struck.
+2. **`drizzle-kit migrate` fails mutely in CI**: a failing set exits 1 with **0 bytes on stderr** and
+   only a spinner on stdout. A failed migration shows as a Render build failure with no diagnostic.
+   Always run the assembled migration against a prod copy locally first, where the error is visible.
+   "It will fail loudly" is a false safety net.
+3. **After any branch merge, verify `drizzle/meta/_journal.json` timestamps are strictly increasing.**
+   The libSQL migrator compares each pending file's `when` against only the most recently applied row,
+   so a migration landing with an earlier timestamp is **skipped forever, silently.**
+4. `PRAGMA integrity_check` (must be `ok`) and `PRAGMA foreign_key_check` (must be 0 rows) are
+   post-migration gates. The whole batch runs with `PRAGMA foreign_keys=off`, so no FK validation
+   happens during the backfill, and `integrity_check` is the only thing that catches ALTER-COLUMN
+   NOT-NULL corruption.
+
+**Drizzle `relations()`** — no nested `with:` across a tenant boundary without an explicit org
+predicate. Relational traversals apply the outer query's `where` only to the outer table.
+`schema.ts:366-379`, `:354-364` and `:282-288` are all unguarded nested paths. A grep for `with:` returns
+zero hits today, so there is no live leak — but Task 2.4's usage view is exactly where someone writes
+one.
+
+**CI does not enforce this plan's definition of done.** There is no root `typecheck` script and
+`turbo.json` has no `typecheck` task — it exists only as `pnpm --filter api typecheck`, and
+`.github/workflows/ci.yml` says to run it locally because `.d.ts` emission is disabled (TS2742 on
+better-auth's inferred type). CI's test step is `turbo run test -- --passWithNoTests`. **So the
+mandatory isolation test could be deleted, skipped, or never written and CI would stay green**, and the
+typecheck break D7 causes via `walletBalanceRelations` would surface only on someone's laptop. Add a
+`typecheck` turbo task and drop `--passWithNoTests`.
+
+**Also**: migrations follow the `CLAUDE.md` workflow, never `db:push` · every new user-facing string
+goes in both `es.json` and `en.json` (brand values are the documented exception) · never hardcode a
+colour · DD/MM/YYYY in charts · one phase per PR · every org-scoped table lands with its isolation test
+in the same commit.
+
+**Env and ops, unexamined and needed:** no `API_URL` in `render.yaml`, no env block in `vercel.json`, no
+`apps/web/.env.example`, and `docker-compose.yml` sets `NEXT_PUBLIC_API_URL=http://api:8000` against an
+API that defaults to 8001 (stale). D6 assumes wildcard DNS and a wildcard TLS cert on the Vercel
+project — an ops prerequisite with real lead time that nothing has verified.
 
 ---
 
-## 11. Suggested sequencing
+## 11. Sequencing
 
-| Phase | Rough size | Ships to users |
-| --- | --- | --- |
-| 0 — Tenancy foundation | Largest single chunk; the schema and backfill dominate | Nothing visible |
-| 1 — Branding | Roughly a week of the visible work | The demoable feature |
-| 2 — Org billing | Smaller; mostly a careful rewrite of `spend.ts` | Owner-facing |
-| 3 — Product controls | Several small independent tasks | Per-tenant configuration |
+| Phase | Ships to users |
+| --- | --- |
+| **0 — Tenancy foundation** (two deploys: A+B, then C+D) | Nothing visible |
+| **1 — Branding** (gated on §3.2 verification) | The demoable feature |
+| **2 — Org billing** (gated on Task 2.0) | Owner-facing |
+| **3 — Product controls** | Per-tenant configuration |
 
-Phases 2 and 3 are largely independent of each other and can be reordered to suit a customer
-conversation. **Phase 0 must come first, and Phase 1 must not start before it lands** — branding
-built on unscoped data would need reworking the moment orgs arrive.
+Phases 2 and 3 are largely independent and can be reordered to suit a customer conversation. **Phase 0
+must come first, and Phase 1 must not start before it lands.**
