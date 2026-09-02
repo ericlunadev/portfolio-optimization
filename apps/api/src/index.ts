@@ -1,50 +1,10 @@
 import { serve } from "@hono/node-server";
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import { logger } from "hono/logger";
+import app from "./app.js";
 import { env } from "./config/env.js";
-import { errorHandler } from "./middleware/error.js";
 import { assertWalletLedgerInvariant } from "./lib/billing/reconcile.js";
 
-// Import routes
-import auth from "./modules/auth/routes.js";
-import optimization from "./modules/optimization/routes.js";
-import tasks from "./modules/tasks/routes.js";
-import historical from "./modules/historical/routes.js";
-import simulations from "./modules/simulations/routes.js";
-import onboarding from "./modules/onboarding/routes.js";
-import billing from "./modules/billing/routes.js";
-
-const app = new Hono();
-
-// Middleware
-app.use("*", logger());
-app.use("*", errorHandler);
-app.use(
-  "*",
-  cors({
-    origin: env.FRONTEND_URL,
-    credentials: true,
-    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    // Idempotency-Key is sent by the web and mobile clients on billing writes;
-    // leaving it out fails the preflight on those endpoints.
-    allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
-  })
-);
-
-// Health check
-app.get("/api/health", (c) => {
-  return c.json({ status: "healthy", version: "1.0.0" });
-});
-
-// Mount routes
-app.route("/api/auth", auth);
-app.route("/api/optimization", optimization);
-app.route("/api/tasks", tasks);
-app.route("/api/historical", historical);
-app.route("/api/simulations", simulations);
-app.route("/api/onboarding", onboarding);
-app.route("/api/billing", billing);
+// Server entry point. The app itself is composed in app.ts; this file owns only
+// the module-scope side effects that must never run inside a test.
 
 // Start server
 const port = env.PORT;

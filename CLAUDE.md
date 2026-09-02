@@ -52,6 +52,25 @@ Schema changes follow a **generate → commit → migrate** workflow using Drizz
 - Use `db:push` only for rapid local iteration when you don't need a migration file
 - Migrations are tracked in the `__drizzle_migrations` table on both local SQLite and Turso
 
+### Fresh local database
+
+Every authenticated request resolves a tenant from `organization_member`, and the middleware throws
+500 when it cannot. Signing up provisions a *personal* organization automatically, so signup itself
+works on an empty database — but the **default (D2C) tenant** and its `localhost` domain row, which
+host-based tenant resolution reads, are only created by the seed:
+
+```bash
+pnpm db:migrate     # from apps/api/
+pnpm seed:dev-org   # default (D2C) organization, its settings/branding, and a localhost domain row
+```
+
+`pnpm seed:dev-org` is idempotent — run it again after any migration that touches the
+`organization*` tables. A real tenant is never seeded: it is created by `pnpm provision:tenant`
+(`apps/api/src/scripts/provision-tenant.ts`).
+
+If provisioning ever fails mid-signup, the account is left with no organization and every request it
+makes returns 500. `pnpm repair:orphan-orgs` finds those users and gives each one an organization.
+
 ## Authentication
 
 - Auth is handled by **BetterAuth** (server + client)
