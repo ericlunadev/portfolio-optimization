@@ -2,6 +2,12 @@ import type { EmailLocale } from "./locale.js";
 
 export interface EmailMessages {
   brand: string;
+  /**
+   * Investing disclaimer for any email carrying simulation results (see
+   * `CRON.md`). Mirrors `Legal.email` in the web app's message files — an email
+   * leaves the app, so it has to carry the notice itself.
+   */
+  investingDisclaimer: string;
   verifySubject: string;
   verifyHeading: (name?: string | null) => string;
   verifyBody: string;
@@ -18,6 +24,8 @@ export interface EmailMessages {
 
 const es: EmailMessages = {
   brand: "Optimización de Portafolio",
+  investingDisclaimer:
+    "Documento informativo generado automáticamente. No constituye asesoría de inversión. Los rendimientos pasados no garantizan resultados futuros.",
   verifySubject: "Confirma tu correo electrónico",
   verifyHeading: (name) => (name ? `Hola, ${name}.` : "¡Bienvenido!"),
   verifyBody:
@@ -39,6 +47,8 @@ const es: EmailMessages = {
 
 const en: EmailMessages = {
   brand: "Portfolio Optimization",
+  investingDisclaimer:
+    "Automatically generated informational document. It does not constitute investment advice. Past performance does not guarantee future results.",
   verifySubject: "Confirm your email address",
   verifyHeading: (name) => (name ? `Hi ${name},` : "Welcome!"),
   verifyBody:

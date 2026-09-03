@@ -4,6 +4,11 @@
     "retry": "Reintentar",
     "loading": "Cargando…"
   },
+  "legal": {
+    "results": "Resultado de una simulación sobre datos históricos. No es una recomendación de inversión: los rendimientos pasados no garantizan resultados futuros.",
+    "projections": "Probabilidades estimadas con un modelo estadístico a partir de la volatilidad histórica. No son una predicción del comportamiento futuro del mercado.",
+    "profile": "Tus respuestas solo ajustan los valores por defecto de la simulación. No constituyen una evaluación de idoneidad ni un perfil de inversionista regulado."
+  },
   "tabs": {
     "home": "Inicio",
     "optimizer": "Optimizador",
@@ -43,6 +48,18 @@
     "assetConstraintsLabel": "Peso máximo por activo",
     "useAssetConstraints": "Limitar el peso por activo",
     "maxWeightPerAsset": "Peso máximo por activo (%)",
+    "assetLimitsLabel": "Límites de peso por activo",
+    "useAssetLimits": "Definir mínimo y máximo por activo",
+    "assetLimitsHelp": "El optimizador asignará a cada activo un peso dentro de su rango. Deja un campo vacío para no ponerle límite.",
+    "assetLimitsEmpty": "Agrega activos para definir sus límites.",
+    "limitMin": "Mín %",
+    "limitMax": "Máx %",
+    "limitMinAria": "Peso mínimo para %{ticker}",
+    "limitMaxAria": "Peso máximo para %{ticker}",
+    "limits_minAboveMax": "El mínimo de %{ticker} es mayor que su máximo.",
+    "limits_outOfRange": "Los límites de %{ticker} deben estar entre 0% y 100%.",
+    "limits_minTotalTooHigh": "Los mínimos suman %{total}%, más del %{target}% a invertir.",
+    "limits_maxTotalTooLow": "Los máximos suman %{total}%, menos del %{target}% a invertir.",
     "months": {
       "monthJan": "Enero",
       "monthFeb": "Febrero",

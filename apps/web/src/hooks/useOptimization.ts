@@ -8,6 +8,8 @@ export function useOptimization(
   strategy: OptimizationStrategy,
   options: {
     wMax?: number;
+    wMinPerAsset?: (number | null)[];
+    wMaxPerAsset?: (number | null)[];
     riskFreeRate?: number;
     targetReturn?: number;
     targetRisk?: number;
@@ -24,6 +26,8 @@ export function useOptimization(
       tickers,
       strategy,
       options.wMax,
+      options.wMinPerAsset,
+      options.wMaxPerAsset,
       options.riskFreeRate,
       options.targetReturn,
       options.targetRisk,
@@ -113,7 +117,9 @@ export function useEfficientFrontierTickers(
   enforceFullInvestment: boolean = true,
   allowShortSelling: boolean = false,
   maxLeverage: number = 1.0,
-  wMax: number = 1.0
+  wMax: number = 1.0,
+  wMinPerAsset?: (number | null)[],
+  wMaxPerAsset?: (number | null)[]
 ) {
   return useQuery({
     queryKey: [
@@ -125,9 +131,21 @@ export function useEfficientFrontierTickers(
       allowShortSelling,
       maxLeverage,
       wMax,
+      wMinPerAsset,
+      wMaxPerAsset,
     ],
     queryFn: () =>
-      api.getEfficientFrontierTickers(tickers, startDate, endDate, enforceFullInvestment, allowShortSelling, maxLeverage, wMax),
+      api.getEfficientFrontierTickers(
+        tickers,
+        startDate,
+        endDate,
+        enforceFullInvestment,
+        allowShortSelling,
+        maxLeverage,
+        wMax,
+        wMinPerAsset,
+        wMaxPerAsset
+      ),
     enabled: tickers.length >= 2,
   });
 }

@@ -23,6 +23,12 @@ export interface ChartColors {
   frontier: string;
   /** Individual assets — neutral. */
   asset: string;
+  /**
+   * Reference portfolios, handed out in selection order. Deliberately skips the
+   * gold, amber and violet already spoken for by the optimal portfolio, the
+   * user's allocation and the frontier.
+   */
+  benchmarks: string[];
   /** Loss / risk — red. */
   danger: string;
   /** Ends of the frontier curve's stroke gradient. */
@@ -59,6 +65,7 @@ const DARK_COLORS: ChartColors = {
   user: "#fbbf24",
   frontier: "#a78bfa",
   asset: "#94a3b8",
+  benchmarks: ["#60a5fa", "#2dd4bf", "#fb7185", "#a3e635", "#f0abfc", "#38bdf8"],
   danger: "#f87171",
   frontierFrom: "#7c3aed",
   frontierTo: "#22d3ee",
@@ -84,6 +91,7 @@ const LIGHT_COLORS: ChartColors = {
   user: "#b45309",
   frontier: "#6d28d9",
   asset: "#475569",
+  benchmarks: ["#2563eb", "#0d9488", "#e11d48", "#65a30d", "#c026d3", "#0284c7"],
   danger: "#dc2626",
   frontierFrom: "#6d28d9",
   frontierTo: "#0e7490",
@@ -199,10 +207,12 @@ export function ChartTooltip({
   );
 }
 
+type LegendVariant = "line" | "dot" | "dashed" | "star" | "diamond" | "triangle";
+
 interface ChartLegendItem {
   label: string;
   color: string;
-  variant?: "line" | "dot" | "dashed" | "star" | "diamond";
+  variant?: LegendVariant;
 }
 
 export function ChartLegend({
@@ -234,7 +244,7 @@ function LegendGlyph({
   variant,
 }: {
   color: string;
-  variant: "line" | "dot" | "dashed" | "star" | "diamond";
+  variant: LegendVariant;
 }) {
   if (variant === "dot") {
     return (
@@ -266,6 +276,13 @@ function LegendGlyph({
           d="M7 1l1.7 4 4.3.4-3.3 2.9 1 4.3L7 10.3 3.3 12.6l1-4.3L1 5.4l4.3-.4z"
           fill={color}
         />
+      </svg>
+    );
+  }
+  if (variant === "triangle") {
+    return (
+      <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden>
+        <path d="M6 1.5 L11 10.5 L1 10.5 Z" fill={color} />
       </svg>
     );
   }

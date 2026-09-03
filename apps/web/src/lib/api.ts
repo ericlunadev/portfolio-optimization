@@ -45,6 +45,10 @@ export const api = {
     strategy: OptimizationStrategy,
     options: {
       wMax?: number;
+      /** Per-asset minimum weight as a decimal, aligned with `tickers`. */
+      wMinPerAsset?: (number | null)[];
+      /** Per-asset maximum weight as a decimal, aligned with `tickers`. */
+      wMaxPerAsset?: (number | null)[];
       riskFreeRate?: number;
       targetReturn?: number;
       targetRisk?: number;
@@ -62,6 +66,8 @@ export const api = {
         tickers,
         strategy,
         w_max: options.wMax ?? 1,
+        w_min_per_asset: options.wMinPerAsset,
+        w_max_per_asset: options.wMaxPerAsset,
         risk_free_rate: options.riskFreeRate ?? 0,
         target_return: options.targetReturn,
         target_risk: options.targetRisk,
@@ -134,7 +140,9 @@ export const api = {
     enforceFullInvestment: boolean = true,
     allowShortSelling: boolean = false,
     maxLeverage: number = 1.0,
-    wMax: number = 1.0
+    wMax: number = 1.0,
+    wMinPerAsset?: (number | null)[],
+    wMaxPerAsset?: (number | null)[]
   ) {
     const res = await apiFetch(`${API_BASE}/optimization/efficient-frontier-tickers`, {
       method: "POST",
@@ -147,6 +155,8 @@ export const api = {
         allow_short_selling: allowShortSelling,
         max_leverage: maxLeverage,
         w_max: wMax,
+        w_min_per_asset: wMinPerAsset,
+        w_max_per_asset: wMaxPerAsset,
       }),
     });
     return handleResponse<EfficientFrontierResponse>(res);
@@ -187,6 +197,43 @@ export const api = {
       }),
     });
     return handleResponse<RollingVolatilityResponse>(res);
+  },
+
+  // Benchmarks
+  async getBenchmarkCatalog() {
+    const res = await apiFetch(`${API_BASE}/optimization/benchmarks`);
+    return handleResponse<{ benchmarks: BenchmarkCatalogEntry[] }>(res);
+  },
+
+  async getBenchmarkComparison(
+    benchmarks: string[],
+    tickers: string[],
+    weights: number[],
+    options: {
+      startDate?: string;
+      endDate?: string;
+      riskFreeRate?: number;
+    } = {}
+  ) {
+    const res = await apiFetch(`${API_BASE}/optimization/benchmark-comparison`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        benchmarks,
+        tickers,
+        weights,
+        start_date: options.startDate,
+        end_date: options.endDate,
+        risk_free_rate: options.riskFreeRate ?? 0,
+      }),
+    });
+    return handleResponse<BenchmarkComparisonResponse>(res);
+  },
+
+  // Market data
+  async getRiskFreeRates() {
+    const res = await apiFetch(`${API_BASE}/market/risk-free-rates`);
+    return handleResponse<RiskFreeRate[]>(res);
   },
 
   // Tasks
@@ -404,6 +451,11 @@ export interface OptimizationResultWithStrategy {
   volatility: number;
   sharpe_ratio: number;
   strategy: OptimizationStrategy;
+  /**
+   * Annualized covariances between assets, in the same order as `weights`.
+   * Optional: simulations saved before this field existed do not carry it.
+   */
+  covariance_matrix?: number[][];
   stats: {
     ci_95_low: number;
     ci_95_high: number;
@@ -440,6 +492,43 @@ export interface EfficientFrontierResponse {
   points: { ret: number; vol: number; weights: number[] }[];
 }
 
+// Benchmark Types
+export type BenchmarkCategory = "equity" | "global" | "diversified";
+
+export interface BenchmarkCatalogEntry {
+  id: string;
+  category: BenchmarkCategory;
+  /** Underlying symbols, shown as the subtitle of a benchmark's row. */
+  tickers: string[];
+}
+
+/** Performance of a portfolio or benchmark over the comparison window. */
+export interface BenchmarkPerformance {
+  expected_return: number;
+  volatility: number;
+  sharpe_ratio: number;
+  /** Deepest peak-to-trough fall, as a negative decimal. */
+  max_drawdown: number;
+  /** Cumulative return across the whole window. */
+  total_return: number;
+  series: { date: string; value: number }[];
+}
+
+export interface BenchmarkComparisonEntry extends BenchmarkPerformance {
+  id: string;
+  category: BenchmarkCategory;
+  tickers: string[];
+}
+
+export interface BenchmarkComparisonResponse {
+  window: { start: string; end: string };
+  /** Null when the portfolio's own tickers could not be priced. */
+  portfolio: BenchmarkPerformance | null;
+  benchmarks: BenchmarkComparisonEntry[];
+  /** Ids the provider had no usable prices for. */
+  unavailable: string[];
+}
+
 export interface CumulativeReturnsSeries {
   series: { name: string; data: { date: string; value: number }[] }[];
 }
@@ -450,6 +539,38 @@ export interface NegReturnProbResponse {
 
 export interface RollingVolatilityResponse {
   series: { name: string; data: { date: string; volatility: number }[] }[];
+}
+
+/**
+ * Reference instruments the risk-free rate can be taken from, in the order the
+ * picker lists them. `manual` lets the user type their own rate instead.
+ *
+ * These ids mirror `RISK_FREE_INSTRUMENTS` on the API and are used as
+ * translation keys, so the two lists must stay in sync.
+ */
+export const RISK_FREE_INSTRUMENT_IDS = [
+  "us-t-bill-3m",
+  "us-treasury-5y",
+  "us-treasury-10y",
+  "us-treasury-30y",
+] as const;
+
+export type RiskFreeInstrumentId = (typeof RISK_FREE_INSTRUMENT_IDS)[number];
+
+/** Where the risk-free rate came from: a reference instrument, or typed by hand. */
+export type RiskFreeSource = RiskFreeInstrumentId | "manual";
+
+export function isRiskFreeInstrumentId(value: string): value is RiskFreeInstrumentId {
+  return (RISK_FREE_INSTRUMENT_IDS as readonly string[]).includes(value);
+}
+
+export interface RiskFreeRate {
+  id: RiskFreeInstrumentId;
+  ticker: string;
+  /** Annualised yield as a decimal (0.0425 for 4.25%). */
+  rate: number;
+  /** ISO timestamp of the quote the rate was read from. */
+  asOf: string;
 }
 
 export interface TaskStatus {
@@ -471,9 +592,24 @@ export interface DateRange {
   endYear: number;
 }
 
+/**
+ * One row of the asset picker. `allocation` is the user's own current holding,
+ * used for the comparison chart. `minWeight` / `maxWeight` are the percentage
+ * limits the optimizer must allocate between; both are optional and absent on
+ * simulations saved before per-asset limits existed.
+ */
+export interface SimulationAsset {
+  ticker: string;
+  allocation: number | null;
+  /** Minimum weight in percent (0-100), or null for no floor. */
+  minWeight?: number | null;
+  /** Maximum weight in percent (0-100), or null for no cap. */
+  maxWeight?: number | null;
+}
+
 export interface SimulationParams {
   tickers: string[];
-  assets: { ticker: string; allocation: number | null }[];
+  assets: SimulationAsset[];
   dateRange: DateRange;
   strategy: OptimizationStrategy;
   targetReturn?: number;
@@ -485,7 +621,14 @@ export interface SimulationParams {
   maxLeverage: number;
   assetConstraints: boolean;
   wMax: number;
+  /** Whether the per-asset min/max limits carried on `assets` are applied. */
+  assetLimits?: boolean;
   showFrontier: boolean;
+  /**
+   * Ids of the benchmarks the results are compared against. Absent on
+   * simulations saved before benchmark comparison existed.
+   */
+  benchmarks?: string[];
 }
 
 export interface SavedSimulation {

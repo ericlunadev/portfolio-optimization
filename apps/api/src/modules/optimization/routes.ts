@@ -12,13 +12,27 @@ import {
   OptimizationResult,
 } from "../../lib/math/optimizer.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
+import { validateAssetBounds } from "../../lib/math/bounds.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { meterRequest, clientIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
 import { defaultLookbackPeriod } from "../../lib/dates.js";
 import { fetchTickerPrices } from "../../lib/yahoo.js";
+import {
+  BENCHMARKS,
+  benchmarkTickers,
+  buildWeightedSeries,
+  findBenchmark,
+} from "../../lib/benchmarks.js";
 
 const optimization = new Hono();
+
+/**
+ * Per-asset weight bounds, aligned index-for-index with `tickers`. A `null`
+ * entry falls back to the portfolio-wide `w_max` (and to 0, or `-w_max` with
+ * short selling, for the minimum).
+ */
+const perAssetBoundSchema = z.array(z.number().min(-1).max(1).nullable()).optional();
 
 // All optimization endpoints require authentication
 optimization.use("*", authMiddleware);
@@ -32,7 +46,9 @@ optimization.post(
       tickers: z.array(z.string()).min(1),
       strategy: z.enum(["max-sharpe", "min-risk", "max-return", "target-return", "target-risk", "knee-point"]),
       w_max: z.number().min(0).max(1).default(1.0),
-      risk_free_rate: z.number().min(0).max(1).default(0),
+      w_min_per_asset: perAssetBoundSchema,
+      w_max_per_asset: perAssetBoundSchema,
+      risk_free_rate: z.number().min(0).default(0),
       target_return: z.number().optional(),
       target_risk: z.number().optional(),
       start_date: z.string().optional(),
@@ -43,6 +59,13 @@ optimization.post(
     })
   ),
   async (c) => {
+    // Validate the weight bounds before metering: an infeasible floor/cap
+    // combination is a bad request, and the user should not be charged for it.
+    const boundsError = validateAssetBounds(c.req.valid("json"));
+    if (boundsError) {
+      return c.json(boundsError, 400);
+    }
+
     const user = c.get("user");
     const organizationId = c.get("organizationId");
     const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
@@ -53,6 +76,8 @@ optimization.post(
       tickers,
       strategy,
       w_max,
+      w_min_per_asset,
+      w_max_per_asset,
       risk_free_rate,
       target_return,
       target_risk,
@@ -72,6 +97,8 @@ optimization.post(
       case "max-sharpe":
         result = findMaxSharpePortfolio(expectedReturns, covMatrix, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           riskFreeRate: risk_free_rate,
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
@@ -84,6 +111,8 @@ optimization.post(
         result = findMinVariancePortfolio(expectedReturns, covMatrix, {
           rMin: Math.min(...expectedReturns) * max_leverage,
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
           maxLeverage: max_leverage,
@@ -93,6 +122,10 @@ optimization.post(
       case "max-return":
         result = findMaxReturnPortfolio(expectedReturns, covMatrix, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
+          allowShortSelling: allow_short_selling,
+          maxLeverage: max_leverage,
         });
         break;
 
@@ -102,6 +135,8 @@ optimization.post(
         }
         result = findTargetReturnPortfolio(expectedReturns, covMatrix, target_return, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
           maxLeverage: max_leverage,
@@ -114,6 +149,8 @@ optimization.post(
         }
         result = findTargetRiskPortfolio(expectedReturns, covMatrix, target_risk, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
@@ -124,6 +161,8 @@ optimization.post(
       case "knee-point":
         result = findKneePointPortfolio(expectedReturns, covMatrix, {
           wMax: w_max,
+          wMinPerAsset: w_min_per_asset,
+          wMaxPerAsset: w_max_per_asset,
           numFrontierPoints: 50,
           enforceFullInvestment: enforce_full_investment,
           allowShortSelling: allow_short_selling,
@@ -158,6 +197,8 @@ optimization.post(
       volatility: result.volatility,
       sharpe_ratio: sharpeRatio,
       strategy,
+      // Annualized covariances, in the same asset order as `weights`.
+      covariance_matrix: covMatrix,
       stats: {
         ci_95_low: result.return - 1.96 * result.volatility,
         ci_95_high: result.return + 1.96 * result.volatility,
@@ -183,6 +224,8 @@ optimization.post(
       tickers: z.array(z.string()),
       r_min: z.number().min(0).max(1),
       w_max: z.number().min(0).max(1).default(1.0),
+      w_min_per_asset: perAssetBoundSchema,
+      w_max_per_asset: perAssetBoundSchema,
       start_date: z.string().optional(),
       end_date: z.string().optional(),
       // Constraint toggles
@@ -192,6 +235,13 @@ optimization.post(
     })
   ),
   async (c) => {
+    // Validate the weight bounds before metering: an infeasible floor/cap
+    // combination is a bad request, and the user should not be charged for it.
+    const boundsError = validateAssetBounds(c.req.valid("json"));
+    if (boundsError) {
+      return c.json(boundsError, 400);
+    }
+
     const user = c.get("user");
     const organizationId = c.get("organizationId");
     const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
@@ -202,6 +252,8 @@ optimization.post(
       tickers,
       r_min,
       w_max,
+      w_min_per_asset,
+      w_max_per_asset,
       start_date,
       end_date,
       enforce_full_investment,
@@ -215,6 +267,8 @@ optimization.post(
     const result = findMinVariancePortfolio(expectedReturns, covMatrix, {
       rMin: r_min,
       wMax: w_max,
+      wMinPerAsset: w_min_per_asset,
+      wMaxPerAsset: w_max_per_asset,
       enforceFullInvestment: enforce_full_investment,
       allowShortSelling: allow_short_selling,
       maxLeverage: max_leverage,
@@ -264,7 +318,9 @@ optimization.post(
     z.object({
       tickers: z.array(z.string()),
       w_max: z.number().min(0).max(1).default(1.0),
-      risk_free_rate: z.number().min(0).max(0.2).default(0),
+      w_min_per_asset: perAssetBoundSchema,
+      w_max_per_asset: perAssetBoundSchema,
+      risk_free_rate: z.number().min(0).default(0),
       start_date: z.string().optional(),
       end_date: z.string().optional(),
       enforce_full_investment: z.boolean().default(true),
@@ -273,6 +329,13 @@ optimization.post(
     })
   ),
   async (c) => {
+    // Validate the weight bounds before metering: an infeasible floor/cap
+    // combination is a bad request, and the user should not be charged for it.
+    const boundsError = validateAssetBounds(c.req.valid("json"));
+    if (boundsError) {
+      return c.json(boundsError, 400);
+    }
+
     const user = c.get("user");
     const organizationId = c.get("organizationId");
     const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
@@ -282,6 +345,8 @@ optimization.post(
     const {
       tickers,
       w_max,
+      w_min_per_asset,
+      w_max_per_asset,
       risk_free_rate,
       start_date,
       end_date,
@@ -295,6 +360,8 @@ optimization.post(
 
     const result = findMaxSharpePortfolio(expectedReturns, covMatrix, {
       wMax: w_max,
+      wMinPerAsset: w_min_per_asset,
+      wMaxPerAsset: w_max_per_asset,
       riskFreeRate: risk_free_rate,
       numFrontierPoints: 50,
       enforceFullInvestment: enforce_full_investment,
@@ -352,6 +419,8 @@ optimization.post(
       start_date: z.string().optional(),
       end_date: z.string().optional(),
       w_max: z.number().min(0).max(1).default(1.0),
+      w_min_per_asset: perAssetBoundSchema,
+      w_max_per_asset: perAssetBoundSchema,
       // Constraint toggles (for consistent frontier calculation)
       enforce_full_investment: z.boolean().default(true),
       allow_short_selling: z.boolean().default(false),
@@ -359,18 +428,27 @@ optimization.post(
     })
   ),
   async (c) => {
+    // Validate the weight bounds before metering: an infeasible floor/cap
+    // combination is a bad request, and the user should not be charged for it.
+    const boundsError = validateAssetBounds(c.req.valid("json"));
+    if (boundsError) {
+      return c.json(boundsError, 400);
+    }
+
     const user = c.get("user");
     const organizationId = c.get("organizationId");
     const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
     const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
     try {
-    const { tickers, start_date, end_date, w_max, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");
+    const { tickers, start_date, end_date, w_max, w_min_per_asset, w_max_per_asset, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");
 
     const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
     const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
 
     const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 25, w_max, {
+      wMinPerAsset: w_min_per_asset,
+      wMaxPerAsset: w_max_per_asset,
       enforceFullInvestment: enforce_full_investment,
       allowShortSelling: allow_short_selling,
       maxLeverage: max_leverage,
@@ -553,6 +631,109 @@ optimization.post(
     });
 
     return c.json({ series });
+  }
+);
+
+// GET /api/optimization/benchmarks - Catalog of reference portfolios to compare against
+optimization.get("/benchmarks", (c) => {
+  return c.json({
+    benchmarks: BENCHMARKS.map((benchmark) => ({
+      id: benchmark.id,
+      category: benchmark.category,
+      tickers: benchmark.components.map((component) => component.ticker),
+    })),
+  });
+});
+
+// POST /api/optimization/benchmark-comparison - Measure a portfolio against selected benchmarks
+optimization.post(
+  "/benchmark-comparison",
+  zValidator(
+    "json",
+    z.object({
+      benchmarks: z.array(z.string()).max(BENCHMARKS.length),
+      tickers: z.array(z.string()).min(1),
+      weights: z.array(z.number()),
+      start_date: z.string().optional(),
+      end_date: z.string().optional(),
+      risk_free_rate: z.number().min(0).default(0),
+    })
+  ),
+  async (c) => {
+    const { benchmarks, tickers, weights, start_date, end_date, risk_free_rate } =
+      c.req.valid("json");
+
+    if (weights.length !== tickers.length) {
+      return c.json({ error: "weights must have one entry per ticker" }, 400);
+    }
+
+    const defaults = defaultLookbackPeriod();
+    const period1 = start_date || defaults.period1;
+    const period2 = end_date || defaults.period2;
+
+    // Unknown ids are dropped rather than rejected: a saved simulation may
+    // still name a benchmark that has since left the catalog.
+    const definitions = benchmarks
+      .map(findBenchmark)
+      .filter((definition): definition is NonNullable<typeof definition> => !!definition);
+
+    // The portfolio and every benchmark are priced over the same window and
+    // through the same math, so the figures on both sides are comparable.
+    const pricesByTicker = await fetchTickerPrices(
+      [...new Set([...tickers, ...benchmarkTickers(definitions)])],
+      period1,
+      period2
+    );
+
+    const portfolio = buildWeightedSeries(
+      tickers.map((ticker, i) => ({ ticker, weight: weights[i] ?? 0 })),
+      pricesByTicker,
+      risk_free_rate
+    );
+
+    const unavailable: string[] = [];
+    const comparisons = definitions.flatMap((definition) => {
+      const series = buildWeightedSeries(
+        definition.components,
+        pricesByTicker,
+        risk_free_rate
+      );
+      // A benchmark Yahoo could not price at all is reported back by id, so the
+      // client can say so instead of silently dropping the user's selection.
+      if (!series) {
+        unavailable.push(definition.id);
+        return [];
+      }
+      return [
+        {
+          id: definition.id,
+          category: definition.category,
+          tickers: definition.components.map((component) => component.ticker),
+          expected_return: series.expectedReturn,
+          volatility: series.volatility,
+          sharpe_ratio: series.sharpeRatio,
+          max_drawdown: series.maxDrawdown,
+          total_return: series.totalReturn,
+          series: series.points,
+        },
+      ];
+    });
+
+    return c.json({
+      window: { start: period1, end: period2 },
+      portfolio: portfolio
+        ? {
+            expected_return: portfolio.expectedReturn,
+            volatility: portfolio.volatility,
+            sharpe_ratio: portfolio.sharpeRatio,
+            max_drawdown: portfolio.maxDrawdown,
+            total_return: portfolio.totalReturn,
+            series: portfolio.points,
+          }
+        : null,
+      benchmarks: comparisons,
+      unavailable,
+    });
   }
 );
 

@@ -19,6 +19,10 @@ export type OptimizeRequest = {
   tickers: string[];
   strategy: OptimizationStrategy;
   w_max?: number;
+  /** Per-asset minimum weight (decimal), aligned with `tickers`; null to fall back to `w_max`. */
+  w_min_per_asset?: (number | null)[];
+  /** Per-asset maximum weight (decimal), aligned with `tickers`; null to fall back to `w_max`. */
+  w_max_per_asset?: (number | null)[];
   risk_free_rate?: number;
   target_return?: number;
   target_risk?: number;

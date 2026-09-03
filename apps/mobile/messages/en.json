@@ -4,6 +4,11 @@
     "retry": "Retry",
     "loading": "Loading…"
   },
+  "legal": {
+    "results": "Result of a simulation over historical data. This is not an investment recommendation: past performance does not guarantee future results.",
+    "projections": "Probabilities estimated by a statistical model from historical volatility. They are not a prediction of future market behaviour.",
+    "profile": "Your answers only adjust the simulation's default values. They are not a suitability assessment or a regulated investor profile."
+  },
   "tabs": {
     "home": "Home",
     "optimizer": "Optimizer",
@@ -43,6 +48,18 @@
     "assetConstraintsLabel": "Max weight per asset",
     "useAssetConstraints": "Cap the weight per asset",
     "maxWeightPerAsset": "Max weight per asset (%)",
+    "assetLimitsLabel": "Weight limits per asset",
+    "useAssetLimits": "Set a minimum and maximum per asset",
+    "assetLimitsHelp": "The optimizer will give each asset a weight inside its range. Leave a field empty for no limit.",
+    "assetLimitsEmpty": "Add assets to set their limits.",
+    "limitMin": "Min %",
+    "limitMax": "Max %",
+    "limitMinAria": "Minimum weight for %{ticker}",
+    "limitMaxAria": "Maximum weight for %{ticker}",
+    "limits_minAboveMax": "The minimum for %{ticker} is above its maximum.",
+    "limits_outOfRange": "The limits for %{ticker} must be between 0% and 100%.",
+    "limits_minTotalTooHigh": "Minimums add up to %{total}%, more than the %{target}% to invest.",
+    "limits_maxTotalTooLow": "Maximums add up to %{total}%, less than the %{target}% to invest.",
     "months": {
       "monthJan": "January",
       "monthFeb": "February",

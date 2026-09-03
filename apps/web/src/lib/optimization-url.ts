@@ -1,4 +1,9 @@
-import { OptimizationStrategy, OPTIMIZATION_STRATEGIES } from "@/lib/api";
+import {
+  OptimizationStrategy,
+  OPTIMIZATION_STRATEGIES,
+  RiskFreeSource,
+  isRiskFreeInstrumentId,
+} from "@/lib/api";
 import { DateRange } from "@/components/forms/DateRangePicker";
 import { AssetRow } from "@/components/forms/AssetAllocationForm";
 
@@ -16,23 +21,39 @@ export interface OptimizationFormState {
   targetReturn: number;
   targetRisk: number;
   riskFreeRate: number;
+  /** Which reference instrument the rate came from, or "manual" if typed. */
+  riskFreeSource: RiskFreeSource;
   enforceFullInvestment: boolean;
   allowShortSelling: boolean;
   useLeverage: boolean;
   maxLeverage: number;
   assetConstraints: boolean;
   wMax: number;
+  /** Whether the per-asset min/max weights on `assets` are applied. */
+  assetLimits: boolean;
   showFrontier: boolean;
 }
 
 const VALID_STRATEGIES = new Set(OPTIMIZATION_STRATEGIES.map((s) => s.value));
 
+function parseRiskFreeSource(value: string | null, fallback: RiskFreeSource): RiskFreeSource {
+  if (value === "manual" || (value !== null && isRiskFreeInstrumentId(value))) {
+    return value;
+  }
+  return fallback;
+}
+
 function generateId() {
   return Math.random().toString(36).slice(2, 9);
 }
 
-function makeAsset(ticker: string, allocation: number | null): AssetRow {
-  return { id: generateId(), ticker, allocation };
+function makeAsset(
+  ticker: string,
+  allocation: number | null,
+  minWeight: number | null = null,
+  maxWeight: number | null = null
+): AssetRow {
+  return { id: generateId(), ticker, allocation, minWeight, maxWeight };
 }
 
 export function defaultFormState(currentYear: number): OptimizationFormState {
@@ -48,36 +69,56 @@ export function defaultFormState(currentYear: number): OptimizationFormState {
     targetReturn: 0.1,
     targetRisk: 0.15,
     riskFreeRate: 0.05,
+    riskFreeSource: "manual",
     enforceFullInvestment: true,
     allowShortSelling: false,
     useLeverage: false,
     maxLeverage: 1.5,
     assetConstraints: false,
     wMax: 0.4,
+    assetLimits: false,
     showFrontier: true,
   };
 }
 
 /**
- * Encode an asset row as `TICKER~ALLOCATION`, where allocation is empty for
- * null. Empty rows (no ticker, no allocation) are preserved so the row layout
- * round-trips. Rows are joined with commas.
+ * Encode an asset row as `TICKER~ALLOCATION~MIN~MAX`, where each number is
+ * empty for null and the trailing empty fields are dropped — so a row with no
+ * weight limits still encodes as `TICKER~ALLOCATION`, exactly as before. Empty
+ * rows are preserved so the row layout round-trips. Rows are joined with
+ * commas.
  */
 function encodeAssets(assets: AssetRow[]): string {
   return assets
-    .map((a) => `${a.ticker}~${a.allocation ?? ""}`)
+    .map((a) => {
+      const fields = [
+        a.ticker,
+        a.allocation ?? "",
+        a.minWeight ?? "",
+        a.maxWeight ?? "",
+      ].map(String);
+      while (fields.length > 2 && fields[fields.length - 1] === "") {
+        fields.pop();
+      }
+      return fields.join("~");
+    })
     .join(",");
+}
+
+function optionalNumber(raw: string | undefined): number | null {
+  if (raw === undefined || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
 }
 
 function decodeAssets(raw: string): AssetRow[] {
   const rows = raw.split(",").map((pair) => {
-    const sepIndex = pair.indexOf("~");
-    const ticker = sepIndex >= 0 ? pair.slice(0, sepIndex) : pair;
-    const allocRaw = sepIndex >= 0 ? pair.slice(sepIndex + 1) : "";
-    const allocation = allocRaw === "" ? null : Number(allocRaw);
+    const [ticker = "", allocRaw, minRaw, maxRaw] = pair.split("~");
     return makeAsset(
       ticker.trim().toUpperCase(),
-      allocation !== null && Number.isFinite(allocation) ? allocation : null
+      optionalNumber(allocRaw),
+      optionalNumber(minRaw),
+      optionalNumber(maxRaw)
     );
   });
   return rows.length > 0 ? rows : [makeAsset("", null), makeAsset("", null)];
@@ -117,7 +158,11 @@ export function encodeFormState(
   const params = new URLSearchParams();
 
   const hasAnyAssetContent = state.assets.some(
-    (a) => a.ticker !== "" || a.allocation !== null
+    (a) =>
+      a.ticker !== "" ||
+      a.allocation !== null ||
+      a.minWeight !== null ||
+      a.maxWeight !== null
   );
   if (hasAnyAssetContent) {
     params.set("assets", encodeAssets(state.assets));
@@ -148,6 +193,9 @@ export function encodeFormState(
   if (state.strategy === "max-sharpe" && state.riskFreeRate !== defaults.riskFreeRate) {
     params.set("riskFreeRate", String(state.riskFreeRate));
   }
+  if (state.strategy === "max-sharpe" && state.riskFreeSource !== defaults.riskFreeSource) {
+    params.set("riskFreeSource", state.riskFreeSource);
+  }
 
   if (state.enforceFullInvestment !== defaults.enforceFullInvestment) {
     params.set("enforceFullInvestment", bool(state.enforceFullInvestment));
@@ -166,6 +214,9 @@ export function encodeFormState(
   }
   if (state.assetConstraints && state.wMax !== defaults.wMax) {
     params.set("wMax", String(state.wMax));
+  }
+  if (state.assetLimits !== defaults.assetLimits) {
+    params.set("assetLimits", bool(state.assetLimits));
   }
   if (state.showFrontier !== defaults.showFrontier) {
     params.set("showFrontier", bool(state.showFrontier));
@@ -204,6 +255,7 @@ export function decodeFormState(
     targetReturn: parseNum(params.get("targetReturn"), defaults.targetReturn),
     targetRisk: parseNum(params.get("targetRisk"), defaults.targetRisk),
     riskFreeRate: parseNum(params.get("riskFreeRate"), defaults.riskFreeRate),
+    riskFreeSource: parseRiskFreeSource(params.get("riskFreeSource"), defaults.riskFreeSource),
     enforceFullInvestment: parseBool(
       params.get("enforceFullInvestment"),
       defaults.enforceFullInvestment
@@ -213,6 +265,7 @@ export function decodeFormState(
     maxLeverage: parseNum(params.get("maxLeverage"), defaults.maxLeverage),
     assetConstraints: parseBool(params.get("assetConstraints"), defaults.assetConstraints),
     wMax: parseNum(params.get("wMax"), defaults.wMax),
+    assetLimits: parseBool(params.get("assetLimits"), defaults.assetLimits),
     showFrontier: parseBool(params.get("showFrontier"), defaults.showFrontier),
   };
 }

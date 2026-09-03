@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import { SimulationParams, OPTIMIZATION_STRATEGIES } from "@/lib/api";
+import { formatWeightLimits } from "@/lib/asset-limits";
 
 interface SimulationParamsSummaryProps {
   params: SimulationParams;
@@ -128,18 +129,30 @@ export function SimulationParamsSummary({
             )}
           </div>
 
-          {/* Tickers */}
+          {/* Tickers — annotated with their weight limits when those are on */}
           <div className="mt-3 border-t border-border pt-3 dark:border-border/50">
-            <dt className="mb-1.5 text-sm text-muted-foreground">{t("assets")}</dt>
+            <dt className="mb-1.5 text-sm text-muted-foreground">
+              {params.assetLimits ? t("assetsWithLimits") : t("assets")}
+            </dt>
             <div className="flex flex-wrap gap-1.5">
-              {params.tickers.map((ticker) => (
-                <span
-                  key={ticker}
-                  className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium"
-                >
-                  {ticker}
-                </span>
-              ))}
+              {params.tickers.map((ticker, index) => {
+                const limits = params.assetLimits
+                  ? formatWeightLimits(params.assets[index])
+                  : null;
+                return (
+                  <span
+                    key={ticker}
+                    className="rounded-md bg-muted px-2 py-0.5 text-xs font-medium"
+                  >
+                    {ticker}
+                    {limits && (
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        {limits}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
             </div>
           </div>
         </div>

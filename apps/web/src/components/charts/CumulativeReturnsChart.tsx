@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import {
   ComposedChart,
   Line,
@@ -30,6 +31,12 @@ interface CumulativeReturnsChartProps {
   series: string[];
   highlightSeries?: string;
   /**
+   * Colour overrides keyed by series name. Series without an entry fall back to
+   * the shared palette. Used where a colour already means something elsewhere
+   * on the page — a benchmark's line has to match its marker on the scatter.
+   */
+  seriesColors?: Record<string, string>;
+  /**
    * Mount animations rely on requestAnimationFrame, which is suspended in
    * background tabs. Turn them off when the chart is rendered to be captured
    * (PDF export), so it paints its final geometry immediately.
@@ -41,17 +48,21 @@ export function CumulativeReturnsChart({
   data,
   series,
   highlightSeries,
+  seriesColors,
   animate = true,
 }: CumulativeReturnsChartProps) {
   const t = useTranslations("CumulativeReturnsChart");
   const colors = useChartColors();
+  // SVG ids live in one document-wide namespace, so two of these charts on the
+  // same page would otherwise fight over the same gradient definitions.
+  const instanceId = useId().replace(/:/g, "");
   const effectiveHighlight = highlightSeries ?? t("highlightDefault");
   const seriesMeta = series.map((name, i) => {
     const palette = colors.palette[i % colors.palette.length];
     return {
       name,
-      color: palette.stroke,
-      gradientId: `cum-grad-${i}`,
+      color: seriesColors?.[name] ?? palette.stroke,
+      gradientId: `cum-grad-${instanceId}-${i}`,
       isHighlight: name === effectiveHighlight,
     };
   });
@@ -95,7 +106,7 @@ export function CumulativeReturnsChart({
                   <stop offset="100%" stopColor={s.color} stopOpacity={0} />
                 </linearGradient>
               ))}
-              <filter id="cum-line-glow">
+              <filter id={`cum-line-glow-${instanceId}`}>
                 <feGaussianBlur stdDeviation="2" />
               </filter>
             </defs>
@@ -133,6 +144,7 @@ export function CumulativeReturnsChart({
                 dataKey={s.name}
                 stroke="none"
                 fill={`url(#${s.gradientId})`}
+                connectNulls
                 isAnimationActive={animate}
                 animationDuration={900}
               />
@@ -146,6 +158,10 @@ export function CumulativeReturnsChart({
                 strokeWidth={s.isHighlight ? 2.5 : 1.5}
                 strokeOpacity={s.isHighlight ? 1 : 0.7}
                 dot={false}
+                // Markets keep different holiday calendars, so a series can be
+                // missing on a date another series trades. Bridge the gap
+                // instead of breaking the line at every mismatched holiday.
+                connectNulls
                 activeDot={{
                   r: s.isHighlight ? 5 : 4,
                   fill: s.color,

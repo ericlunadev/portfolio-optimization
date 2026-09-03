@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useEfficientFrontierTickers,
   usePortfolioCumulativeReturnsTickers,
@@ -11,15 +11,21 @@ import {
   OptimizationResultWithStrategy,
   SimulationParams,
 } from "@/lib/api";
+import { formatWeightLimits, toWeightBounds } from "@/lib/asset-limits";
 import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
 import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsChart";
 import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
+import { MatrixTable } from "@/components/tables/MatrixTable";
+import { BenchmarkComparison } from "@/components/benchmarks/BenchmarkComparison";
+import { useBenchmarkComparison } from "@/hooks/useBenchmarks";
+import { buildBenchmarkChartData } from "@/lib/benchmark-chart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
+import { Disclaimer } from "@/components/legal/Disclaimer";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import {
   useChartColors,
@@ -27,6 +33,14 @@ import {
 } from "@/components/charts/chart-theme";
 import { PdfChartSpec } from "@/components/pdf/SimulationPdfCharts";
 import { useSimulationPdfExport } from "@/hooks/useSimulationPdfExport";
+import { ReportConfigDialog } from "@/components/pdf/ReportConfigDialog";
+import {
+  ReportAvailability,
+  ReportConfig,
+  defaultReportConfig,
+  loadReportConfig,
+  saveReportConfig,
+} from "@/lib/report-config";
 import * as Tabs from "@radix-ui/react-tabs";
 import { useTranslations } from "next-intl";
 import {
@@ -58,12 +72,40 @@ export function MarkowitzResults({
   const tAssetVolatility = useTranslations("AssetVolatilityChart");
   const tRollingVolatility = useTranslations("RollingVolatilityChart");
   const tPdf = useTranslations("Pdf");
+  const tBenchmarks = useTranslations("Benchmarks");
   // The PDF legends must use the same palette as the offscreen chart nodes they
   // describe, so they follow the active theme rather than a fixed set.
   const chartColors = useChartColors();
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
+  const [isReportConfigOpen, setIsReportConfigOpen] = useState(false);
+  // Starts at the default so the server and the first client render agree; the
+  // remembered choice is read from `localStorage` right after hydration.
+  const [reportConfig, setReportConfig] = useState<ReportConfig>(
+    defaultReportConfig
+  );
+  useEffect(() => {
+    setReportConfig(loadReportConfig());
+  }, []);
+  // A saved simulation carries its own selection; anything older opens on the
+  // S&P 500, so the comparison is there without the user having to find it.
+  const [selectedBenchmarks, setSelectedBenchmarks] = useState<string[]>(
+    () => params.benchmarks ?? ["sp500"]
+  );
 
   const selectedTickers = params.tickers;
+
+  // Simulations saved before the API returned the matrix have no covariances,
+  // and a re-run is what fills them in — so the section renders conditionally.
+  const covarianceLabels = useMemo(
+    () => result.weights.map((w) => w.fund_name),
+    [result.weights]
+  );
+  const covarianceMatrix = useMemo(() => {
+    const matrix = result.covariance_matrix;
+    if (!matrix || matrix.length !== covarianceLabels.length) return null;
+    if (matrix.some((row) => row.length !== covarianceLabels.length)) return null;
+    return matrix;
+  }, [result.covariance_matrix, covarianceLabels.length]);
   const currentStrategy = OPTIMIZATION_STRATEGIES.find(
     (s) => s.value === params.strategy
   );
@@ -107,6 +149,13 @@ export function MarkowitzResults({
     [result.weights]
   );
 
+  // The frontier has to obey the same per-asset limits as the optimal
+  // portfolio, or the point would not sit on the curve it is drawn against.
+  const weightBounds = useMemo(
+    () => toWeightBounds(params.assets, params.assetLimits),
+    [params.assets, params.assetLimits]
+  );
+
   const { data: frontierData } = useEfficientFrontierTickers(
     params.showFrontier ? selectedTickers : [],
     startDate,
@@ -114,7 +163,9 @@ export function MarkowitzResults({
     params.enforceFullInvestment,
     params.allowShortSelling,
     params.useLeverage ? params.maxLeverage : 1.0,
-    params.assetConstraints ? params.wMax : 1.0
+    params.assetConstraints ? params.wMax : 1.0,
+    weightBounds?.wMinPerAsset,
+    weightBounds?.wMaxPerAsset
   );
 
   const { data: cumulativeData } = usePortfolioCumulativeReturnsTickers(
@@ -129,6 +180,52 @@ export function MarkowitzResults({
     startDate,
     endDate
   );
+
+  // Benchmarks are priced over the simulation's own window, so their figures
+  // are directly comparable with the stat cards above.
+  const {
+    data: benchmarkData,
+    isFetching: isBenchmarkFetching,
+    isError: isBenchmarkError,
+  } = useBenchmarkComparison(
+    selectedBenchmarks,
+    selectedTickers,
+    optimalWeights,
+    { startDate, endDate, riskFreeRate: params.riskFreeRate }
+  );
+
+  const benchmarkColorById = useMemo(() => {
+    const entries = selectedBenchmarks.map((id, i) => [
+      id,
+      chartColors.benchmarks[i % chartColors.benchmarks.length],
+    ]);
+    return Object.fromEntries(entries) as Record<string, string>;
+  }, [selectedBenchmarks, chartColors.benchmarks]);
+
+  // A benchmark added to the catalog without a translation yet falls back to
+  // its id rather than rendering next-intl's missing-key marker.
+  const benchmarkName = useCallback(
+    (id: string) =>
+      tBenchmarks.has(`name.${id}`) ? tBenchmarks(`name.${id}`) : id,
+    [tBenchmarks]
+  );
+
+  const benchmarkPoints = useMemo(() => {
+    if (!benchmarkData) return [];
+    const byId = new Map(benchmarkData.benchmarks.map((b) => [b.id, b]));
+    return selectedBenchmarks.flatMap((id) => {
+      const entry = byId.get(id);
+      if (!entry) return [];
+      return [
+        {
+          name: benchmarkName(id),
+          vol: entry.volatility,
+          ret: entry.expected_return,
+          color: benchmarkColorById[id],
+        },
+      ];
+    });
+  }, [benchmarkData, selectedBenchmarks, benchmarkName, benchmarkColorById]);
 
   const userPortfolioStats = useMemo(() => {
     if (
@@ -297,6 +394,26 @@ export function MarkowitzResults({
     return { data, series: seriesNames };
   }, [rollingVolData]);
 
+  const benchmarkChartData = useMemo(
+    () =>
+      buildBenchmarkChartData({
+        comparison: benchmarkData,
+        selected: selectedBenchmarks,
+        portfolioLabel: optimalPortfolioLabel,
+        portfolioColor: chartColors.optimal,
+        colorById: benchmarkColorById,
+        nameById: benchmarkName,
+      }),
+    [
+      benchmarkData,
+      selectedBenchmarks,
+      optimalPortfolioLabel,
+      chartColors.optimal,
+      benchmarkColorById,
+      benchmarkName,
+    ]
+  );
+
   const weightsChartData = useMemo(
     () =>
       result.weights.map((w) => ({
@@ -320,6 +437,10 @@ export function MarkowitzResults({
       ...(userPortfolioPoint
         ? [{ label: userPortfolioLabel, color: chartColors.user }]
         : []),
+      ...benchmarkPoints.map((point) => ({
+        label: point.name,
+        color: point.color,
+      })),
     ];
 
     specs.push({
@@ -335,6 +456,7 @@ export function MarkowitzResults({
           frontierTickers={frontierData?.tickers}
           optimizedPortfolio={optimizedPortfolioPoint}
           userPortfolio={userPortfolioPoint}
+          benchmarks={benchmarkPoints}
           animate={false}
         />
       ),
@@ -379,6 +501,28 @@ export function MarkowitzResults({
       });
     }
 
+    if (benchmarkChartData.data.length > 0) {
+      specs.push({
+        key: "benchmark-comparison",
+        title: tBenchmarks("growthTitle"),
+        subtitle: tBenchmarks("pdfSubtitle"),
+        legend: benchmarkChartData.series.map((name) => ({
+          label: name,
+          color: benchmarkChartData.seriesColors[name],
+        })),
+        tall: true,
+        node: (
+          <CumulativeReturnsChart
+            data={benchmarkChartData.data}
+            series={benchmarkChartData.series}
+            highlightSeries={optimalPortfolioLabel}
+            seriesColors={benchmarkChartData.seriesColors}
+            animate={false}
+          />
+        ),
+      });
+    }
+
     if (assetVolatilityData.length > 0) {
       specs.push({
         key: "asset-volatility",
@@ -413,8 +557,11 @@ export function MarkowitzResults({
     return specs;
   }, [
     assetVolatilityData,
+    benchmarkChartData,
+    benchmarkPoints,
     chartColors,
     cumRetChartData,
+    tBenchmarks,
     frontierData?.tickers,
     frontierPoints,
     optimalPortfolioLabel,
@@ -434,9 +581,19 @@ export function MarkowitzResults({
   ]);
 
   const fallbackTitle = `${params.tickers.join(", ")} - ${strategyLabel}`;
+  const reportTitle = title?.trim() || fallbackTitle;
+
+  const reportAvailability = useMemo<ReportAvailability>(
+    () => ({
+      comparison: userPortfolioStats !== null,
+      assetLimits: !!params.assetLimits,
+      chartKeys: pdfCharts.map((chart) => chart.key),
+    }),
+    [params.assetLimits, pdfCharts, userPortfolioStats]
+  );
 
   const pdfExport = useSimulationPdfExport({
-    title: title?.trim() || fallbackTitle,
+    title: reportTitle,
     strategyLabel,
     params,
     result,
@@ -473,6 +630,7 @@ export function MarkowitzResults({
       tableExpReturn: t("tableExpReturn"),
       tableVolatility: t("tableVolatility"),
       tableWeight: t("tableWeight"),
+      tableLimits: t("tableLimits"),
       horizonHeader: tPdf("horizonHeader"),
       probabilityHeader: tPdf("probabilityHeader"),
       horizon1m: t("horizon1m"),
@@ -501,7 +659,7 @@ export function MarkowitzResults({
         )}
         <button
           type="button"
-          onClick={pdfExport.exportPdf}
+          onClick={() => setIsReportConfigOpen(true)}
           disabled={pdfExport.isExporting}
           className="inline-flex items-center gap-2 rounded-lg border border-border/50 bg-card/60 px-3 py-2 text-sm font-medium transition-all hover:bg-accent hover:border-border disabled:opacity-60"
         >
@@ -513,6 +671,21 @@ export function MarkowitzResults({
           {pdfExport.isExporting ? t("exportPdfPreparing") : t("exportPdf")}
         </button>
       </div>
+
+      <ReportConfigDialog
+        open={isReportConfigOpen}
+        onOpenChange={setIsReportConfigOpen}
+        config={reportConfig}
+        availability={reportAvailability}
+        charts={pdfCharts}
+        defaultTitle={reportTitle}
+        onGenerate={(config) => {
+          setReportConfig(config);
+          saveReportConfig(config);
+          setIsReportConfigOpen(false);
+          pdfExport.exportPdf(config);
+        }}
+      />
 
       <Tabs.Root defaultValue="portfolio" className="w-full">
         <Tabs.List className="mb-6 flex gap-1 overflow-x-auto rounded-xl bg-accent/50 p-1 border border-border/30">
@@ -606,6 +779,7 @@ export function MarkowitzResults({
                 frontierTickers={frontierData?.tickers}
                 optimizedPortfolio={optimizedPortfolioPoint}
                 userPortfolio={userPortfolioPoint}
+                benchmarks={benchmarkPoints}
                 showTangentSlope={debugTangentSlope}
               />
             </ChartReveal>
@@ -674,6 +848,17 @@ export function MarkowitzResults({
             </div>
           )}
 
+          <BenchmarkComparison
+            selected={selectedBenchmarks}
+            onSelectedChange={setSelectedBenchmarks}
+            comparison={benchmarkData}
+            isLoading={isBenchmarkFetching}
+            isError={isBenchmarkError}
+            portfolioLabel={optimalPortfolioLabel}
+            colorById={benchmarkColorById}
+            nameById={benchmarkName}
+          />
+
         </Tabs.Content>
 
         <Tabs.Content value="data" className="space-y-6">
@@ -686,6 +871,11 @@ export function MarkowitzResults({
                 <thead>
                   <tr className="border-b border-border">
                     <th className="px-2 py-2 text-left font-medium">{t("tableAsset")}</th>
+                    {params.assetLimits && (
+                      <th className="px-2 py-2 text-right font-medium">
+                        {t("tableLimits")}
+                      </th>
+                    )}
                     <th className="px-2 py-2 text-right font-medium">
                       {t("tableExpReturn")}
                     </th>
@@ -696,9 +886,14 @@ export function MarkowitzResults({
                   </tr>
                 </thead>
                 <tbody>
-                  {result.weights.map((w) => (
+                  {result.weights.map((w, index) => (
                     <tr key={w.fund_name} className="border-b border-border/50">
                       <td className="px-2 py-2 font-medium">{w.fund_name}</td>
+                      {params.assetLimits && (
+                        <td className="px-2 py-2 text-right text-muted-foreground">
+                          {formatWeightLimits(params.assets[index]) ?? "—"}
+                        </td>
+                      )}
                       <td className="px-2 py-2 text-right">
                         {formatPercent(w.exp_ret)}
                       </td>
@@ -714,6 +909,25 @@ export function MarkowitzResults({
               </table>
             </div>
           </div>
+
+          {covarianceMatrix && (
+            <div className="glass-card p-4 md:p-5">
+              <h3 className="mb-1 font-display text-lg">
+                {t("covarianceMatrixTitle")}
+              </h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {t("covarianceMatrixSubtitle")}
+              </p>
+              <MatrixTable
+                labels={covarianceLabels}
+                matrix={covarianceMatrix}
+                formatValue={(v) => (v * 100).toFixed(4)}
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("covarianceMatrixNote")}
+              </p>
+            </div>
+          )}
 
           {assetVolatilityData.length > 0 && (
             <div className="glass-card p-4 md:p-5">
@@ -740,6 +954,8 @@ export function MarkowitzResults({
 
         </Tabs.Content>
       </Tabs.Root>
+
+      <Disclaimer variant="results" boxed className="mt-6" />
 
       <AdvisorCallCta />
 
@@ -889,6 +1105,7 @@ function ProbNegBars({ stats }: ProbNegBarsProps) {
           </div>
         );
       })}
+      <Disclaimer variant="projections" className="pt-1" />
     </div>
   );
 }

@@ -5,7 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimization } from "@/hooks/useOptimization";
 import { useSaveSimulation } from "@/hooks/useSimulations";
-import { ApiError, OptimizationStrategy, OPTIMIZATION_STRATEGIES, SimulationParams } from "@/lib/api";
+import { useRiskFreeRates } from "@/hooks/useRiskFreeRates";
+import { formatChartDate } from "@/components/charts/chart-theme";
+import {
+  ApiError,
+  OptimizationStrategy,
+  OPTIMIZATION_STRATEGIES,
+  RISK_FREE_INSTRUMENT_IDS,
+  RiskFreeSource,
+  SimulationParams,
+} from "@/lib/api";
 import Link from "next/link";
 import { DateRangePicker } from "@/components/forms/DateRangePicker";
 import { AssetAllocationForm, AssetRow } from "@/components/forms/AssetAllocationForm";
@@ -17,13 +26,20 @@ import { LessonButton } from "@/components/academia/LessonButton";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
 import { decodeFormState, encodeFormState } from "@/lib/optimization-url";
+import { toWeightBounds, validateAssetLimits } from "@/lib/asset-limits";
 
 const currentYear = new Date().getFullYear();
+
+// 0.0525 -> "5.25", without the float noise of a plain multiplication.
+function percentFromRate(rate: number): string {
+  return String(Number((rate * 100).toFixed(6)));
+}
 
 function NewOptimizationForm() {
   const t = useTranslations("NewOptimization");
   const tCommon = useTranslations("Common");
   const tBilling = useTranslations("Billing");
+  const tInstruments = useTranslations("RiskFreeInstruments");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, isPending: isSessionPending } = authClient.useSession();
@@ -39,6 +55,7 @@ function NewOptimizationForm() {
   const [showFrontier, setShowFrontier] = useState(initialState.showFrontier);
   const [assetConstraints, setAssetConstraints] = useState(initialState.assetConstraints);
   const [wMax, setWMax] = useState(initialState.wMax);
+  const [assetLimits, setAssetLimits] = useState(initialState.assetLimits);
   const [enforceFullInvestment, setEnforceFullInvestment] = useState(initialState.enforceFullInvestment);
   const [allowShortSelling, setAllowShortSelling] = useState(initialState.allowShortSelling);
   const [useLeverage, setUseLeverage] = useState(initialState.useLeverage);
@@ -47,11 +64,41 @@ function NewOptimizationForm() {
   const [targetReturn, setTargetReturn] = useState(initialState.targetReturn);
   const [targetRisk, setTargetRisk] = useState(initialState.targetRisk);
   const [riskFreeRate, setRiskFreeRate] = useState(initialState.riskFreeRate);
+  // The rate is stored as a decimal but typed as a percentage, so the raw text
+  // lives alongside it to keep intermediate states ("", "5.") editable.
+  const [riskFreeRateInput, setRiskFreeRateInput] = useState(() =>
+    percentFromRate(initialState.riskFreeRate)
+  );
+  const [riskFreeSource, setRiskFreeSource] = useState<RiskFreeSource>(
+    initialState.riskFreeSource
+  );
   const [dateRange, setDateRange] = useState(initialState.dateRange);
   const [assets, setAssets] = useState<AssetRow[]>(initialState.assets);
 
   const saveSimulation = useSaveSimulation();
   const hasSavedRef = useRef(false);
+
+  const {
+    data: riskFreeRates,
+    isPending: isRiskFreeRatesPending,
+    isError: isRiskFreeRatesError,
+  } = useRiskFreeRates();
+
+  const selectedRiskFreeInstrument = useMemo(
+    () => riskFreeRates?.find((rate) => rate.id === riskFreeSource) ?? null,
+    [riskFreeRates, riskFreeSource]
+  );
+
+  // A preset names an instrument, not a frozen number, so the field follows
+  // that instrument's current quote once the live yields arrive — on mount, and
+  // again when a shared link restores a preset. Typing a rate switches the
+  // source to manual, which clears the selection and stops this from fighting
+  // the user's own input.
+  useEffect(() => {
+    if (!selectedRiskFreeInstrument) return;
+    setRiskFreeRate(selectedRiskFreeInstrument.rate);
+    setRiskFreeRateInput(percentFromRate(selectedRiskFreeInstrument.rate));
+  }, [selectedRiskFreeInstrument]);
 
   // Mirror every form field into the URL query string. Using
   // history.replaceState (which Next.js syncs with its router) keeps the
@@ -68,17 +115,19 @@ function NewOptimizationForm() {
           targetReturn,
           targetRisk,
           riskFreeRate,
+          riskFreeSource,
           enforceFullInvestment,
           allowShortSelling,
           useLeverage,
           maxLeverage,
           assetConstraints,
           wMax,
+          assetLimits,
           showFrontier,
         },
         currentYear
       ).toString(),
-    [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, showFrontier]
+    [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, riskFreeSource, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]
   );
 
   useEffect(() => {
@@ -91,7 +140,14 @@ function NewOptimizationForm() {
 
   const currentSimulationParams = useMemo((): SimulationParams => ({
     tickers: assets.map((a) => a.ticker).filter(Boolean),
-    assets: assets.filter((a) => a.ticker).map((a) => ({ ticker: a.ticker, allocation: a.allocation })),
+    assets: assets
+      .filter((a) => a.ticker)
+      .map((a) => ({
+        ticker: a.ticker,
+        allocation: a.allocation,
+        minWeight: a.minWeight,
+        maxWeight: a.maxWeight,
+      })),
     dateRange,
     strategy,
     targetReturn: strategy === "target-return" ? targetReturn : undefined,
@@ -103,8 +159,9 @@ function NewOptimizationForm() {
     maxLeverage,
     assetConstraints,
     wMax,
+    assetLimits,
     showFrontier,
-  }), [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, showFrontier]);
+  }), [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]);
 
   const selectedTickers = useMemo(
     () => assets.map((a) => a.ticker).filter(Boolean),
@@ -120,6 +177,53 @@ function NewOptimizationForm() {
   }, [assets]);
 
   const isAllocationValid = !hasAnyAllocation || Math.abs(totalAllocation - 100) < 0.01;
+
+  // The optimizer allocates `maxLeverage` of capital, so that — not a flat
+  // 100% — is what the per-asset floors and caps have to bracket.
+  const targetPercent = (useLeverage ? maxLeverage : 1) * 100;
+
+  const limitsError = useMemo(
+    () =>
+      validateAssetLimits(currentSimulationParams.assets, {
+        assetLimits,
+        targetPercent,
+        enforceFullInvestment,
+        fallbackMaxPercent: assetConstraints ? wMax * 100 : 100,
+      }),
+    [
+      currentSimulationParams.assets,
+      assetLimits,
+      targetPercent,
+      enforceFullInvestment,
+      assetConstraints,
+      wMax,
+    ]
+  );
+
+  const limitsErrorMessage = useMemo(() => {
+    if (!limitsError) return null;
+    switch (limitsError.kind) {
+      case "minAboveMax":
+        return t("limitsMinAboveMax", { ticker: limitsError.ticker });
+      case "outOfRange":
+        return t("limitsOutOfRange", { ticker: limitsError.ticker });
+      case "minTotalTooHigh":
+        return t("limitsMinTotalTooHigh", {
+          total: limitsError.total.toFixed(1),
+          target: limitsError.target.toFixed(0),
+        });
+      case "maxTotalTooLow":
+        return t("limitsMaxTotalTooLow", {
+          total: limitsError.total.toFixed(1),
+          target: limitsError.target.toFixed(0),
+        });
+    }
+  }, [limitsError, t]);
+
+  const weightBounds = useMemo(
+    () => toWeightBounds(currentSimulationParams.assets, assetLimits),
+    [currentSimulationParams.assets, assetLimits]
+  );
 
   const startDate = useMemo(() => {
     const month = String(dateRange.startMonth).padStart(2, "0");
@@ -144,6 +248,8 @@ function NewOptimizationForm() {
     strategy,
     {
       wMax: assetConstraints ? wMax : 1,
+      wMinPerAsset: weightBounds?.wMinPerAsset,
+      wMaxPerAsset: weightBounds?.wMaxPerAsset,
       riskFreeRate: strategy === "max-sharpe" ? riskFreeRate : 0,
       targetReturn: strategy === "target-return" ? targetReturn : undefined,
       targetRisk: strategy === "target-risk" ? targetRisk : undefined,
@@ -173,7 +279,7 @@ function NewOptimizationForm() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSubmitted, optimizationResult]);
 
-  const canProceed = selectedTickers.length >= 2 && isAllocationValid;
+  const canProceed = selectedTickers.length >= 2 && isAllocationValid && !limitsError;
 
   if (isSessionPending) {
     return (
@@ -483,18 +589,76 @@ function NewOptimizationForm() {
 
             {strategy === "max-sharpe" && (
               <div className="mt-3">
-                <label className="mb-1 block text-xs text-muted-foreground">
-                  {t("riskFreeRateSlider", { value: (riskFreeRate * 100).toFixed(3) })}
+                <label
+                  htmlFor="risk-free-source"
+                  className="mb-1 block text-xs text-muted-foreground"
+                >
+                  {t("riskFreeRateLabel")}
                 </label>
-                <input
-                  type="range"
-                  min={0}
-                  max={0.10}
-                  step={0.00001}
-                  value={riskFreeRate}
-                  onChange={(e) => setRiskFreeRate(Number(e.target.value))}
-                  className="w-full"
-                />
+                <select
+                  id="risk-free-source"
+                  value={riskFreeSource}
+                  onChange={(e) => setRiskFreeSource(e.target.value as RiskFreeSource)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  {RISK_FREE_INSTRUMENT_IDS.map((id) => {
+                    const quoted = riskFreeRates?.find((rate) => rate.id === id);
+                    return (
+                      <option key={id} value={id} disabled={!quoted}>
+                        {quoted
+                          ? t("riskFreeInstrumentOption", {
+                              name: tInstruments(id),
+                              rate: percentFromRate(quoted.rate),
+                            })
+                          : tInstruments(id)}
+                      </option>
+                    );
+                  })}
+                  <option value="manual">{t("riskFreeSourceManual")}</option>
+                </select>
+
+                <div className="mt-2 flex items-center gap-3">
+                  <div className="relative w-32">
+                    <input
+                      id="risk-free-rate"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      step={0.001}
+                      aria-label={t("riskFreeRateInputAria")}
+                      value={riskFreeRateInput}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        // Typing an own rate is what "manual" means, so editing
+                        // the field detaches it from the selected instrument.
+                        setRiskFreeSource("manual");
+                        setRiskFreeRateInput(val);
+                        const parsed = Number(val);
+                        setRiskFreeRate(
+                          val === "" || Number.isNaN(parsed) ? 0 : Math.max(0, parsed) / 100
+                        );
+                      }}
+                      onBlur={() => setRiskFreeRateInput(percentFromRate(riskFreeRate))}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 pr-8 text-right text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      %
+                    </span>
+                  </div>
+
+                  <p className="flex-1 text-xs text-muted-foreground">
+                    {selectedRiskFreeInstrument
+                      ? t("riskFreeRateQuoteNote", {
+                          ticker: selectedRiskFreeInstrument.ticker,
+                          date: formatChartDate(selectedRiskFreeInstrument.asOf),
+                        })
+                      : isRiskFreeRatesPending
+                        ? t("riskFreeRatesLoading")
+                        : isRiskFreeRatesError || !riskFreeRates?.length
+                          ? t("riskFreeRatesUnavailable")
+                          : t("riskFreeRateManualNote")}
+                  </p>
+                </div>
               </div>
             )}
           </div>
@@ -639,7 +803,63 @@ function NewOptimizationForm() {
             label={t("lessonAssets")}
           />
         </div>
-        <AssetAllocationForm assets={assets} onChange={setAssets} />
+
+        <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border pb-4 dark:border-border/50">
+          <input
+            type="checkbox"
+            id="assetLimits"
+            checked={assetLimits}
+            onChange={(e) => setAssetLimits(e.target.checked)}
+            className="h-4 w-4 rounded border-input"
+          />
+          <label htmlFor="assetLimits" className="text-sm">
+            {t("assetLimitsLabel")}
+          </label>
+          <Popover.Root>
+            <Popover.Trigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={t("assetLimitsInfoAria")}
+              >
+                <Info className="h-3.5 w-3.5" />
+              </button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content
+                className="z-50 w-[calc(100vw-2rem)] max-w-xs rounded-lg border border-border bg-popover p-4 text-popover-foreground shadow-lg sm:w-80"
+                sideOffset={5}
+                align="start"
+              >
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold">{t("assetLimitsInfoTitle")}</h4>
+                  <p className="text-xs text-muted-foreground">
+                    {t("assetLimitsInfoIntro")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>{t("assetLimitsInfoEmptyLabel")}</strong>{" "}
+                    {t("assetLimitsInfoEmpty")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    <strong>{t("assetLimitsInfoFeasibleLabel")}</strong>{" "}
+                    {t("assetLimitsInfoFeasible")}
+                  </p>
+                </div>
+                <Popover.Arrow className="fill-border" />
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
+          <p className="w-full text-xs text-muted-foreground">
+            {t("assetLimitsHelp")}
+          </p>
+        </div>
+
+        <AssetAllocationForm
+          assets={assets}
+          onChange={setAssets}
+          showLimits={assetLimits}
+          limitsError={limitsErrorMessage}
+        />
       </div>
 
       {/* Submit */}
@@ -648,6 +868,8 @@ function NewOptimizationForm() {
           <p className="text-sm text-muted-foreground sm:mr-4">
             {selectedTickers.length < 2
               ? t("needAtLeastTwo")
+              : limitsErrorMessage
+              ? limitsErrorMessage
               : t("allocationMustSumTo100", { value: totalAllocation.toFixed(1) })}
           </p>
         )}

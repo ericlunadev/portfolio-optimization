@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 
 interface MatrixTableProps {
-  title: string;
+  title?: string;
   labels: string[];
   matrix: number[][];
   formatValue?: (value: number) => string;
@@ -38,7 +38,9 @@ export function MatrixTable({
 
   return (
     <div>
-      <h4 className="mb-3 text-sm font-medium text-muted-foreground">{title}</h4>
+      {title && (
+        <h4 className="mb-3 text-sm font-medium text-muted-foreground">{title}</h4>
+      )}
       <div className="-mx-1 overflow-x-auto px-1">
         <table className="w-full min-w-max text-xs">
           <thead>

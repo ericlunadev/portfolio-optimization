@@ -2,6 +2,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { Header } from "@/components/layout/Header";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { OnboardingGate } from "@/components/onboarding/OnboardingGate";
+import { LegalFooter } from "@/components/legal/LegalFooter";
 
 export default function AppLayout({
   children,
@@ -16,6 +17,7 @@ export default function AppLayout({
           <Header />
           <main className="flex-1 md:overflow-auto p-4 pb-24 md:p-8 md:pb-8">
             {children}
+            <LegalFooter />
           </main>
         </div>
         <MobileTabBar />

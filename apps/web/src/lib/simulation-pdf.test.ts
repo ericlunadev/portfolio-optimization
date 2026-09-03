@@ -7,6 +7,11 @@ import {
   type SimulationPdfLabels,
 } from "./simulation-pdf";
 import type { OptimizationResultWithStrategy, SimulationParams } from "./api";
+import {
+  defaultReportConfig,
+  type ReportConfig,
+  type ReportSectionKey,
+} from "./report-config";
 
 /** 1x1 RGB PNG, enough to exercise the chart-embedding path. */
 const TINY_PNG =
@@ -82,6 +87,7 @@ const labels: SimulationPdfLabels = {
   tableExpReturn: "Exp. Return",
   tableVolatility: "Volatility",
   tableWeight: "Weight",
+  tableLimits: "Limits",
   horizonHeader: "Horizon",
   probabilityHeader: "Probability",
   horizon1m: "1 Month",
@@ -186,6 +192,122 @@ describe("buildSimulationPdf", () => {
     expect(text).toContain("Tech Portfolio");
     expect(text).toContain("AAPL");
     expect(text).toContain("50.00%");
+  });
+});
+
+describe("buildSimulationPdf with a report config", () => {
+  /** Every section on except the ones named. */
+  function configWithout(...off: ReportSectionKey[]): ReportConfig {
+    const config = defaultReportConfig();
+    off.forEach((key) => {
+      config.sections[key] = false;
+    });
+    return config;
+  }
+
+  it("draws the full report when no config is given", async () => {
+    const text = extractText(await buildSimulationPdf(makeInput()));
+
+    expect(text).toContain("SIMULATION PARAMETERS");
+    expect(text).toContain("ALLOCATION AND METRICS PER ASSET");
+    expect(text).toContain("PROBABILITY OF A NEGATIVE RETURN");
+  });
+
+  it("leaves out a section's heading and body when it is switched off", async () => {
+    const text = extractText(
+      await buildSimulationPdf(
+        makeInput({ config: configWithout("parameters", "risk") })
+      )
+    );
+
+    expect(text).not.toContain("SIMULATION PARAMETERS");
+    expect(text).not.toContain("PROBABILITY OF A NEGATIVE RETURN");
+    expect(text).toContain("ALLOCATION AND METRICS PER ASSET");
+  });
+
+  it("keeps only the selected metric cards", async () => {
+    const config = defaultReportConfig();
+    config.metrics.volatility = false;
+    config.metrics.sharpeRatio = false;
+
+    const text = extractText(await buildSimulationPdf(makeInput({ config })));
+
+    expect(text).toContain("Expected Return");
+    expect(text).not.toContain("Sharpe Ratio");
+  });
+
+  it("drops the confidence interval hint without dropping the card", async () => {
+    const config = defaultReportConfig();
+    config.confidenceInterval = false;
+
+    const text = extractText(await buildSimulationPdf(makeInput({ config })));
+
+    expect(text).toContain("Expected Return");
+    expect(text).not.toContain("95% CI");
+  });
+
+  it("keeps only the selected allocation columns", async () => {
+    const config = defaultReportConfig();
+    config.allocationColumns.expectedReturn = false;
+    config.allocationColumns.volatility = false;
+
+    const text = extractText(await buildSimulationPdf(makeInput({ config })));
+
+    expect(text).toContain("Asset");
+    expect(text).toContain("Weight");
+    expect(text).not.toContain("Exp. Return");
+  });
+
+  it("keeps only the selected risk horizons", async () => {
+    const config = defaultReportConfig();
+    config.riskHorizons.m1 = false;
+    config.riskHorizons.m3 = false;
+
+    const text = extractText(await buildSimulationPdf(makeInput({ config })));
+
+    expect(text).toContain("Horizon");
+    expect(text).not.toContain("3 Months");
+    expect(text).toContain("2 Years");
+  });
+
+  it("skips the risk section entirely when no horizon is left", async () => {
+    const config = defaultReportConfig();
+    config.riskHorizons = { m1: false, m3: false, y1: false, y2: false };
+
+    const text = extractText(await buildSimulationPdf(makeInput({ config })));
+
+    expect(text).not.toContain("PROBABILITY OF A NEGATIVE RETURN");
+  });
+
+  it("suppresses the comparison even when a user portfolio is present", async () => {
+    const text = extractText(
+      await buildSimulationPdf(
+        makeInput({
+          userPortfolio: { expectedReturn: 0.1, volatility: 0.21 },
+          config: configWithout("comparison"),
+        })
+      )
+    );
+
+    expect(text).not.toContain("Your Alloc.");
+  });
+
+  it("keeps the report to one page when the charts section is off", async () => {
+    const chart = {
+      title: "Risk vs Return",
+      dataUrl: TINY_PNG,
+      width: 880,
+      height: 400,
+    };
+    const doc = await buildSimulationPdf(
+      makeInput({
+        charts: [chart, chart, chart, chart, chart],
+        config: configWithout("charts"),
+      })
+    );
+
+    expect(doc.getNumberOfPages()).toBe(1);
+    expect(extractText(doc)).not.toContain("Risk vs Return");
   });
 });
 
