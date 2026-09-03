@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  PDF_COLORS,
   buildSimulationPdf,
   formatReportDate,
+  showsPoweredBy,
   simulationPdfFilename,
   type SimulationPdfInput,
   type SimulationPdfLabels,
@@ -12,6 +14,7 @@ import {
   type ReportConfig,
   type ReportSectionKey,
 } from "./report-config";
+import { deriveTenantPalette } from "./tenant-palette";
 
 /** 1x1 RGB PNG, enough to exercise the chart-embedding path. */
 const TINY_PNG =
@@ -100,6 +103,7 @@ const labels: SimulationPdfLabels = {
   compareVolatilityLabel: "Volatility",
   compareDisclaimer: "* Approximated by a weighted average.",
   disclaimer: "Informational document.",
+  poweredBy: "Powered by Portfolio Optimization",
   formatPage: (current, total) => `Page ${current} of ${total}`,
 };
 
@@ -311,6 +315,110 @@ describe("buildSimulationPdf with a report config", () => {
   });
 });
 
+describe("buildSimulationPdf with tenant branding", () => {
+  /** A green brand, deliberately nothing like the house gold. */
+  const TENANT_ACCENT = "#2f6f4f";
+
+  it("paints the report in the tenant's derived gold, not ours", async () => {
+    const doc = await buildSimulationPdf(
+      makeInput({ branding: { accentHex: TENANT_ACCENT } })
+    );
+
+    const tenant = deriveTenantPalette(TENANT_ACCENT).pdf;
+    expect(usesColor(doc, tenant.gold)).toBe(true);
+    expect(usesColor(doc, tenant.goldSoft)).toBe(true);
+    // The point of the change: the house gold is gone from a tenant's report.
+    expect(usesColor(doc, PDF_COLORS.gold)).toBe(false);
+  });
+
+  it("keeps our own palette when no branding is given", async () => {
+    const doc = await buildSimulationPdf(makeInput());
+
+    expect(usesColor(doc, PDF_COLORS.gold)).toBe(true);
+    expect(usesColor(doc, PDF_COLORS.background)).toBe(true);
+  });
+
+  it("falls back to our gold when the accent is unusable", async () => {
+    const doc = await buildSimulationPdf(
+      makeInput({ branding: { accentHex: "not-a-colour" } })
+    );
+
+    expect(usesColor(doc, PDF_COLORS.gold)).toBe(true);
+  });
+
+  it("draws the tenant logo when one arrives as a data URI", async () => {
+    const doc = await buildSimulationPdf(
+      makeInput({
+        branding: {
+          accentHex: TENANT_ACCENT,
+          logo: { dataUrl: TINY_PNG, width: 200, height: 50 },
+        },
+      })
+    );
+
+    // The report still renders, and the title survives the taller header.
+    expect(doc.getNumberOfPages()).toBe(1);
+    expect(extractText(doc)).toContain("Tech Portfolio");
+  });
+});
+
+describe("the 'Powered by' line (D14)", () => {
+  it("renders for a co-branded tenant", async () => {
+    const doc = await buildSimulationPdf(
+      makeInput({ branding: { accentHex: "#2f6f4f", tier: "cobranded" } })
+    );
+
+    expect(extractText(doc)).toContain("Powered by Portfolio Optimization");
+  });
+
+  it("does not render for a full-whitelabel tenant", async () => {
+    const doc = await buildSimulationPdf(
+      makeInput({ branding: { accentHex: "#2f6f4f", tier: "whitelabel" } })
+    );
+
+    const text = extractText(doc);
+    expect(text).not.toContain("Powered by Portfolio Optimization");
+    // The rest of the footer is untouched.
+    expect(text).toContain("Informational document.");
+    expect(text).toContain("Page 1 of 1");
+  });
+
+  it("does not render when there is no tenant at all", async () => {
+    const doc = await buildSimulationPdf(makeInput());
+
+    expect(extractText(doc)).not.toContain("Powered by Portfolio Optimization");
+  });
+
+  it("renders on every page, not just the first", async () => {
+    const chart = {
+      title: "Risk vs Return",
+      dataUrl: TINY_PNG,
+      width: 880,
+      height: 400,
+    };
+    const doc = await buildSimulationPdf(
+      makeInput({
+        charts: [chart, chart, chart, chart, chart],
+        branding: { tier: "cobranded" },
+      })
+    );
+    const internal = doc.internal as unknown as { pages: string[][] };
+
+    expect(doc.getNumberOfPages()).toBeGreaterThan(1);
+    const pagesWithCredit = internal.pages
+      .filter((page) => page.length > 0)
+      .filter((page) => page.join("\n").includes("Powered by"));
+    expect(pagesWithCredit).toHaveLength(doc.getNumberOfPages());
+  });
+
+  it("is decided by the tier alone", () => {
+    expect(showsPoweredBy({ tier: "cobranded" })).toBe(true);
+    expect(showsPoweredBy({ tier: "whitelabel" })).toBe(false);
+    expect(showsPoweredBy({ accentHex: "#2f6f4f" })).toBe(false);
+    expect(showsPoweredBy(undefined)).toBe(false);
+  });
+});
+
 /**
  * jsPDF writes uncompressed text streams when `compress` is off, but we build
  * with compression on, so read the strings back off the internal page model.
@@ -320,4 +428,31 @@ function extractText(doc: Awaited<ReturnType<typeof buildSimulationPdf>>): strin
     pages: string[][];
   };
   return internal.pages.flat().join("\n");
+}
+
+/**
+ * Whether the document paints anything in `hex`.
+ *
+ * jsPDF writes colours into the content stream as normalised `r g b rg` (fill)
+ * or `RG` (stroke) operators, rounded to as few decimals as it needs — so the
+ * comparison is on 8-bit channels with a rounding tolerance rather than on the
+ * literal text. Two off-by-one channels is well inside the gap between any two
+ * colours the report actually uses.
+ */
+function usesColor(
+  doc: Awaited<ReturnType<typeof buildSimulationPdf>>,
+  hex: string
+): boolean {
+  const value = parseInt(hex.replace("#", ""), 16);
+  const target = [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+
+  const operators = extractText(doc).matchAll(
+    /(\d*\.?\d+) (\d*\.?\d+) (\d*\.?\d+) (?:rg|RG)\b/g
+  );
+  return [...operators].some((match) =>
+    target.every(
+      (channel, index) =>
+        Math.abs(Math.round(Number(match[index + 1]) * 255) - channel) <= 2
+    )
+  );
 }

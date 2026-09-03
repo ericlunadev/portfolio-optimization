@@ -4,8 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { useOrgSettings } from "@/hooks/useOrgSettings";
+import { isNavHrefVisible, navGridClass } from "@/lib/org-settings";
 import { BarChart3, Home, GraduationCap, Wallet } from "lucide-react";
 
+// Kept identical to `Sidebar`'s list, per CLAUDE.md. Which of them a given
+// tenant actually sees is decided by `isNavHrefVisible`, shared by both.
 const navItems = [
   { href: "/", labelKey: "home", icon: Home },
   { href: "/efficient-frontier", labelKey: "efficientFrontier", icon: BarChart3 },
@@ -16,14 +20,18 @@ const navItems = [
 export function MobileTabBar() {
   const pathname = usePathname();
   const tNav = useTranslations("Nav");
+  const { settings } = useOrgSettings();
+  const visibleItems = navItems.filter((item) =>
+    isNavHrefVisible(item.href, settings)
+  );
 
   return (
     <nav
       className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card dark:border-border/50 dark:bg-card/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
       aria-label={tNav("ariaLabel")}
     >
-      <ul className="grid grid-cols-4">
-        {navItems.map((item) => {
+      <ul className={cn("grid", navGridClass(visibleItems.length))}>
+        {visibleItems.map((item) => {
           const isActive =
             item.href === "/"
               ? pathname === "/"

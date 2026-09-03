@@ -1,13 +1,4 @@
 {
-  "Metadata": {
-    "title": "Portfolio Optimization",
-    "description": "Markowitz portfolio optimization tool"
-  },
-  "Brand": {
-    "shortName": "Optim.",
-    "fullName": "Portfolio",
-    "tagline": "Portfolio optimization based on Markowitz theory"
-  },
   "Nav": {
     "home": "Home",
     "efficientFrontier": "Efficient Frontier",
@@ -128,7 +119,19 @@
     "pinAction": "Pin",
     "unpinAction": "Unpin",
     "pinnedLabel": "Pinned",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "shareAction": "Share with the organization",
+    "unshareAction": "Stop sharing",
+    "shareHint": "Colleagues will be able to open it, but not edit or delete it.",
+    "sharedBadge": "Shared",
+    "readOnlyBadge": "Read-only",
+    "scopeLabel": "Filter optimizations",
+    "scopeEmpty": "No optimization matches this filter.",
+    "scope": {
+      "all": "All",
+      "mine": "Mine",
+      "shared": "Shared with me"
+    }
   },
   "SimulationDetail": {
     "loadingSimulation": "Loading simulation...",
@@ -336,7 +339,8 @@
     "probabilityHeader": "Probability",
     "notAvailable": "N/A",
     "disclaimer": "Informational document. This is not investment advice. Past performance does not guarantee future results.",
-    "page": "Page {current} of {total}"
+    "page": "Page {current} of {total}",
+    "poweredBy": "Powered by {product}"
   },
   "ReportConfig": {
     "title": "Configure report",
@@ -373,9 +377,11 @@
   },
   "AdvisorCta": {
     "title": "Questions about these results?",
-    "subtitle": "Book a 30-min call with our financial advisor.",
+    "subtitle": "Book a 30-min call with a financial advisor.",
+    "subtitleNamed": "Book a 30-min call with an advisor from {provider}.",
     "button": "Book a call",
-    "modalTitle": "Book a call with our advisor",
+    "modalTitle": "Book a call with an advisor",
+    "modalTitleNamed": "Book a call with an advisor from {provider}",
     "modalBody": "A 30-min one-on-one session to walk through your portfolio and answer any questions. Booking costs {cost} credits.",
     "modalBalance": "Your balance: {balance} credits",
     "confirm": "Spend {cost} credits & book",
@@ -626,6 +632,11 @@
       "stationLabel": "Academy · Stop {current} of {total}",
       "goToStationAria": "Go to {label}",
       "fullExperienceLink": "View this stop in the full experience"
+    },
+    "Unavailable": {
+      "title": "Academy is not available",
+      "body": "Your organization does not have the Academy section enabled. Get in touch with whoever administers your account if you think it should be.",
+      "back": "Back to the app"
     },
     "Page": {
       "footer": "End of the journey · Figures shown are illustrative"
@@ -908,6 +919,80 @@
     "outOfCreditsTitle": "Out of credits",
     "outOfCreditsBody": "You're out of credits to run this optimization.",
     "outOfCreditsCta": "Buy credits",
-    "chipAria": "Credit balance"
+    "chipAria": "Credit balance",
+    "ledgerScopeNote": "This history is your own activity. The balance above belongs to your whole organization.",
+    "usageTitle": "Usage by member",
+    "usageSubtitle": "Who in your organization is spending the shared balance.",
+    "usageLoading": "Loading usage…",
+    "usageEmpty": "No activity from anyone yet.",
+    "usageTotalSpent": "Credits spent",
+    "usageTotalAdded": "Credits added",
+    "usageTotalRuns": "Optimizations",
+    "usageSeats": "Members",
+    "usageColMember": "Member",
+    "usageColSpent": "Spent",
+    "usageColRuns": "Optimizations",
+    "usageColSimulations": "Saved simulations",
+    "usageColLastActivity": "Last activity",
+    "usageActivityTitle": "Recent activity",
+    "usageColActor": "Member",
+    "usageFormerMember": "Former member",
+    "usagePlatformGrant": "Account top-up"
+  },
+  "BrandingSettings": {
+    "pageTitle": "Branding",
+    "pageSubtitle": "How your organization's name and colour appear across the app, the exported PDF and the emails we send.",
+    "ownerOnlyTitle": "Owners only",
+    "ownerOnlyBody": "Only an organization owner can change branding. Ask yours if something here needs updating.",
+    "loading": "Loading branding…",
+    "loadError": "We could not load your branding. Try again.",
+    "identityTitle": "Identity",
+    "identitySubtitle": "The name your analysts and their clients read.",
+    "productName": "Product name",
+    "productNameHelp": "Replaces our name in the header, the tab title and the report.",
+    "productShortName": "Short name",
+    "productShortNameHelp": "Used where space is tight, such as the collapsed sidebar.",
+    "tagline": "Tagline",
+    "taglineHelp": "One line under the name on the sign-in screen.",
+    "appearanceTitle": "Appearance",
+    "appearanceSubtitle": "One accent colour drives the app, the charts and the PDF. Everything else stays as designed, so the app keeps working in light and dark.",
+    "accent": "Accent colour",
+    "accentHelp": "Pick your brand colour. We adjust its lightness per theme so text on it stays readable.",
+    "accentInvalid": "Enter a hex colour such as #2f6f4f.",
+    "accentReset": "Use our default",
+    "contrastTitle": "Contrast check",
+    "contrastLight": "Light theme",
+    "contrastDark": "Dark theme",
+    "contrastNote": "Every accent is fitted per theme so text on it stays readable at 4.5:1. No single colour can clear that against both a near-white and a near-black page, so at least one theme always moves — the swatches below are what you actually get.",
+    "contrastOk": "Used as you picked it · {ratio}:1",
+    "contrastDarkened": "Darkened here · {ratio}:1 as picked",
+    "contrastBrightened": "Brightened here · {ratio}:1 as picked",
+    "swatchReport": "Exported report",
+    "swatchChart": "Chart series",
+    "font": "Font",
+    "fontHelp": "A fixed menu: each face is bundled at build time, so we cannot load an arbitrary one.",
+    "supportTitle": "Support and legal",
+    "supportSubtitle": "Where your analysts are sent when they need a human or a policy.",
+    "supportEmail": "Support email",
+    "supportEmailHelp": "Shown instead of ours wherever we offer help.",
+    "supportEmailInvalid": "Enter an email address.",
+    "privacyPolicyUrl": "Privacy policy URL",
+    "termsUrl": "Terms of service URL",
+    "urlInvalid": "Enter a full http:// or https:// address.",
+    "disclaimerText": "Disclaimer",
+    "disclaimerHelp": "Replaces our wording at the foot of every page and every exported report. Leave it empty to keep ours — it cannot be removed.",
+    "tooLong": "Use at most {max} characters.",
+    "logoTitle": "Logo",
+    "logoUnavailable": "Uploading a logo is not available yet: we have nowhere to store the file. Send it to us and we will set it up for you.",
+    "tierTitle": "Plan",
+    "tierCobranded": "Co-branded",
+    "tierWhitelabel": "Full whitelabel",
+    "tierCobrandedNote": "Your reports carry a small “Powered by” line. Talk to us to remove it.",
+    "tierWhitelabelNote": "Nothing of ours appears in your reports.",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Saved.",
+    "saveError": "We could not save your branding. Try again.",
+    "discard": "Discard changes"
   }
 }

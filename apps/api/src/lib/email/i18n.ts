@@ -20,6 +20,13 @@ export interface EmailMessages {
   resetButton: string;
   resetFallbackIntro: string;
   resetFooter: string;
+  lowBalanceSubject: string;
+  lowBalanceHeading: (name?: string | null) => string;
+  lowBalanceBody: (organizationName: string) => string;
+  lowBalanceBalance: (credits: number) => string;
+  lowBalanceButton: string;
+  lowBalanceFallbackIntro: string;
+  lowBalanceFooter: string;
 }
 
 const es: EmailMessages = {
@@ -43,6 +50,16 @@ const es: EmailMessages = {
     "Si el botón no funciona, copia y pega este enlace en tu navegador:",
   resetFooter:
     "Si no solicitaste este cambio, ignora este correo y tu contraseña permanecerá igual.",
+  lowBalanceSubject: "Saldo de créditos bajo",
+  lowBalanceHeading: (name) => (name ? `Hola, ${name}.` : "Hola,"),
+  lowBalanceBody: (organizationName) =>
+    `El saldo de créditos de ${organizationName} cayó por debajo del 20 % de su última recarga. Cuando se agote, tu equipo no podrá ejecutar optimizaciones.`,
+  lowBalanceBalance: (credits) => `Saldo actual: ${credits} créditos.`,
+  lowBalanceButton: "Recargar créditos",
+  lowBalanceFallbackIntro:
+    "Si el botón no funciona, copia y pega este enlace en tu navegador:",
+  lowBalanceFooter:
+    "Recibes este aviso porque eres la persona propietaria de la organización.",
 };
 
 const en: EmailMessages = {
@@ -67,6 +84,16 @@ const en: EmailMessages = {
     "If the button doesn't work, copy and paste this link into your browser:",
   resetFooter:
     "If you didn't request this change, ignore this email and your password will remain unchanged.",
+  lowBalanceSubject: "Your credit balance is running low",
+  lowBalanceHeading: (name) => (name ? `Hi ${name},` : "Hello,"),
+  lowBalanceBody: (organizationName) =>
+    `${organizationName}'s credit balance has fallen below 20% of its last top-up. Once it runs out, your team will not be able to run optimizations.`,
+  lowBalanceBalance: (credits) => `Current balance: ${credits} credits.`,
+  lowBalanceButton: "Top up credits",
+  lowBalanceFallbackIntro:
+    "If the button doesn't work, copy and paste this link into your browser:",
+  lowBalanceFooter:
+    "You are receiving this notice because you are the organization's owner.",
 };
 
 export const emailMessages: Record<EmailLocale, EmailMessages> = { es, en };

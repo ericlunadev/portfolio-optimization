@@ -7,10 +7,18 @@ import {
   useSimulations,
   useDeleteSimulation,
   useTogglePinnedSimulation,
+  useToggleSharedSimulation,
   useRerunSimulation,
   isDateRangeCurrent,
 } from "@/hooks/useSimulations";
 import { SimulationListItem } from "@/lib/api";
+import {
+  filterSimulations,
+  hasSharedSimulations,
+  isEditable,
+  SIMULATION_SCOPES,
+  type SimulationScope,
+} from "@/lib/simulation-sharing";
 import { formatNumber, formatPercent, cn } from "@/lib/utils";
 import {
   Trash2,
@@ -22,6 +30,9 @@ import {
   MoreVertical,
   RefreshCw,
   Loader2,
+  Lock,
+  Share2,
+  Users,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
@@ -35,9 +46,11 @@ export default function EfficientFrontierPage() {
   const { data: simulations, isLoading } = useSimulations(isSignedIn);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [rerunningId, setRerunningId] = useState<string | null>(null);
+  const [scope, setScope] = useState<SimulationScope>("all");
 
   const deleteSimulation = useDeleteSimulation();
   const togglePinned = useTogglePinnedSimulation();
+  const toggleShared = useToggleSharedSimulation();
   const rerunSimulation = useRerunSimulation();
 
   if (isSessionPending) {
@@ -120,6 +133,11 @@ export default function EfficientFrontierPage() {
     );
   }
 
+  // The filter only earns its place once a colleague has shared something; on a
+  // single-analyst tenant every row is the caller's own.
+  const showScopeFilter = hasSharedSimulations(simulations);
+  const visible = filterSimulations(simulations, scope);
+
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -135,23 +153,60 @@ export default function EfficientFrontierPage() {
         </Link>
       </div>
 
-      <div className="space-y-3">
-        {simulations.map((sim) => (
-          <SimulationCard
-            key={sim.id}
-            sim={sim}
-            onDelete={() => handleDelete(sim.id)}
-            onTogglePin={() =>
-              togglePinned.mutate({ id: sim.id, pinned: !sim.pinned })
-            }
-            isConfirmingDelete={deletingId === sim.id}
-            isDeleting={deleteSimulation.isPending && deletingId === sim.id}
-            onRerun={() => handleRerun(sim)}
-            isConfirmingRerun={rerunningId === sim.id}
-            isRerunning={rerunSimulation.isPending && rerunningId === sim.id}
-          />
-        ))}
-      </div>
+      {showScopeFilter && (
+        <div
+          role="group"
+          aria-label={t("scopeLabel")}
+          className="inline-flex rounded-lg border border-border bg-card p-0.5 dark:border-border/50 dark:bg-card/40"
+        >
+          {SIMULATION_SCOPES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setScope(option)}
+              aria-pressed={scope === option}
+              className={cn(
+                "rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                scope === option
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t(`scope.${option}`)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {visible.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border/50 bg-card/30 px-4 py-10 text-center text-sm text-muted-foreground">
+          {t("scopeEmpty")}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {visible.map((sim) => (
+            <SimulationCard
+              key={sim.id}
+              sim={sim}
+              onDelete={() => handleDelete(sim.id)}
+              onTogglePin={() =>
+                togglePinned.mutate({ id: sim.id, pinned: !sim.pinned })
+              }
+              onToggleShared={() =>
+                toggleShared.mutate({
+                  id: sim.id,
+                  sharedWithOrg: !sim.sharedWithOrg,
+                })
+              }
+              isConfirmingDelete={deletingId === sim.id}
+              isDeleting={deleteSimulation.isPending && deletingId === sim.id}
+              onRerun={() => handleRerun(sim)}
+              isConfirmingRerun={rerunningId === sim.id}
+              isRerunning={rerunSimulation.isPending && rerunningId === sim.id}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -160,6 +215,7 @@ function SimulationCard({
   sim,
   onDelete,
   onTogglePin,
+  onToggleShared,
   isConfirmingDelete,
   isDeleting,
   onRerun,
@@ -169,6 +225,7 @@ function SimulationCard({
   sim: SimulationListItem;
   onDelete: () => void;
   onTogglePin: () => void;
+  onToggleShared: () => void;
   isConfirmingDelete: boolean;
   isDeleting: boolean;
   onRerun: () => void;
@@ -177,6 +234,9 @@ function SimulationCard({
 }) {
   const t = useTranslations("EfficientFrontierList");
   const tStrategies = useTranslations("Strategies");
+  // A colleague's shared row is readable and nothing more: the API answers 403
+  // on every write against it, so none of the write controls are rendered.
+  const canWrite = isEditable(sim);
   const formattedDate = formatCreatedAt(sim.createdAt);
   const alreadyCurrent = isDateRangeCurrent(sim.params.dateRange);
   const rerunDisabled = isRerunning || alreadyCurrent;
@@ -227,6 +287,23 @@ function SimulationCard({
               <span className="shrink-0 text-xs text-muted-foreground">
                 {formattedDate}
               </span>
+              {sim.sharedWithOrg && (
+                <span
+                  className={cn(
+                    "inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
+                    canWrite
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-primary/10 text-primary"
+                  )}
+                >
+                  {canWrite ? (
+                    <Users className="h-3 w-3" />
+                  ) : (
+                    <Lock className="h-3 w-3" />
+                  )}
+                  {canWrite ? t("sharedBadge") : t("readOnlyBadge")}
+                </span>
+              )}
             </div>
             <div className="mt-1 flex flex-wrap gap-1.5">
               {sim.tickers.slice(0, 6).map((tk) => (
@@ -267,102 +344,123 @@ function SimulationCard({
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
         </Link>
 
-        <div ref={menuRef} className="relative shrink-0">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              e.preventDefault();
-              setMenuOpen((open) => !open);
-            }}
-            aria-label={t("moreActions")}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className={cn(
-              "rounded-md p-1.5 text-muted-foreground transition-colors",
-              isConfirmingDelete
-                ? "bg-red-900/20 text-red-400"
-                : isConfirmingRerun
-                  ? "bg-primary/15 text-primary"
-                  : "hover:bg-muted hover:text-foreground"
-            )}
-          >
-            <MoreVertical className="h-4 w-4" />
-          </button>
-          {menuOpen && (
-            <div
-              role="menu"
-              className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
+        {canWrite && (
+          <div ref={menuRef} className="relative shrink-0">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setMenuOpen((open) => !open);
+              }}
+              aria-label={t("moreActions")}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              className={cn(
+                "rounded-md p-1.5 text-muted-foreground transition-colors",
+                isConfirmingDelete
+                  ? "bg-red-900/20 text-red-400"
+                  : isConfirmingRerun
+                    ? "bg-primary/15 text-primary"
+                    : "hover:bg-muted hover:text-foreground"
+              )}
             >
-              <button
-                type="button"
-                role="menuitem"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  setMenuOpen(false);
-                  onTogglePin();
-                }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+              <MoreVertical className="h-4 w-4" />
+            </button>
+            {menuOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-md border border-border bg-popover text-popover-foreground shadow-lg"
               >
-                {sim.pinned ? (
-                  <PinOff className="h-4 w-4" />
-                ) : (
-                  <Pin className="h-4 w-4" />
-                )}
-                {sim.pinned ? t("unpinAction") : t("pinAction")}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={rerunDisabled}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  if (rerunDisabled) return;
-                  setMenuOpen(false);
-                  onRerun();
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
-                  isConfirmingRerun && "text-primary",
-                  rerunDisabled && !isRerunning && "opacity-40 cursor-not-allowed hover:bg-popover"
-                )}
-                title={alreadyCurrent ? t("rerunAlreadyCurrent") : undefined}
-              >
-                {isRerunning ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-4 w-4" />
-                )}
-                {alreadyCurrent
-                  ? t("rerunAlreadyCurrent")
-                  : isRerunning
-                    ? t("rerunInProgress")
-                    : isConfirmingRerun
-                      ? t("rerunConfirm")
-                      : t("rerunAction")}
-              </button>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={isDeleting}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                  onDelete();
-                }}
-                className={cn(
-                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
-                  isConfirmingDelete && "text-red-400"
-                )}
-              >
-                <Trash2 className="h-4 w-4" />
-                {isConfirmingDelete ? t("deleteConfirm") : t("deleteAction")}
-              </button>
-            </div>
-          )}
-        </div>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setMenuOpen(false);
+                    onTogglePin();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                >
+                  {sim.pinned ? (
+                    <PinOff className="h-4 w-4" />
+                  ) : (
+                    <Pin className="h-4 w-4" />
+                  )}
+                  {sim.pinned ? t("unpinAction") : t("pinAction")}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setMenuOpen(false);
+                    onToggleShared();
+                  }}
+                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted"
+                  title={sim.sharedWithOrg ? undefined : t("shareHint")}
+                >
+                  {sim.sharedWithOrg ? (
+                    <Lock className="h-4 w-4" />
+                  ) : (
+                    <Share2 className="h-4 w-4" />
+                  )}
+                  {sim.sharedWithOrg ? t("unshareAction") : t("shareAction")}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={rerunDisabled}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (rerunDisabled) return;
+                    setMenuOpen(false);
+                    onRerun();
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                    isConfirmingRerun && "text-primary",
+                    rerunDisabled && !isRerunning && "opacity-40 cursor-not-allowed hover:bg-popover"
+                  )}
+                  title={alreadyCurrent ? t("rerunAlreadyCurrent") : undefined}
+                >
+                  {isRerunning ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4" />
+                  )}
+                  {alreadyCurrent
+                    ? t("rerunAlreadyCurrent")
+                    : isRerunning
+                      ? t("rerunInProgress")
+                      : isConfirmingRerun
+                        ? t("rerunConfirm")
+                        : t("rerunAction")}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={isDeleting}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    onDelete();
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted",
+                    isConfirmingDelete && "text-red-400"
+                  )}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {isConfirmingDelete ? t("deleteConfirm") : t("deleteAction")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex gap-4 border-t border-border/50 px-4 py-2 text-xs sm:hidden">

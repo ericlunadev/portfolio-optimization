@@ -92,6 +92,38 @@ export function useTogglePinnedSimulation() {
   });
 }
 
+export function useToggleSharedSimulation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, sharedWithOrg }: { id: string; sharedWithOrg: boolean }) =>
+      api.updateSimulationShared(id, sharedWithOrg),
+    // Optimistic like the pin toggle: the badge should flip under the cursor.
+    // Sharing never reorders the list, so no re-sort here.
+    onMutate: async ({ id, sharedWithOrg }) => {
+      await queryClient.cancelQueries({ queryKey: ["simulations"] });
+      const previous = queryClient.getQueryData<SimulationListItem[]>([
+        "simulations",
+      ]);
+      if (previous) {
+        queryClient.setQueryData(
+          ["simulations"],
+          previous.map((sim) => (sim.id === id ? { ...sim, sharedWithOrg } : sim))
+        );
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["simulations"], context.previous);
+      }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["simulations"] });
+    },
+  });
+}
+
 export function useDeleteSimulation() {
   const queryClient = useQueryClient();
 

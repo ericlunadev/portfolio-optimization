@@ -9,10 +9,12 @@ import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBann
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
 import { CreditsChip } from "@/components/billing/CreditsChip";
+import { useTenantBrand } from "@/components/tenant/TenantProvider";
 
 export function Header() {
   const t = useTranslations("Header");
-  const tBrand = useTranslations("Brand");
+  // The wordmark is tenant data, not translated copy — see CLAUDE.md.
+  const brand = useTenantBrand();
   const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
 
@@ -41,8 +43,13 @@ export function Header() {
       <header className="relative z-30 border-b border-border bg-card/80 backdrop-blur-sm px-4 py-3 dark:border-border/50 dark:bg-card/20 md:px-8">
         <div className="flex items-center justify-between gap-3 md:justify-end">
           <h1 className="font-display text-lg tracking-tight md:hidden">
-            <span className="text-gradient-gold">{tBrand("shortName")}</span>{" "}
-            <span className="text-foreground/80">{tBrand("fullName")}</span>
+            {/* A tenant sets one product name, so the gradient half is often empty. */}
+            {brand.shortName && (
+              <>
+                <span className="text-gradient-gold">{brand.shortName}</span>{" "}
+              </>
+            )}
+            <span className="text-foreground/80">{brand.fullName}</span>
           </h1>
           <div className="flex items-center gap-2 md:gap-3">
             <CreditsChip />

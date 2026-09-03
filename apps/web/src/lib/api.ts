@@ -275,7 +275,7 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     });
-    return handleResponse<{ id: string; name: string | null; pinned: boolean }>(res);
+    return handleResponse<SimulationPatchResult>(res);
   },
 
   async updateSimulationPinned(id: string, pinned: boolean) {
@@ -284,7 +284,17 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pinned }),
     });
-    return handleResponse<{ id: string; name: string | null; pinned: boolean }>(res);
+    return handleResponse<SimulationPatchResult>(res);
+  },
+
+  /** Sharing grants the rest of the organization read access, never write. */
+  async updateSimulationShared(id: string, sharedWithOrg: boolean) {
+    const res = await apiFetch(`${API_BASE}/simulations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sharedWithOrg }),
+    });
+    return handleResponse<SimulationPatchResult>(res);
   },
 
   async updateSimulation(
@@ -305,6 +315,12 @@ export const api = {
       method: "DELETE",
     });
     return handleResponse<{ success: boolean }>(res);
+  },
+
+  // Organization
+  async getOrganizationBranding() {
+    const res = await apiFetch(`${API_BASE}/organizations/branding`);
+    return handleResponse<OrganizationBranding>(res);
   },
 
   // Onboarding
@@ -649,7 +665,34 @@ export interface SimulationListItem {
   sharpeRatio: number;
   params: SimulationParams;
   pinned: boolean;
+  /** Readable by the whole organization. Only the owner can turn this on or off. */
+  sharedWithOrg: boolean;
+  /** The caller owns the row, so the write endpoints will accept it. */
+  isOwner: boolean;
   createdAt: string;
+}
+
+export interface SimulationPatchResult {
+  id: string;
+  name: string | null;
+  pinned: boolean;
+  sharedWithOrg: boolean;
+}
+
+/** The tenant's own branding row. Every field is nullable: it falls back to ours. */
+export interface OrganizationBranding {
+  organizationId: string;
+  productName: string | null;
+  productShortName: string | null;
+  tagline: string | null;
+  accentHex: string | null;
+  fontKey: string | null;
+  logoUrl: string | null;
+  faviconUrl: string | null;
+  supportEmail: string | null;
+  privacyPolicyUrl: string | null;
+  termsUrl: string | null;
+  disclaimerText: string | null;
 }
 
 // Onboarding Types

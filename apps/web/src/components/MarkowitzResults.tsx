@@ -26,6 +26,7 @@ import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
 import { Disclaimer } from "@/components/legal/Disclaimer";
+import { useOrganizationBranding } from "@/hooks/useOrganizationBranding";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import {
   useChartColors,
@@ -76,6 +77,8 @@ export function MarkowitzResults({
   // The PDF legends must use the same palette as the offscreen chart nodes they
   // describe, so they follow the active theme rather than a fixed set.
   const chartColors = useChartColors();
+  // A tenant may reword the investing disclaimer below; they cannot remove it.
+  const { data: branding } = useOrganizationBranding();
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
   const [isReportConfigOpen, setIsReportConfigOpen] = useState(false);
   // Starts at the default so the server and the first client render agree; the
@@ -955,7 +958,12 @@ export function MarkowitzResults({
         </Tabs.Content>
       </Tabs.Root>
 
-      <Disclaimer variant="results" boxed className="mt-6" />
+      <Disclaimer
+        variant="results"
+        tenantText={branding?.disclaimerText}
+        boxed
+        className="mt-6"
+      />
 
       <AdvisorCallCta />
 
