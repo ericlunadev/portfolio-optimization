@@ -12,6 +12,10 @@ import historical from "./modules/historical/routes.js";
 import market from "./modules/market/routes.js";
 import simulations from "./modules/simulations/routes.js";
 import onboarding from "./modules/onboarding/routes.js";
+import organizations from "./modules/organizations/routes.js";
+import organizationSettings from "./modules/organizations/settings.js";
+import organizationBranding from "./modules/organizations/branding.js";
+import brandingByHost from "./modules/organizations/branding-by-host.js";
 import billing from "./modules/billing/routes.js";
 
 // The composed app and nothing else. Starting the server and running the
@@ -48,6 +52,12 @@ app.route("/api/historical", historical);
 app.route("/api/market", market);
 app.route("/api/simulations", simulations);
 app.route("/api/onboarding", onboarding);
+app.route("/api/organizations", organizations);
+// Same prefix, second file: the tenant product switches (PLAN Task 3.2/3.3) are
+// kept apart from the branding/export routes only while both are in flight.
+app.route("/api/organizations", organizationSettings);
+app.route("/api/organizations", organizationBranding);
+app.route("/api/tenants", brandingByHost);
 app.route("/api/billing", billing);
 
 export default app;

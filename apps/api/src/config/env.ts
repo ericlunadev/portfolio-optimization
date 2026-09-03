@@ -45,7 +45,21 @@ const envSchema = z.object({
   COINBASE_COMMERCE_API_KEY: z.string().optional(),
   COINBASE_COMMERCE_WEBHOOK_SECRET: z.string().optional(),
 
-  // Financial advisor booking
+  // Shared secret for the internal, sessionless routes (the admin credit grant,
+  // and the scheduled-run trigger CRON.md proposes). Unset means those routes
+  // answer 503 rather than running unauthenticated.
+  INTERNAL_API_SECRET: z.string().optional(),
+
+  // Financial advisor booking.
+  //
+  // Neither of these decides what a request sees any more: the mode, the
+  // destination and the price come from `organization_settings` (PLAN Task 3.3),
+  // because pointing a tenant's clients at our advisor is a channel conflict and
+  // usually a licensing problem. What is left here is deployment-wide by
+  // definition — the *platform* advisor's own link, used only by organizations
+  // running in `advisor_mode = 'platform'` — plus the provisioning default for
+  // `advisor_cost_credits`, which is also the fallback when that nullable column
+  // holds NULL.
   ADVISOR_BOOKING_URL: z
     .string()
     .default("https://cal.com/REPLACE_ME/advisor-30min"),

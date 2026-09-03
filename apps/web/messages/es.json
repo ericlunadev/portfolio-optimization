@@ -1,13 +1,4 @@
 {
-  "Metadata": {
-    "title": "Optimización de Portafolio",
-    "description": "Herramienta de optimización de portafolio Markowitz"
-  },
-  "Brand": {
-    "shortName": "Optim.",
-    "fullName": "Portafolio",
-    "tagline": "Optimización de portafolio basada en la teoría de Markowitz"
-  },
   "Nav": {
     "home": "Inicio",
     "efficientFrontier": "Frontera Eficiente",
@@ -128,7 +119,19 @@
     "pinAction": "Anclar",
     "unpinAction": "Desanclar",
     "pinnedLabel": "Anclado",
-    "moreActions": "Más acciones"
+    "moreActions": "Más acciones",
+    "shareAction": "Compartir con la organización",
+    "unshareAction": "Dejar de compartir",
+    "shareHint": "Tus colegas podrán abrirla, pero no editarla ni eliminarla.",
+    "sharedBadge": "Compartida",
+    "readOnlyBadge": "Solo lectura",
+    "scopeLabel": "Filtrar optimizaciones",
+    "scopeEmpty": "Ninguna optimización coincide con este filtro.",
+    "scope": {
+      "all": "Todas",
+      "mine": "Mías",
+      "shared": "Compartidas conmigo"
+    }
   },
   "SimulationDetail": {
     "loadingSimulation": "Cargando simulación...",
@@ -336,7 +339,8 @@
     "probabilityHeader": "Probabilidad",
     "notAvailable": "N/D",
     "disclaimer": "Documento informativo. No constituye asesoría de inversión. Los rendimientos pasados no garantizan resultados futuros.",
-    "page": "Página {current} de {total}"
+    "page": "Página {current} de {total}",
+    "poweredBy": "Desarrollado por {product}"
   },
   "ReportConfig": {
     "title": "Configurar reporte",
@@ -373,9 +377,11 @@
   },
   "AdvisorCta": {
     "title": "¿Dudas con estos resultados?",
-    "subtitle": "Agendá una llamada de 30 min con nuestro asesor financiero.",
+    "subtitle": "Agendá una llamada de 30 min con un asesor financiero.",
+    "subtitleNamed": "Agendá una llamada de 30 min con un asesor de {provider}.",
     "button": "Agendar llamada",
-    "modalTitle": "Agendá una llamada con nuestro asesor",
+    "modalTitle": "Agendá una llamada con un asesor",
+    "modalTitleNamed": "Agendá una llamada con un asesor de {provider}",
     "modalBody": "Una sesión 1 a 1 de 30 min para revisar tu portafolio y resolver tus dudas. La reserva cuesta {cost} créditos.",
     "modalBalance": "Tu saldo: {balance} créditos",
     "confirm": "Gastar {cost} créditos y reservar",
@@ -626,6 +632,11 @@
       "stationLabel": "Academia · Parada {current} de {total}",
       "goToStationAria": "Ir a {label}",
       "fullExperienceLink": "Ver esta parada en la experiencia completa"
+    },
+    "Unavailable": {
+      "title": "Academia no está disponible",
+      "body": "Tu organización no tiene habilitada la sección de Academia. Escribile a quien administra tu cuenta si creés que debería estarlo.",
+      "back": "Volver a la aplicación"
     },
     "Page": {
       "footer": "Fin del recorrido · Los datos mostrados son ilustrativos"
@@ -908,6 +919,80 @@
     "outOfCreditsTitle": "Sin créditos",
     "outOfCreditsBody": "Te quedaste sin créditos para correr esta optimización.",
     "outOfCreditsCta": "Comprar créditos",
-    "chipAria": "Saldo de créditos"
+    "chipAria": "Saldo de créditos",
+    "ledgerScopeNote": "Este historial muestra tu propia actividad. El saldo de arriba es de toda tu organización.",
+    "usageTitle": "Uso por miembro",
+    "usageSubtitle": "Quién está consumiendo el saldo compartido de tu organización.",
+    "usageLoading": "Cargando uso…",
+    "usageEmpty": "Todavía no hay actividad de nadie.",
+    "usageTotalSpent": "Créditos usados",
+    "usageTotalAdded": "Créditos agregados",
+    "usageTotalRuns": "Optimizaciones",
+    "usageSeats": "Miembros",
+    "usageColMember": "Miembro",
+    "usageColSpent": "Usados",
+    "usageColRuns": "Optimizaciones",
+    "usageColSimulations": "Simulaciones guardadas",
+    "usageColLastActivity": "Última actividad",
+    "usageActivityTitle": "Actividad reciente",
+    "usageColActor": "Miembro",
+    "usageFormerMember": "Miembro anterior",
+    "usagePlatformGrant": "Recarga de la cuenta"
+  },
+  "BrandingSettings": {
+    "pageTitle": "Marca",
+    "pageSubtitle": "Cómo aparecen el nombre y el color de tu organización en la app, en el PDF exportado y en los correos que enviamos.",
+    "ownerOnlyTitle": "Solo para titulares",
+    "ownerOnlyBody": "Solo el titular de la organización puede cambiar la marca. Pídeselo si algo aquí necesita actualizarse.",
+    "loading": "Cargando la marca…",
+    "loadError": "No pudimos cargar tu marca. Inténtalo de nuevo.",
+    "identityTitle": "Identidad",
+    "identitySubtitle": "El nombre que leen tus analistas y sus clientes.",
+    "productName": "Nombre del producto",
+    "productNameHelp": "Reemplaza nuestro nombre en el encabezado, el título de la pestaña y el reporte.",
+    "productShortName": "Nombre corto",
+    "productShortNameHelp": "Se usa donde falta espacio, como la barra lateral contraída.",
+    "tagline": "Lema",
+    "taglineHelp": "Una línea debajo del nombre en la pantalla de inicio de sesión.",
+    "appearanceTitle": "Apariencia",
+    "appearanceSubtitle": "Un solo color de acento guía la app, las gráficas y el PDF. Todo lo demás se mantiene como fue diseñado, para que la app siga funcionando en claro y en oscuro.",
+    "accent": "Color de acento",
+    "accentHelp": "Elige el color de tu marca. Ajustamos su luminosidad en cada tema para que el texto encima siga siendo legible.",
+    "accentInvalid": "Escribe un color hexadecimal como #2f6f4f.",
+    "accentReset": "Usar el nuestro",
+    "contrastTitle": "Revisión de contraste",
+    "contrastLight": "Tema claro",
+    "contrastDark": "Tema oscuro",
+    "contrastNote": "Cada acento se ajusta por tema para que el texto encima siga siendo legible a 4.5:1. Ningún color solo puede lograrlo contra una página casi blanca y otra casi negra, así que al menos un tema siempre se mueve: las muestras de abajo son lo que realmente obtienes.",
+    "contrastOk": "Se usa tal como lo elegiste · {ratio}:1",
+    "contrastDarkened": "Se oscurece aquí · {ratio}:1 como lo elegiste",
+    "contrastBrightened": "Se aclara aquí · {ratio}:1 como lo elegiste",
+    "swatchReport": "Reporte exportado",
+    "swatchChart": "Series de la gráfica",
+    "font": "Tipografía",
+    "fontHelp": "Un menú fijo: cada tipografía se empaqueta al compilar, así que no podemos cargar una cualquiera.",
+    "supportTitle": "Soporte y legales",
+    "supportSubtitle": "A dónde mandamos a tus analistas cuando necesitan a una persona o una política.",
+    "supportEmail": "Correo de soporte",
+    "supportEmailHelp": "Se muestra en lugar del nuestro donde ofrecemos ayuda.",
+    "supportEmailInvalid": "Escribe una dirección de correo.",
+    "privacyPolicyUrl": "URL del aviso de privacidad",
+    "termsUrl": "URL de los términos del servicio",
+    "urlInvalid": "Escribe una dirección completa con http:// o https://.",
+    "disclaimerText": "Aviso legal",
+    "disclaimerHelp": "Reemplaza nuestro texto al pie de cada página y de cada reporte exportado. Déjalo vacío para conservar el nuestro: no se puede quitar.",
+    "tooLong": "Usa como máximo {max} caracteres.",
+    "logoTitle": "Logotipo",
+    "logoUnavailable": "Todavía no se puede subir un logotipo: no tenemos dónde guardar el archivo. Mándanoslo y lo configuramos por ti.",
+    "tierTitle": "Plan",
+    "tierCobranded": "Marca compartida",
+    "tierWhitelabel": "Marca blanca completa",
+    "tierCobrandedNote": "Tus reportes llevan una línea pequeña de «Desarrollado por». Habla con nosotros para quitarla.",
+    "tierWhitelabelNote": "Nada nuestro aparece en tus reportes.",
+    "save": "Guardar cambios",
+    "saving": "Guardando…",
+    "saved": "Guardado.",
+    "saveError": "No pudimos guardar tu marca. Inténtalo de nuevo.",
+    "discard": "Descartar cambios"
   }
 }

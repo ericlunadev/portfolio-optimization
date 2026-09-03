@@ -67,6 +67,11 @@ app.get("/", async (c) => {
       sharpeRatio: result.sharpe_ratio ?? 0,
       params,
       pinned: row.pinned,
+      sharedWithOrg: row.sharedWithOrg,
+      // The list mixes the caller's rows with colleagues' shared ones, and only
+      // the former accept a write. Without this the client renders edit and
+      // delete affordances on rows the API answers with 403.
+      isOwner: row.userId === user.id,
       createdAt: toISOStringOrNow(row.createdAt),
     };
   });
@@ -147,10 +152,14 @@ const patchSchema = z
   .object({
     name: z.string().max(200).nullable().optional(),
     pinned: z.boolean().optional(),
+    // Sharing is itself a write, so it goes through writeScope like the rest: a
+    // colleague can read a shared row but can never share or unshare it.
+    sharedWithOrg: z.boolean().optional(),
   })
-  .refine((v) => v.name !== undefined || v.pinned !== undefined, {
-    message: "name or pinned required",
-  });
+  .refine(
+    (v) => v.name !== undefined || v.pinned !== undefined || v.sharedWithOrg !== undefined,
+    { message: "name, pinned or sharedWithOrg required" }
+  );
 
 app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   const { id } = c.req.param();
@@ -158,9 +167,10 @@ app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   const organizationId = c.get("organizationId");
   const body = c.req.valid("json");
 
-  const updates: { name?: string | null; pinned?: boolean } = {};
+  const updates: { name?: string | null; pinned?: boolean; sharedWithOrg?: boolean } = {};
   if (body.name !== undefined) updates.name = body.name?.trim() || null;
   if (body.pinned !== undefined) updates.pinned = body.pinned;
+  if (body.sharedWithOrg !== undefined) updates.sharedWithOrg = body.sharedWithOrg;
 
   if (!(await isReadable(id, organizationId, user.id))) {
     return c.json({ error: "Simulation not found" }, 404);
@@ -174,6 +184,7 @@ app.patch("/:id", zValidator("json", patchSchema), async (c) => {
       id: simulations.id,
       name: simulations.name,
       pinned: simulations.pinned,
+      sharedWithOrg: simulations.sharedWithOrg,
     });
 
   if (updated.length === 0) {

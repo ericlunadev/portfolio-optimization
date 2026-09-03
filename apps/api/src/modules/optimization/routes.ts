@@ -16,6 +16,8 @@ import { validateAssetBounds } from "../../lib/math/bounds.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { meterRequest, clientIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
+import { HTTPException } from "hono/http-exception";
+import { getFundAllowlist, isTickerAllowed } from "../../lib/tenant-settings.js";
 import { defaultLookbackPeriod } from "../../lib/dates.js";
 import { fetchTickerPrices } from "../../lib/yahoo.js";
 import {
@@ -26,6 +28,28 @@ import {
 } from "../../lib/benchmarks.js";
 
 const optimization = new Hono();
+
+
+// Search-box filtering is discovery only: nothing stops a disallowed ticker being
+// posted straight to these routes. This is where a tenant's allowlist becomes an
+// actual boundary rather than a UI convenience.
+//
+// Runs before the credit is metered - refusing a request the caller has already
+// paid for would be worse than not refusing it at all.
+async function assertTickersAllowed(
+  organizationId: string,
+  tickers: string[]
+): Promise<void> {
+  const allowlist = await getFundAllowlist(organizationId);
+  if (!allowlist) return;
+
+  const refused = tickers.filter((ticker) => !isTickerAllowed(allowlist, ticker));
+  if (refused.length > 0) {
+    throw new HTTPException(400, {
+      message: `INSTRUMENT_NOT_ALLOWED: ${refused.join(", ")}`,
+    });
+  }
+}
 
 /**
  * Per-asset weight bounds, aligned index-for-index with `tickers`. A `null`
@@ -68,6 +92,7 @@ optimization.post(
 
     const user = c.get("user");
     const organizationId = c.get("organizationId");
+    await assertTickersAllowed(organizationId, c.req.valid("json").tickers);
     const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
     const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
@@ -244,6 +269,7 @@ optimization.post(
 
     const user = c.get("user");
     const organizationId = c.get("organizationId");
+    await assertTickersAllowed(organizationId, c.req.valid("json").tickers);
     const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
     const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
@@ -338,6 +364,7 @@ optimization.post(
 
     const user = c.get("user");
     const organizationId = c.get("organizationId");
+    await assertTickersAllowed(organizationId, c.req.valid("json").tickers);
     const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
     const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
@@ -437,6 +464,7 @@ optimization.post(
 
     const user = c.get("user");
     const organizationId = c.get("organizationId");
+    await assertTickersAllowed(organizationId, c.req.valid("json").tickers);
     const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
     const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 

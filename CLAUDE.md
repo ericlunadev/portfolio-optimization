@@ -7,6 +7,20 @@
 - All code (variable names, function names, class names, comments, documentation, file names, translation keys) must be written in **English**.
 - Locale is selected via the `NEXT_LOCALE` cookie (no `[locale]` URL segment); the user toggles it from the header `LocaleSwitcher`. Config lives in `apps/web/src/i18n/`.
 
+### Brand values are tenant data, not translated copy
+
+The one exception to "never hardcode UI strings" is not an exception at all — it is a different
+category. The product name, short name, tagline, page title and meta description are **per-tenant
+configuration**, not per-locale copy: a client sets one product name, not a Spanish one and an
+English one. They used to live as the `Brand` and `Metadata` namespaces in `messages/{es,en}.json`,
+which are static and identical for every tenant, so they were moved out.
+
+They now come from `organization_branding` via `apps/web/src/lib/tenant-config.ts`, are resolved
+server-side from the `Host` header, and reach components through `useTenantBrand()`
+(`components/tenant/TenantProvider.tsx`). **Do not move them back into the message files** — that
+would give every tenant our wordmark. Everything else a user reads still belongs in `es.json` and
+`en.json`.
+
 ## Date Format
 
 - All dates displayed in charts must use the format **DD/MM/YYYY** (e.g., 31/12/2022).

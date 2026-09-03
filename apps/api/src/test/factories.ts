@@ -172,6 +172,10 @@ export async function seedOrg(
     signupGrantCredits?: number;
     advisorMode?: string;
     cryptoRailEnabled?: boolean;
+    academiaEnabled?: boolean;
+    overdraftLimit?: number;
+    /** JSON-encoded array of tickers. Omit for an unrestricted tenant. */
+    fundAllowlist?: string;
   } = {}
 ): Promise<SeededOrg> {
   const id = overrides.id ?? `org-${randomUUID()}`;
@@ -192,6 +196,9 @@ export async function seedOrg(
     advisorMode: overrides.advisorMode ?? "platform",
     cryptoRailEnabled: overrides.cryptoRailEnabled ?? true,
     signupGrantCredits: overrides.signupGrantCredits ?? 3,
+    academiaEnabled: overrides.academiaEnabled ?? true,
+    overdraftLimit: overrides.overdraftLimit ?? 0,
+    fundAllowlist: overrides.fundAllowlist ?? null,
   });
 
   return org;
