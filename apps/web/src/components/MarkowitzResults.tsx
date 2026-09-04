@@ -617,6 +617,8 @@ export function MarkowitzResults({
       riskFreeRate: tSummary("riskFreeRate"),
       targetReturn: tSummary("targetReturn"),
       targetRisk: tSummary("targetRisk"),
+      cvarConfidence: tSummary("cvarConfidence"),
+      viewConfidence: tSummary("viewConfidence"),
       fullInvestment: tSummary("fullInvestment"),
       shortSelling: tSummary("shortSelling"),
       shortSellingAllowed: tSummary("shortSellingAllowed"),

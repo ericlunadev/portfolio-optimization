@@ -4,7 +4,11 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
-import { SimulationParams, OPTIMIZATION_STRATEGIES } from "@/lib/api";
+import {
+  SimulationParams,
+  OPTIMIZATION_STRATEGIES,
+  strategyUsesParam,
+} from "@/lib/api";
 import { formatWeightLimits } from "@/lib/asset-limits";
 
 interface SimulationParamsSummaryProps {
@@ -65,8 +69,8 @@ export function SimulationParamsSummary({
               <dd className="font-medium">{strategyLabel}</dd>
             </div>
 
-            {/* Risk-Free Rate (max-sharpe only) */}
-            {params.strategy === "max-sharpe" && (
+            {/* Risk-Free Rate */}
+            {strategyUsesParam(params.strategy, "risk-free-rate") && (
               <div>
                 <dt className="text-muted-foreground">{t("riskFreeRate")}</dt>
                 <dd className="font-medium">
@@ -76,7 +80,8 @@ export function SimulationParamsSummary({
             )}
 
             {/* Target Return */}
-            {params.strategy === "target-return" && params.targetReturn !== undefined && (
+            {strategyUsesParam(params.strategy, "target-return") &&
+              params.targetReturn !== undefined && (
               <div>
                 <dt className="text-muted-foreground">{t("targetReturn")}</dt>
                 <dd className="font-medium">
@@ -86,7 +91,8 @@ export function SimulationParamsSummary({
             )}
 
             {/* Target Risk */}
-            {params.strategy === "target-risk" && params.targetRisk !== undefined && (
+            {strategyUsesParam(params.strategy, "target-risk") &&
+              params.targetRisk !== undefined && (
               <div>
                 <dt className="text-muted-foreground">{t("targetRisk")}</dt>
                 <dd className="font-medium">
@@ -94,6 +100,28 @@ export function SimulationParamsSummary({
                 </dd>
               </div>
             )}
+
+            {/* CVaR confidence */}
+            {strategyUsesParam(params.strategy, "cvar-confidence") &&
+              params.cvarConfidence !== undefined && (
+                <div>
+                  <dt className="text-muted-foreground">{t("cvarConfidence")}</dt>
+                  <dd className="font-medium">
+                    {formatPercent(params.cvarConfidence, 1)}
+                  </dd>
+                </div>
+              )}
+
+            {/* Black-Litterman view confidence */}
+            {strategyUsesParam(params.strategy, "view-confidence") &&
+              params.viewConfidence !== undefined && (
+                <div>
+                  <dt className="text-muted-foreground">{t("viewConfidence")}</dt>
+                  <dd className="font-medium">
+                    {formatPercent(params.viewConfidence, 0)}
+                  </dd>
+                </div>
+              )}
 
             {/* Constraints */}
             <div>

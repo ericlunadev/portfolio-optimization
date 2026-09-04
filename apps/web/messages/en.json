@@ -91,6 +91,30 @@
     "knee-point": {
       "label": "Inflection Point",
       "description": "Point of maximum curvature on the frontier"
+    },
+    "risk-parity": {
+      "label": "Risk Parity",
+      "description": "Every asset contributes the same amount of risk"
+    },
+    "black-litterman": {
+      "label": "Black-Litterman",
+      "description": "Blends market equilibrium with the price history"
+    },
+    "hrp": {
+      "label": "Hierarchical Risk Parity",
+      "description": "Clusters assets by correlation and splits by branch"
+    },
+    "max-diversification": {
+      "label": "Maximum Diversification",
+      "description": "Maximizes the benefit of low correlation"
+    },
+    "cvar": {
+      "label": "Conditional Value at Risk",
+      "description": "Minimizes the average loss in the worst periods"
+    },
+    "equal-weight": {
+      "label": "Equal Weight",
+      "description": "The same share in every asset"
     }
   },
   "HomePage": {
@@ -100,8 +124,8 @@
     "ctaStart": "Start Optimization",
     "feature1Title": "Efficient Frontier",
     "feature1Description": "Visualize the optimal set of portfolios that offer the highest return for each level of risk.",
-    "feature2Title": "6 Strategies",
-    "feature2Description": "From Max Sharpe to Inflection Point. Choose the strategy that best fits your profile.",
+    "feature2Title": "12 Strategies",
+    "feature2Description": "From Max Sharpe to Hierarchical Risk Parity. Choose the strategy that best fits your profile.",
     "feature3Title": "Risk Analysis",
     "feature3Description": "Probability of negative return, historical volatility, and confidence metrics for informed decisions."
   },
@@ -188,6 +212,22 @@
     "strategyTargetRiskText": "Finds the maximum-return portfolio for a specific risk level.",
     "strategyInflectionLabel": "Inflection Point:",
     "strategyInflectionText": "Identifies the point of maximum curvature on the efficient frontier, where the marginal benefit of taking on more risk starts to diminish.",
+    "strategyRiskParityLabel": "Risk Parity:",
+    "strategyRiskParityText": "Sizes positions so every asset contributes the same amount of risk to the portfolio. A volatile asset simply gets a smaller position.",
+    "strategyBlackLittermanLabel": "Black-Litterman:",
+    "strategyBlackLittermanText": "Starts from the returns the market already implies and blends them with the price history, in the proportion you choose. Keeps one noisy estimate from dominating the allocation.",
+    "strategyHrpLabel": "Hierarchical Risk Parity:",
+    "strategyHrpText": "Clusters assets by correlation and splits capital branch by branch. It never inverts the covariance matrix, so it stays stable when several assets move together.",
+    "strategyMaxDiversificationLabel": "Maximum Diversification:",
+    "strategyMaxDiversificationText": "Maximizes how much risk the low correlation between assets cancels out, rather than simply seeking the quietest ones.",
+    "strategyCvarLabel": "Conditional Value at Risk:",
+    "strategyCvarText": "Minimizes the average loss across the worst periods in the history. It reads the left tail directly instead of assuming returns are normal.",
+    "strategyEqualWeightLabel": "Equal Weight:",
+    "strategyEqualWeightText": "Splits capital evenly across every asset. With no parameters to estimate, it is the benchmark the other strategies have to beat.",
+    "cvarConfidenceSlider": "Confidence level: {value}% (worst {tail}% of periods)",
+    "cvarConfidenceHelp": "A higher level judges the portfolio on a shorter, more extreme tail.",
+    "viewConfidenceSlider": "Confidence in the price history: {value}%",
+    "viewConfidenceHelp": "At 0% market equilibrium decides; at 100%, the historical returns do.",
     "targetReturnSlider": "Target return: {value}%",
     "targetRiskSlider": "Target risk (volatility): {value}%",
     "targetRiskInfoAria": "Target risk information",
@@ -395,6 +435,8 @@
     "riskFreeRate": "Risk-Free Rate",
     "targetReturn": "Target Return",
     "targetRisk": "Target Risk",
+    "cvarConfidence": "Confidence Level (CVaR)",
+    "viewConfidence": "Confidence in the History",
     "fullInvestment": "Full Investment",
     "shortSelling": "Short Selling",
     "shortSellingAllowed": "Allowed",

@@ -47,25 +47,39 @@ export function OptimizerForm({ form, isSubmitting, onSubmit }: OptimizerFormPro
         <StrategyPicker value={form.strategy} onChange={form.setStrategy} />
       </Section>
 
-      {form.param === 'risk_free_rate' ? (
+      {form.usesParam('risk_free_rate') ? (
         <PercentInput
           label={t('optimizer.riskFreeRate')}
           value={form.riskFreeRate}
           onChangeText={form.setRiskFreeRate}
         />
       ) : null}
-      {form.param === 'target_return' ? (
+      {form.usesParam('target_return') ? (
         <PercentInput
           label={t('optimizer.targetReturn')}
           value={form.targetReturn}
           onChangeText={form.setTargetReturn}
         />
       ) : null}
-      {form.param === 'target_risk' ? (
+      {form.usesParam('target_risk') ? (
         <PercentInput
           label={t('optimizer.targetRisk')}
           value={form.targetRisk}
           onChangeText={form.setTargetRisk}
+        />
+      ) : null}
+      {form.usesParam('cvar_confidence') ? (
+        <PercentInput
+          label={t('optimizer.cvarConfidence')}
+          value={form.cvarConfidence}
+          onChangeText={form.setCvarConfidence}
+        />
+      ) : null}
+      {form.usesParam('view_confidence') ? (
+        <PercentInput
+          label={t('optimizer.viewConfidence')}
+          value={form.viewConfidence}
+          onChangeText={form.setViewConfidence}
         />
       ) : null}
 
