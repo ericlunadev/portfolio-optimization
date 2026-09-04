@@ -74,6 +74,8 @@ const labels: SimulationPdfLabels = {
   riskFreeRate: "Risk-Free Rate",
   targetReturn: "Target Return",
   targetRisk: "Target Risk",
+  cvarConfidence: "Confidence Level (CVaR)",
+  viewConfidence: "Confidence in the History",
   fullInvestment: "Full Investment",
   shortSelling: "Short Selling",
   shortSellingAllowed: "Allowed",

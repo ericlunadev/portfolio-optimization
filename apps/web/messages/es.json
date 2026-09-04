@@ -91,6 +91,30 @@
     "knee-point": {
       "label": "Punto de Inflexión",
       "description": "Punto de máxima curvatura en la frontera"
+    },
+    "risk-parity": {
+      "label": "Paridad de Riesgo",
+      "description": "Cada activo aporta la misma cantidad de riesgo"
+    },
+    "black-litterman": {
+      "label": "Black-Litterman",
+      "description": "Combina el equilibrio del mercado con el histórico"
+    },
+    "hrp": {
+      "label": "Paridad de Riesgo Jerárquica",
+      "description": "Agrupa activos por correlación y reparte por ramas"
+    },
+    "max-diversification": {
+      "label": "Máxima Diversificación",
+      "description": "Maximiza el beneficio de la baja correlación"
+    },
+    "cvar": {
+      "label": "Valor en Riesgo Condicional",
+      "description": "Minimiza la pérdida media en los peores periodos"
+    },
+    "equal-weight": {
+      "label": "Equiponderada",
+      "description": "La misma proporción en cada activo"
     }
   },
   "HomePage": {
@@ -100,8 +124,8 @@
     "ctaStart": "Comenzar Optimización",
     "feature1Title": "Frontera Eficiente",
     "feature1Description": "Visualiza el conjunto óptimo de portafolios que ofrecen el mayor rendimiento para cada nivel de riesgo.",
-    "feature2Title": "6 Estrategias",
-    "feature2Description": "Desde Máximo Sharpe hasta Punto de Inflexión. Elige la estrategia que mejor se adapte a tu perfil.",
+    "feature2Title": "12 Estrategias",
+    "feature2Description": "Desde Máximo Sharpe hasta Paridad de Riesgo Jerárquica. Elige la estrategia que mejor se adapte a tu perfil.",
     "feature3Title": "Análisis de Riesgo",
     "feature3Description": "Probabilidad de rendimiento negativo, volatilidad histórica y métricas de confianza para decisiones informadas."
   },
@@ -188,6 +212,22 @@
     "strategyTargetRiskText": "Encuentra el portafolio de máximo rendimiento para un nivel de riesgo específico.",
     "strategyInflectionLabel": "Punto de Inflexión:",
     "strategyInflectionText": "Identifica el punto de máxima curvatura en la frontera eficiente, donde el beneficio marginal de asumir más riesgo comienza a disminuir.",
+    "strategyRiskParityLabel": "Paridad de Riesgo:",
+    "strategyRiskParityText": "Ajusta los pesos para que cada activo aporte la misma cantidad de riesgo al portafolio. Un activo volátil recibe una posición más pequeña.",
+    "strategyBlackLittermanLabel": "Black-Litterman:",
+    "strategyBlackLittermanText": "Parte de los rendimientos que el mercado ya implica y los combina con los del histórico, en la proporción que indiques. Evita que un dato ruidoso domine la asignación.",
+    "strategyHrpLabel": "Paridad de Riesgo Jerárquica:",
+    "strategyHrpText": "Agrupa los activos por correlación y reparte el capital rama por rama. No invierte la matriz de covarianzas, así que es estable cuando varios activos se mueven juntos.",
+    "strategyMaxDiversificationLabel": "Máxima Diversificación:",
+    "strategyMaxDiversificationText": "Maximiza cuánto riesgo cancela la baja correlación entre activos, en lugar de buscar simplemente los más tranquilos.",
+    "strategyCvarLabel": "Valor en Riesgo Condicional:",
+    "strategyCvarText": "Minimiza la pérdida media en los peores periodos del histórico. Lee la cola izquierda directamente en vez de asumir que los rendimientos son normales.",
+    "strategyEqualWeightLabel": "Equiponderada:",
+    "strategyEqualWeightText": "Reparte el capital por igual entre todos los activos. Sin parámetros que estimar, es la referencia que las demás estrategias deben superar.",
+    "cvarConfidenceSlider": "Nivel de confianza: {value}% (peor {tail}% de los periodos)",
+    "cvarConfidenceHelp": "Un nivel más alto juzga el portafolio por una cola más extrema y más corta.",
+    "viewConfidenceSlider": "Confianza en el histórico: {value}%",
+    "viewConfidenceHelp": "Al 0% manda el equilibrio del mercado; al 100%, el rendimiento histórico.",
     "targetReturnSlider": "Rendimiento objetivo: {value}%",
     "targetRiskSlider": "Riesgo objetivo (volatilidad): {value}%",
     "targetRiskInfoAria": "Información sobre riesgo objetivo",
@@ -395,6 +435,8 @@
     "riskFreeRate": "Tasa Libre de Riesgo",
     "targetReturn": "Rendimiento Objetivo",
     "targetRisk": "Riesgo Objetivo",
+    "cvarConfidence": "Nivel de Confianza (CVaR)",
+    "viewConfidence": "Confianza en el Histórico",
     "fullInvestment": "Inversión Completa",
     "shortSelling": "Ventas en Corto",
     "shortSellingAllowed": "Permitidas",

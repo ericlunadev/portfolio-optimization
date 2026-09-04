@@ -1,3 +1,5 @@
+import { sum } from "./matrix.js";
+
 /**
  * Per-asset weight bounds.
  *
@@ -7,7 +9,6 @@
  * `[lower, upper]` interval. `wMax` (and `allowShortSelling`) remain the
  * fallback for assets with no explicit bound of their own.
  */
-
 export interface AssetBounds {
   lower: number[];
   upper: number[];
@@ -49,6 +50,71 @@ export function resolveAssetBounds(n: number, input: AssetBoundsInput = {}): Ass
 
 function numberOr(value: number | null | undefined, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+/**
+ * Euclidean projection onto { sum(w) = target, lower <= w <= upper }.
+ *
+ * The KKT conditions make the solution w(theta)[i] = clamp(v[i] - theta) for a
+ * single scalar theta, and sum(w(theta)) decreases monotonically in theta — so
+ * a bisection on theta lands exactly on the target. This handles per-asset
+ * floors, per-asset caps and short selling in one step, where a plain simplex
+ * projection only handles a zero floor.
+ *
+ * When `enforceEquality` is false the total may sit anywhere in [0, target] —
+ * the uninvested remainder is cash. It is floored at zero because a portfolio
+ * that is net short overall is not "holding cash"; without that floor, short
+ * positions run away to their bounds.
+ */
+export function projectOntoBounded(
+  v: number[],
+  target: number,
+  bounds: AssetBounds,
+  enforceEquality: boolean
+): number[] {
+  const { lower, upper } = bounds;
+  const clampAll = (theta: number) =>
+    v.map((vi, i) => Math.min(upper[i], Math.max(lower[i], vi - theta)));
+  const totalAt = (theta: number) => sum(clampAll(theta));
+
+  // Infeasible targets are pulled back to the closest reachable total, so an
+  // over-tight set of bounds degrades to its nearest portfolio instead of
+  // returning garbage. The API rejects those inputs before we get here.
+  const minTotal = sum(lower);
+  const maxTotal = sum(upper);
+  const clampToReachable = (t: number) => Math.min(Math.max(t, minTotal), maxTotal);
+  let goal = clampToReachable(target);
+
+  if (!enforceEquality) {
+    const asIs = clampAll(0);
+    const asIsTotal = sum(asIs);
+    if (asIsTotal >= -1e-10 && asIsTotal <= goal + 1e-10) return asIs;
+    // Outside the band: pull the total back to the nearer edge.
+    goal = asIsTotal < 0 ? clampToReachable(0) : goal;
+  }
+
+  // Bracket theta: at -spread every weight sits at its cap, at +spread at its floor.
+  const spread =
+    Math.max(...v.map(Math.abs), ...upper.map(Math.abs), ...lower.map(Math.abs), 1) * 2 + 1;
+  let lo = -spread;
+  let hi = spread;
+
+  for (let iter = 0; iter < 100; iter++) {
+    const mid = (lo + hi) / 2;
+    const total = totalAt(mid);
+    if (Math.abs(total - goal) < 1e-12) {
+      lo = hi = mid;
+      break;
+    }
+    // totalAt is non-increasing in theta.
+    if (total > goal) {
+      lo = mid;
+    } else {
+      hi = mid;
+    }
+  }
+
+  return clampAll((lo + hi) / 2);
 }
 
 export interface BoundsFeasibility {

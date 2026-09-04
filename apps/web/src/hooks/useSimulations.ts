@@ -6,6 +6,7 @@ import {
   SimulationParams,
   OptimizationResultWithStrategy,
   SimulationListItem,
+  strategyUsesParam,
 } from "@/lib/api";
 import { toWeightBounds } from "@/lib/asset-limits";
 
@@ -134,10 +135,21 @@ export function useRerunSimulation() {
         wMax: nextParams.assetConstraints ? nextParams.wMax : 1,
         wMinPerAsset: weightBounds?.wMinPerAsset,
         wMaxPerAsset: weightBounds?.wMaxPerAsset,
-        riskFreeRate: nextParams.strategy === "max-sharpe" ? nextParams.riskFreeRate : 0,
-        targetReturn:
-          nextParams.strategy === "target-return" ? nextParams.targetReturn : undefined,
-        targetRisk: nextParams.strategy === "target-risk" ? nextParams.targetRisk : undefined,
+        riskFreeRate: strategyUsesParam(nextParams.strategy, "risk-free-rate")
+          ? nextParams.riskFreeRate
+          : 0,
+        targetReturn: strategyUsesParam(nextParams.strategy, "target-return")
+          ? nextParams.targetReturn
+          : undefined,
+        targetRisk: strategyUsesParam(nextParams.strategy, "target-risk")
+          ? nextParams.targetRisk
+          : undefined,
+        cvarConfidence: strategyUsesParam(nextParams.strategy, "cvar-confidence")
+          ? nextParams.cvarConfidence
+          : undefined,
+        viewConfidence: strategyUsesParam(nextParams.strategy, "view-confidence")
+          ? nextParams.viewConfidence
+          : undefined,
         startDate,
         endDate,
         enforceFullInvestment: nextParams.enforceFullInvestment,

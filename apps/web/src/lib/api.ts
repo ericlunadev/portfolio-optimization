@@ -52,6 +52,10 @@ export const api = {
       riskFreeRate?: number;
       targetReturn?: number;
       targetRisk?: number;
+      /** Tail cut-off for `cvar`: 0.95 averages the worst 5% of periods. */
+      cvarConfidence?: number;
+      /** How far `black-litterman` leans on the history over equilibrium. */
+      viewConfidence?: number;
       startDate?: string;
       endDate?: string;
       enforceFullInvestment?: boolean;
@@ -71,6 +75,8 @@ export const api = {
         risk_free_rate: options.riskFreeRate ?? 0,
         target_return: options.targetReturn,
         target_risk: options.targetRisk,
+        cvar_confidence: options.cvarConfidence,
+        view_confidence: options.viewConfidence,
         start_date: options.startDate,
         end_date: options.endDate,
         enforce_full_investment: options.enforceFullInvestment ?? true,
@@ -404,19 +410,64 @@ export type OptimizationStrategy =
   | "max-return"
   | "target-return"
   | "target-risk"
-  | "knee-point";
+  | "knee-point"
+  | "risk-parity"
+  | "black-litterman"
+  | "hrp"
+  | "max-diversification"
+  | "cvar"
+  | "equal-weight";
 
+/**
+ * The extra input a strategy needs from the user. A strategy can need more than
+ * one — Black-Litterman blends against a risk-free rate *and* asks how much to
+ * trust the historical estimates.
+ */
+export type StrategyParam =
+  | "risk-free-rate"
+  | "target-return"
+  | "target-risk"
+  | "cvar-confidence"
+  | "view-confidence";
+
+/**
+ * Strategies in the order the picker offers them: the six that walk the
+ * mean-variance efficient frontier first, then the six that size positions from
+ * risk alone. Labels and descriptions live under the `Strategies.<value>` i18n
+ * keys.
+ */
 export const OPTIMIZATION_STRATEGIES: {
   value: OptimizationStrategy;
-  requiresTarget?: "return" | "risk";
+  params: StrategyParam[];
 }[] = [
-  { value: "max-sharpe" },
-  { value: "min-risk" },
-  { value: "max-return" },
-  { value: "target-return", requiresTarget: "return" },
-  { value: "target-risk", requiresTarget: "risk" },
-  { value: "knee-point" },
+  { value: "max-sharpe", params: ["risk-free-rate"] },
+  { value: "min-risk", params: [] },
+  { value: "max-return", params: [] },
+  { value: "target-return", params: ["target-return"] },
+  { value: "target-risk", params: ["target-risk"] },
+  { value: "knee-point", params: [] },
+  { value: "risk-parity", params: [] },
+  { value: "black-litterman", params: ["risk-free-rate", "view-confidence"] },
+  { value: "hrp", params: [] },
+  { value: "max-diversification", params: [] },
+  { value: "cvar", params: ["cvar-confidence"] },
+  { value: "equal-weight", params: [] },
 ];
+
+/**
+ * Whether a strategy reads a given input. Every place that shows, saves or
+ * sends one of these values asks here, so a strategy's inputs are declared once
+ * rather than re-derived from a chain of `strategy === "..."` checks.
+ */
+export function strategyUsesParam(
+  strategy: OptimizationStrategy,
+  param: StrategyParam
+): boolean {
+  return (
+    OPTIMIZATION_STRATEGIES.find((s) => s.value === strategy)?.params.includes(param) ??
+    false
+  );
+}
 
 // Types
 export interface OptimizationResult {
@@ -614,6 +665,10 @@ export interface SimulationParams {
   strategy: OptimizationStrategy;
   targetReturn?: number;
   targetRisk?: number;
+  /** Tail cut-off for `cvar`. Absent on simulations saved before it existed. */
+  cvarConfidence?: number;
+  /** View confidence for `black-litterman`, likewise optional on old rows. */
+  viewConfidence?: number;
   riskFreeRate: number;
   enforceFullInvestment: boolean;
   allowShortSelling: boolean;

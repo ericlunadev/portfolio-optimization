@@ -34,6 +34,8 @@
     "riskFreeRate": "Risk-free rate (%)",
     "targetReturn": "Target return (%)",
     "targetRisk": "Target risk (%)",
+    "cvarConfidence": "CVaR confidence level (%)",
+    "viewConfidence": "Confidence in the price history (%)",
     "constraintsLabel": "Constraints",
     "fullInvestment": "Full investment (weights sum to 100%)",
     "allowShortSelling": "Allow short selling",
@@ -118,6 +120,30 @@
       "knee-point": {
         "label": "Inflection Point",
         "description": "Point of maximum curvature on the frontier"
+      },
+      "risk-parity": {
+        "label": "Risk Parity",
+        "description": "Every asset contributes the same amount of risk"
+      },
+      "black-litterman": {
+        "label": "Black-Litterman",
+        "description": "Blends market equilibrium with the price history"
+      },
+      "hrp": {
+        "label": "Hierarchical Risk Parity",
+        "description": "Clusters assets by correlation and splits by branch"
+      },
+      "max-diversification": {
+        "label": "Maximum Diversification",
+        "description": "Maximizes the benefit of low correlation"
+      },
+      "cvar": {
+        "label": "Conditional Value at Risk",
+        "description": "Minimizes the average loss in the worst periods"
+      },
+      "equal-weight": {
+        "label": "Equal Weight",
+        "description": "The same share in every asset"
       }
     }
   },

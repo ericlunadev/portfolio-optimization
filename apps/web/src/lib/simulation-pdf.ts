@@ -1,5 +1,6 @@
 import type { jsPDF } from "jspdf";
 import type { OptimizationResultWithStrategy, SimulationParams } from "@/lib/api";
+import { strategyUsesParam } from "@/lib/api";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { formatWeightLimits } from "@/lib/asset-limits";
 import {
@@ -67,6 +68,8 @@ export interface SimulationPdfLabels {
   dateRange: string;
   strategy: string;
   riskFreeRate: string;
+  cvarConfidence: string;
+  viewConfidence: string;
   targetReturn: string;
   targetRisk: string;
   fullInvestment: string;
@@ -460,17 +463,38 @@ function drawParameters(
   // target risk) are one choice, so they travel together.
   if (fields.strategy) {
     entries.push([labels.strategy, input.strategyLabel]);
-    if (params.strategy === "max-sharpe") {
+    if (strategyUsesParam(params.strategy, "risk-free-rate")) {
       entries.push([labels.riskFreeRate, formatPercent(params.riskFreeRate, 3)]);
     }
     if (
-      params.strategy === "target-return" &&
+      strategyUsesParam(params.strategy, "target-return") &&
       params.targetReturn !== undefined
     ) {
       entries.push([labels.targetReturn, formatPercent(params.targetReturn, 1)]);
     }
-    if (params.strategy === "target-risk" && params.targetRisk !== undefined) {
+    if (
+      strategyUsesParam(params.strategy, "target-risk") &&
+      params.targetRisk !== undefined
+    ) {
       entries.push([labels.targetRisk, formatPercent(params.targetRisk, 1)]);
+    }
+    if (
+      strategyUsesParam(params.strategy, "cvar-confidence") &&
+      params.cvarConfidence !== undefined
+    ) {
+      entries.push([
+        labels.cvarConfidence,
+        formatPercent(params.cvarConfidence, 1),
+      ]);
+    }
+    if (
+      strategyUsesParam(params.strategy, "view-confidence") &&
+      params.viewConfidence !== undefined
+    ) {
+      entries.push([
+        labels.viewConfidence,
+        formatPercent(params.viewConfidence, 0),
+      ]);
     }
   }
 

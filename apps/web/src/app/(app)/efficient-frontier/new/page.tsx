@@ -11,6 +11,7 @@ import {
   ApiError,
   OptimizationStrategy,
   OPTIMIZATION_STRATEGIES,
+  strategyUsesParam,
   RISK_FREE_INSTRUMENT_IDS,
   RiskFreeSource,
   SimulationParams,
@@ -63,6 +64,8 @@ function NewOptimizationForm() {
   const [strategy, setStrategy] = useState<OptimizationStrategy>(initialState.strategy);
   const [targetReturn, setTargetReturn] = useState(initialState.targetReturn);
   const [targetRisk, setTargetRisk] = useState(initialState.targetRisk);
+  const [cvarConfidence, setCvarConfidence] = useState(initialState.cvarConfidence);
+  const [viewConfidence, setViewConfidence] = useState(initialState.viewConfidence);
   const [riskFreeRate, setRiskFreeRate] = useState(initialState.riskFreeRate);
   // The rate is stored as a decimal but typed as a percentage, so the raw text
   // lives alongside it to keep intermediate states ("", "5.") editable.
@@ -114,6 +117,8 @@ function NewOptimizationForm() {
           strategy,
           targetReturn,
           targetRisk,
+          cvarConfidence,
+          viewConfidence,
           riskFreeRate,
           riskFreeSource,
           enforceFullInvestment,
@@ -127,7 +132,7 @@ function NewOptimizationForm() {
         },
         currentYear
       ).toString(),
-    [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, riskFreeSource, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]
+    [assets, dateRange, strategy, targetReturn, targetRisk, cvarConfidence, viewConfidence, riskFreeRate, riskFreeSource, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]
   );
 
   useEffect(() => {
@@ -150,8 +155,14 @@ function NewOptimizationForm() {
       })),
     dateRange,
     strategy,
-    targetReturn: strategy === "target-return" ? targetReturn : undefined,
-    targetRisk: strategy === "target-risk" ? targetRisk : undefined,
+    targetReturn: strategyUsesParam(strategy, "target-return") ? targetReturn : undefined,
+    targetRisk: strategyUsesParam(strategy, "target-risk") ? targetRisk : undefined,
+    cvarConfidence: strategyUsesParam(strategy, "cvar-confidence")
+      ? cvarConfidence
+      : undefined,
+    viewConfidence: strategyUsesParam(strategy, "view-confidence")
+      ? viewConfidence
+      : undefined,
     riskFreeRate,
     enforceFullInvestment,
     allowShortSelling,
@@ -161,7 +172,7 @@ function NewOptimizationForm() {
     wMax,
     assetLimits,
     showFrontier,
-  }), [assets, dateRange, strategy, targetReturn, targetRisk, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]);
+  }), [assets, dateRange, strategy, targetReturn, targetRisk, cvarConfidence, viewConfidence, riskFreeRate, enforceFullInvestment, allowShortSelling, useLeverage, maxLeverage, assetConstraints, wMax, assetLimits, showFrontier]);
 
   const selectedTickers = useMemo(
     () => assets.map((a) => a.ticker).filter(Boolean),
@@ -250,9 +261,15 @@ function NewOptimizationForm() {
       wMax: assetConstraints ? wMax : 1,
       wMinPerAsset: weightBounds?.wMinPerAsset,
       wMaxPerAsset: weightBounds?.wMaxPerAsset,
-      riskFreeRate: strategy === "max-sharpe" ? riskFreeRate : 0,
-      targetReturn: strategy === "target-return" ? targetReturn : undefined,
-      targetRisk: strategy === "target-risk" ? targetRisk : undefined,
+      riskFreeRate: strategyUsesParam(strategy, "risk-free-rate") ? riskFreeRate : 0,
+      targetReturn: strategyUsesParam(strategy, "target-return") ? targetReturn : undefined,
+      targetRisk: strategyUsesParam(strategy, "target-risk") ? targetRisk : undefined,
+      cvarConfidence: strategyUsesParam(strategy, "cvar-confidence")
+        ? cvarConfidence
+        : undefined,
+      viewConfidence: strategyUsesParam(strategy, "view-confidence")
+        ? viewConfidence
+        : undefined,
       startDate,
       endDate,
       enforceFullInvestment,
@@ -497,6 +514,42 @@ function NewOptimizationForm() {
                             {t("strategyInflectionText")}
                           </span>
                         </li>
+                        <li>
+                          <span className="font-medium">{t("strategyRiskParityLabel")}</span>{" "}
+                          <span className="text-muted-foreground">
+                            {t("strategyRiskParityText")}
+                          </span>
+                        </li>
+                        <li>
+                          <span className="font-medium">{t("strategyBlackLittermanLabel")}</span>{" "}
+                          <span className="text-muted-foreground">
+                            {t("strategyBlackLittermanText")}
+                          </span>
+                        </li>
+                        <li>
+                          <span className="font-medium">{t("strategyHrpLabel")}</span>{" "}
+                          <span className="text-muted-foreground">
+                            {t("strategyHrpText")}
+                          </span>
+                        </li>
+                        <li>
+                          <span className="font-medium">{t("strategyMaxDiversificationLabel")}</span>{" "}
+                          <span className="text-muted-foreground">
+                            {t("strategyMaxDiversificationText")}
+                          </span>
+                        </li>
+                        <li>
+                          <span className="font-medium">{t("strategyCvarLabel")}</span>{" "}
+                          <span className="text-muted-foreground">
+                            {t("strategyCvarText")}
+                          </span>
+                        </li>
+                        <li>
+                          <span className="font-medium">{t("strategyEqualWeightLabel")}</span>{" "}
+                          <span className="text-muted-foreground">
+                            {t("strategyEqualWeightText")}
+                          </span>
+                        </li>
                       </ul>
                     </div>
                     <Popover.Arrow className="fill-border" />
@@ -519,7 +572,7 @@ function NewOptimizationForm() {
               {currentStrategy ? tStrategies(`${currentStrategy.value}.description`) : null}
             </p>
 
-            {strategy === "target-return" && (
+            {strategyUsesParam(strategy, "target-return") && (
               <div className="mt-3">
                 <label className="mb-1 block text-xs text-muted-foreground">
                   {t("targetReturnSlider", { value: (targetReturn * 100).toFixed(1) })}
@@ -536,7 +589,7 @@ function NewOptimizationForm() {
               </div>
             )}
 
-            {strategy === "target-risk" && (
+            {strategyUsesParam(strategy, "target-risk") && (
               <div className="mt-3">
                 <div className="mb-1 flex items-center gap-1">
                   <label className="text-xs text-muted-foreground">
@@ -587,7 +640,52 @@ function NewOptimizationForm() {
               </div>
             )}
 
-            {strategy === "max-sharpe" && (
+            {strategyUsesParam(strategy, "cvar-confidence") && (
+              <div className="mt-3">
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  {t("cvarConfidenceSlider", {
+                    value: (cvarConfidence * 100).toFixed(1),
+                    tail: ((1 - cvarConfidence) * 100).toFixed(1),
+                  })}
+                </label>
+                <input
+                  type="range"
+                  min={0.8}
+                  max={0.995}
+                  step={0.005}
+                  value={cvarConfidence}
+                  onChange={(e) => setCvarConfidence(parseFloat(e.target.value))}
+                  className="w-full accent-primary"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("cvarConfidenceHelp")}
+                </p>
+              </div>
+            )}
+
+            {strategyUsesParam(strategy, "view-confidence") && (
+              <div className="mt-3">
+                <label className="mb-1 block text-xs text-muted-foreground">
+                  {t("viewConfidenceSlider", {
+                    value: (viewConfidence * 100).toFixed(0),
+                  })}
+                </label>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={viewConfidence}
+                  onChange={(e) => setViewConfidence(parseFloat(e.target.value))}
+                  className="w-full accent-primary"
+                />
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("viewConfidenceHelp")}
+                </p>
+              </div>
+            )}
+
+            {strategyUsesParam(strategy, "risk-free-rate") && (
               <div className="mt-3">
                 <label
                   htmlFor="risk-free-source"

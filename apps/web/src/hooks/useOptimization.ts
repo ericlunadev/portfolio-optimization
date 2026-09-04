@@ -13,6 +13,8 @@ export function useOptimization(
     riskFreeRate?: number;
     targetReturn?: number;
     targetRisk?: number;
+    cvarConfidence?: number;
+    viewConfidence?: number;
     startDate?: string;
     endDate?: string;
     enforceFullInvestment?: boolean;
@@ -31,6 +33,8 @@ export function useOptimization(
       options.riskFreeRate,
       options.targetReturn,
       options.targetRisk,
+      options.cvarConfidence,
+      options.viewConfidence,
       options.startDate,
       options.endDate,
       options.enforceFullInvestment,
