@@ -22,8 +22,16 @@ import {
   BENCHMARKS,
   benchmarkTickers,
   buildWeightedSeries,
+  customBenchmarkDefinition,
   findBenchmark,
+  parseCustomBenchmarkId,
+  resolveBenchmarkComponents,
+  type BenchmarkDefinition,
 } from "../../lib/benchmarks.js";
+import customBenchmarkRoutes from "./custom-benchmarks.js";
+import { db } from "../../db/index.js";
+import { customBenchmarks } from "../../db/schema.js";
+import { eq } from "drizzle-orm";
 
 const optimization = new Hono();
 
@@ -592,16 +600,48 @@ optimization.post(
   }
 );
 
+optimization.route("/custom-benchmarks", customBenchmarkRoutes);
+
+/** The user's own benchmarks, skipping any row whose stored legs are unusable. */
+async function userBenchmarkDefinitions(userId: string): Promise<BenchmarkDefinition[]> {
+  const rows = await db
+    .select()
+    .from(customBenchmarks)
+    .where(eq(customBenchmarks.userId, userId));
+
+  return rows.flatMap((row) => {
+    const definition = customBenchmarkDefinition(row);
+    return definition ? [definition] : [];
+  });
+}
+
 // GET /api/optimization/benchmarks - Catalog of reference portfolios to compare against
-optimization.get("/benchmarks", (c) => {
+optimization.get("/benchmarks", async (c) => {
+  const user = c.get("user");
+  const definitions = [...BENCHMARKS, ...(await userBenchmarkDefinitions(user.id))];
+
   return c.json({
-    benchmarks: BENCHMARKS.map((benchmark) => ({
+    benchmarks: definitions.map((benchmark) => ({
       id: benchmark.id,
       category: benchmark.category,
+      // Both are empty for the equal-weight benchmark, whose legs are the
+      // simulation's own assets and so are only known once a comparison is
+      // requested.
       tickers: benchmark.components.map((component) => component.ticker),
+      // Full legs, so the editor can reopen a custom benchmark without a
+      // second round trip for the same rows.
+      components: benchmark.components,
+      name: benchmark.name ?? null,
     })),
   });
 });
+
+/**
+ * Ceiling on one comparison request. The web app caps the picker well below
+ * this; the bound here just keeps a hand-rolled request from asking for a
+ * hundred price series at once.
+ */
+const MAX_COMPARED_BENCHMARKS = 24;
 
 // POST /api/optimization/benchmark-comparison - Measure a portfolio against selected benchmarks
 optimization.post(
@@ -609,7 +649,7 @@ optimization.post(
   zValidator(
     "json",
     z.object({
-      benchmarks: z.array(z.string()).max(BENCHMARKS.length),
+      benchmarks: z.array(z.string()).max(MAX_COMPARED_BENCHMARKS),
       tickers: z.array(z.string()).min(1),
       weights: z.array(z.number()),
       start_date: z.string().optional(),
@@ -630,15 +670,32 @@ optimization.post(
     const period2 = end_date || defaults.period2;
 
     // Unknown ids are dropped rather than rejected: a saved simulation may
-    // still name a benchmark that has since left the catalog.
-    const definitions = benchmarks
-      .map(findBenchmark)
-      .filter((definition): definition is NonNullable<typeof definition> => !!definition);
+    // still name a benchmark that has since left the catalog, or a custom one
+    // its author has since deleted.
+    const user = c.get("user");
+    const customById = benchmarks.some((id) => parseCustomBenchmarkId(id))
+      ? new Map(
+          (await userBenchmarkDefinitions(user.id)).map((definition) => [
+            definition.id,
+            definition,
+          ])
+        )
+      : new Map<string, BenchmarkDefinition>();
+
+    // Resolved up front so the legs used to price a benchmark are the same ones
+    // reported back as its tickers.
+    const resolved = benchmarks.flatMap((id) => {
+      const definition = customById.get(id) ?? findBenchmark(id);
+      if (!definition) return [];
+      const components = resolveBenchmarkComponents(definition, tickers);
+      if (components.length === 0) return [];
+      return [{ ...definition, components }];
+    });
 
     // The portfolio and every benchmark are priced over the same window and
     // through the same math, so the figures on both sides are comparable.
     const pricesByTicker = await fetchTickerPrices(
-      [...new Set([...tickers, ...benchmarkTickers(definitions)])],
+      [...new Set([...tickers, ...benchmarkTickers(resolved)])],
       period1,
       period2
     );
@@ -650,7 +707,7 @@ optimization.post(
     );
 
     const unavailable: string[] = [];
-    const comparisons = definitions.flatMap((definition) => {
+    const comparisons = resolved.flatMap((definition) => {
       const series = buildWeightedSeries(
         definition.components,
         pricesByTicker,
@@ -666,6 +723,7 @@ optimization.post(
         {
           id: definition.id,
           category: definition.category,
+          name: definition.name ?? null,
           tickers: definition.components.map((component) => component.ticker),
           expected_return: series.expectedReturn,
           volatility: series.volatility,

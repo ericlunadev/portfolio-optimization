@@ -332,7 +332,9 @@
     "category": {
       "equity": "Equity indices",
       "global": "Global",
-      "diversified": "Diversified"
+      "diversified": "Diversified",
+      "portfolio": "Your portfolio",
+      "custom": "Your benchmarks"
     },
     "name": {
       "sp500": "S&P 500",
@@ -348,7 +350,9 @@
       "classic-60-40": "60/40 Portfolio",
       "us-bonds": "US Bonds",
       "gold": "Gold",
-      "bitcoin": "Bitcoin"
+      "bitcoin": "Bitcoin",
+      "equal-weight": "Equal weight (1/N)",
+      "sp500-equal-weight": "S&P 500 Equal Weight"
     },
     "empty": "Pick one or more benchmarks to compare this portfolio against.",
     "loading": "Loading benchmarks...",
@@ -364,7 +368,34 @@
     "growthTitle": "Cumulative performance",
     "growthSubtitle": "From {start} to {end}, rebalanced daily",
     "pdfSubtitle": "The portfolio against the selected benchmarks",
-    "note": "Benchmark figures use the same window and the same annualization as the portfolio's. They exclude commissions, taxes and rebalancing costs."
+    "note": "Benchmark figures use the same window and the same annualization as the portfolio's. They exclude commissions, taxes and rebalancing costs.",
+    "equalWeightHint": "Your own assets, weighted equally",
+    "custom": {
+      "add": "New benchmark",
+      "empty": "Build your own benchmark from any combination of symbols.",
+      "editAria": "Edit {name}",
+      "deleteAria": "Delete {name}",
+      "createTitle": "New benchmark",
+      "editTitle": "Edit benchmark",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. My reference portfolio",
+      "legsLabel": "Components",
+      "addLeg": "Add component",
+      "removeLeg": "Remove component",
+      "weightAria": "Weight of {ticker}",
+      "duplicateTicker": "This symbol is already in the benchmark.",
+      "total": "Total: {total}",
+      "underInvested": "Below 100% — the remainder is held as cash at 0%.",
+      "levered": "Above 100% — this benchmark is levered.",
+      "tickerPlaceholder": "Search or type a symbol",
+      "useSymbolAsTyped": "Use this symbol as typed",
+      "clearTicker": "Clear symbol",
+      "unpricedTickers": "No price data for: {tickers}. Check the symbols and try again.",
+      "limitReached": "You have reached the maximum number of custom benchmarks.",
+      "saveFailed": "The benchmark could not be saved. Try again in a moment.",
+      "cancel": "Cancel",
+      "save": "Save"
+    }
   },
   "Pdf": {
     "documentTitle": "Portfolio Optimization Report",
