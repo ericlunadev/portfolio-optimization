@@ -43,6 +43,41 @@
       "when": 1779391564915,
       "tag": "0005_curly_lily_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1788383081327,
+      "tag": "0006_organizations_nullable_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788383225245,
+      "tag": "0007_backfill_organizations",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788383333155,
+      "tag": "0008_wallet_org_key_add",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1788383350751,
+      "tag": "0009_backfill_wallet_organizations",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788383428215,
+      "tag": "0010_organizations_not_null",
+      "breakpoints": true
     }
   ]
 }

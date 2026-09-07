@@ -7,6 +7,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { WalletCard } from "@/components/billing/WalletCard";
 import { PackagePicker } from "@/components/billing/PackagePicker";
 import { LedgerTable } from "@/components/billing/LedgerTable";
+import { UsagePanel } from "./UsagePanel";
+import { useAvailableRails } from "./queries";
 
 function StatusBanner() {
   const t = useTranslations("Billing");
@@ -41,6 +43,9 @@ function StatusBanner() {
 
 export default function BillingPage() {
   const t = useTranslations("Billing");
+  // Which rails this tenant may pay with (PLAN Task 2.7). The picker renders a
+  // tab per rail; the server refuses a gated one regardless of what is shown.
+  const { rails } = useAvailableRails();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -57,11 +62,18 @@ export default function BillingPage() {
 
       <section className="space-y-3">
         <h2 className="font-display text-xl tracking-tight">{t("buyTitle")}</h2>
-        <PackagePicker />
+        <PackagePicker rails={rails} />
       </section>
+
+      {/* Owner only — the panel renders nothing for a member (PLAN Task 2.4). */}
+      <UsagePanel />
 
       <section className="space-y-3">
         <h2 className="font-display text-xl tracking-tight">{t("ledgerTitle")}</h2>
+        {/* The balance above is the organization's; this history is the reader's
+            own. Said out loud, because the two not adding up is otherwise read
+            as a bug rather than as the deliberate split of PLAN Task 2.4. */}
+        <p className="text-sm text-muted-foreground">{t("ledgerScopeNote")}</p>
         <LedgerTable />
       </section>
     </div>
