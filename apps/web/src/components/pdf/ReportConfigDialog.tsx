@@ -124,240 +124,250 @@ export function ReportConfigDialog({
               />
             </Dialog.Overlay>
 
-            <Dialog.Content asChild>
-              <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 12, scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 320, damping: 30 }}
-                className="fixed left-1/2 top-1/2 z-50 flex max-h-[88vh] w-[calc(100vw-2rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lg dark:border-border/50 dark:shadow-2xl"
-              >
-                <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4 dark:border-border/50">
-                  <div>
-                    <Dialog.Title className="font-display text-lg">
-                      {t("title")}
-                    </Dialog.Title>
-                    <Dialog.Description className="mt-0.5 text-xs text-muted-foreground">
-                      {t("description")}
-                    </Dialog.Description>
-                  </div>
-                  <Dialog.Close className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                    <X className="h-4 w-4" />
-                    <span className="sr-only">{t("cancel")}</span>
-                  </Dialog.Close>
-                </div>
-
-                <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor={titleFieldId}
-                      className="text-sm font-medium"
-                    >
-                      {t("reportTitleLabel")}
-                    </label>
-                    <input
-                      id={titleFieldId}
-                      type="text"
-                      value={draft.title}
-                      placeholder={defaultTitle}
-                      onChange={(event) =>
-                        setDraft((current) => ({
-                          ...current,
-                          title: event.target.value,
-                        }))
-                      }
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
-                    />
+            {/*
+              The card is centred by this flex layer, not by a `-translate-1/2`
+              pair: Framer Motion writes the animated `y`/`scale` into an inline
+              `transform`, which outranks the class-based one and would drop the
+              centring offsets, leaving the card hanging off the bottom-right.
+              The layer stays `pointer-events-none` so a click on the scrim
+              still reaches the overlay and dismisses the dialog.
+            */}
+            <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4">
+              <Dialog.Content asChild>
+                <motion.div
+                  initial={{ opacity: 0, y: 12, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 30 }}
+                  className="pointer-events-auto flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-lg dark:border-border/50 dark:shadow-2xl"
+                >
+                  <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-4 dark:border-border/50">
+                    <div>
+                      <Dialog.Title className="font-display text-lg">
+                        {t("title")}
+                      </Dialog.Title>
+                      <Dialog.Description className="mt-0.5 text-xs text-muted-foreground">
+                        {t("description")}
+                      </Dialog.Description>
+                    </div>
+                    <Dialog.Close className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                      <X className="h-4 w-4" />
+                      <span className="sr-only">{t("cancel")}</span>
+                    </Dialog.Close>
                   </div>
 
-                  <SectionBlock
-                    label={t("sections.metrics")}
-                    hint={t("sections.metricsHint")}
-                    checked={draft.sections.metrics}
-                    onCheckedChange={(value) => setSection("metrics", value)}
-                  >
-                    <FieldGrid>
-                      {REPORT_METRIC_KEYS.map((key) => (
-                        <FieldCheckbox
-                          key={key}
-                          label={metricLabels[key]}
-                          checked={draft.metrics[key]}
-                          onCheckedChange={(value) =>
-                            setDraft((current) => ({
-                              ...current,
-                              metrics: { ...current.metrics, [key]: value },
-                            }))
-                          }
-                        />
-                      ))}
-                    </FieldGrid>
-                    <FieldCheckbox
-                      label={t("metrics.confidenceInterval")}
-                      checked={draft.confidenceInterval}
-                      disabled={!draft.metrics.expectedReturn}
-                      onCheckedChange={(value) =>
-                        setDraft((current) => ({
-                          ...current,
-                          confidenceInterval: value,
-                        }))
-                      }
-                    />
-                  </SectionBlock>
+                  <div className="flex-1 space-y-3 overflow-y-auto px-6 py-5">
+                    <div className="space-y-1.5">
+                      <label
+                        htmlFor={titleFieldId}
+                        className="text-sm font-medium"
+                      >
+                        {t("reportTitleLabel")}
+                      </label>
+                      <input
+                        id={titleFieldId}
+                        type="text"
+                        value={draft.title}
+                        placeholder={defaultTitle}
+                        onChange={(event) =>
+                          setDraft((current) => ({
+                            ...current,
+                            title: event.target.value,
+                          }))
+                        }
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none transition-colors placeholder:text-muted-foreground/70 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+                      />
+                    </div>
 
-                  <SectionBlock
-                    label={t("sections.parameters")}
-                    hint={t("sections.parametersHint")}
-                    checked={draft.sections.parameters}
-                    onCheckedChange={(value) => setSection("parameters", value)}
-                  >
-                    <FieldGrid>
-                      {REPORT_PARAMETER_KEYS.map((key) => (
-                        <FieldCheckbox
-                          key={key}
-                          label={parameterLabels[key]}
-                          checked={draft.parameters[key]}
-                          onCheckedChange={(value) =>
-                            setDraft((current) => ({
-                              ...current,
-                              parameters: {
-                                ...current.parameters,
-                                [key]: value,
-                              },
-                            }))
-                          }
-                        />
-                      ))}
-                    </FieldGrid>
-                  </SectionBlock>
-
-                  <SectionBlock
-                    label={t("sections.allocation")}
-                    hint={t("sections.allocationHint")}
-                    checked={draft.sections.allocation}
-                    onCheckedChange={(value) => setSection("allocation", value)}
-                  >
-                    <FieldGrid>
-                      {allocationColumnKeys.map((key) => (
-                        <FieldCheckbox
-                          key={key}
-                          label={allocationLabels[key]}
-                          checked={draft.allocationColumns[key]}
-                          onCheckedChange={(value) =>
-                            setDraft((current) => ({
-                              ...current,
-                              allocationColumns: {
-                                ...current.allocationColumns,
-                                [key]: value,
-                              },
-                            }))
-                          }
-                        />
-                      ))}
-                    </FieldGrid>
-                    <p className="text-[11px] text-muted-foreground">
-                      {t("allocationNote")}
-                    </p>
-                  </SectionBlock>
-
-                  <SectionBlock
-                    label={t("sections.risk")}
-                    hint={t("sections.riskHint")}
-                    checked={draft.sections.risk}
-                    onCheckedChange={(value) => setSection("risk", value)}
-                  >
-                    <FieldGrid>
-                      {REPORT_RISK_HORIZON_KEYS.map((key) => (
-                        <FieldCheckbox
-                          key={key}
-                          label={horizonLabels[key]}
-                          checked={draft.riskHorizons[key]}
-                          onCheckedChange={(value) =>
-                            setDraft((current) => ({
-                              ...current,
-                              riskHorizons: {
-                                ...current.riskHorizons,
-                                [key]: value,
-                              },
-                            }))
-                          }
-                        />
-                      ))}
-                    </FieldGrid>
-                  </SectionBlock>
-
-                  {availability.comparison && (
                     <SectionBlock
-                      label={t("sections.comparison")}
-                      hint={t("sections.comparisonHint")}
-                      checked={draft.sections.comparison}
-                      onCheckedChange={(value) =>
-                        setSection("comparison", value)
-                      }
-                    />
-                  )}
-
-                  {charts.length > 0 && (
-                    <SectionBlock
-                      label={t("sections.charts")}
-                      hint={t("sections.chartsHint")}
-                      checked={draft.sections.charts}
-                      onCheckedChange={(value) => setSection("charts", value)}
+                      label={t("sections.metrics")}
+                      hint={t("sections.metricsHint")}
+                      checked={draft.sections.metrics}
+                      onCheckedChange={(value) => setSection("metrics", value)}
                     >
-                      <div className="space-y-2">
-                        {charts.map((chart) => (
+                      <FieldGrid>
+                        {REPORT_METRIC_KEYS.map((key) => (
                           <FieldCheckbox
-                            key={chart.key}
-                            label={chart.title}
-                            checked={isChartSelected(draft, chart.key)}
+                            key={key}
+                            label={metricLabels[key]}
+                            checked={draft.metrics[key]}
                             onCheckedChange={(value) =>
-                              setDraft((current) =>
-                                setChartSelected(current, chart.key, value)
-                              )
+                              setDraft((current) => ({
+                                ...current,
+                                metrics: { ...current.metrics, [key]: value },
+                              }))
                             }
                           />
                         ))}
-                      </div>
+                      </FieldGrid>
+                      <FieldCheckbox
+                        label={t("metrics.confidenceInterval")}
+                        checked={draft.confidenceInterval}
+                        disabled={!draft.metrics.expectedReturn}
+                        onCheckedChange={(value) =>
+                          setDraft((current) => ({
+                            ...current,
+                            confidenceInterval: value,
+                          }))
+                        }
+                      />
                     </SectionBlock>
-                  )}
-                </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4 dark:border-border/50">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setDraft((current) => ({
-                        ...defaultReportConfig(),
-                        title: current.title,
-                      }))
-                    }
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    {t("reset")}
-                  </button>
+                    <SectionBlock
+                      label={t("sections.parameters")}
+                      hint={t("sections.parametersHint")}
+                      checked={draft.sections.parameters}
+                      onCheckedChange={(value) => setSection("parameters", value)}
+                    >
+                      <FieldGrid>
+                        {REPORT_PARAMETER_KEYS.map((key) => (
+                          <FieldCheckbox
+                            key={key}
+                            label={parameterLabels[key]}
+                            checked={draft.parameters[key]}
+                            onCheckedChange={(value) =>
+                              setDraft((current) => ({
+                                ...current,
+                                parameters: {
+                                  ...current.parameters,
+                                  [key]: value,
+                                },
+                              }))
+                            }
+                          />
+                        ))}
+                      </FieldGrid>
+                    </SectionBlock>
 
-                  <div className="flex items-center gap-2">
-                    {isEmpty && (
-                      <p className="text-xs text-rose-500 dark:text-rose-400">
-                        {t("emptyWarning")}
+                    <SectionBlock
+                      label={t("sections.allocation")}
+                      hint={t("sections.allocationHint")}
+                      checked={draft.sections.allocation}
+                      onCheckedChange={(value) => setSection("allocation", value)}
+                    >
+                      <FieldGrid>
+                        {allocationColumnKeys.map((key) => (
+                          <FieldCheckbox
+                            key={key}
+                            label={allocationLabels[key]}
+                            checked={draft.allocationColumns[key]}
+                            onCheckedChange={(value) =>
+                              setDraft((current) => ({
+                                ...current,
+                                allocationColumns: {
+                                  ...current.allocationColumns,
+                                  [key]: value,
+                                },
+                              }))
+                            }
+                          />
+                        ))}
+                      </FieldGrid>
+                      <p className="text-[11px] text-muted-foreground">
+                        {t("allocationNote")}
                       </p>
+                    </SectionBlock>
+
+                    <SectionBlock
+                      label={t("sections.risk")}
+                      hint={t("sections.riskHint")}
+                      checked={draft.sections.risk}
+                      onCheckedChange={(value) => setSection("risk", value)}
+                    >
+                      <FieldGrid>
+                        {REPORT_RISK_HORIZON_KEYS.map((key) => (
+                          <FieldCheckbox
+                            key={key}
+                            label={horizonLabels[key]}
+                            checked={draft.riskHorizons[key]}
+                            onCheckedChange={(value) =>
+                              setDraft((current) => ({
+                                ...current,
+                                riskHorizons: {
+                                  ...current.riskHorizons,
+                                  [key]: value,
+                                },
+                              }))
+                            }
+                          />
+                        ))}
+                      </FieldGrid>
+                    </SectionBlock>
+
+                    {availability.comparison && (
+                      <SectionBlock
+                        label={t("sections.comparison")}
+                        hint={t("sections.comparisonHint")}
+                        checked={draft.sections.comparison}
+                        onCheckedChange={(value) =>
+                          setSection("comparison", value)
+                        }
+                      />
                     )}
-                    <Dialog.Close className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-                      {t("cancel")}
-                    </Dialog.Close>
+
+                    {charts.length > 0 && (
+                      <SectionBlock
+                        label={t("sections.charts")}
+                        hint={t("sections.chartsHint")}
+                        checked={draft.sections.charts}
+                        onCheckedChange={(value) => setSection("charts", value)}
+                      >
+                        <div className="space-y-2">
+                          {charts.map((chart) => (
+                            <FieldCheckbox
+                              key={chart.key}
+                              label={chart.title}
+                              checked={isChartSelected(draft, chart.key)}
+                              onCheckedChange={(value) =>
+                                setDraft((current) =>
+                                  setChartSelected(current, chart.key, value)
+                                )
+                              }
+                            />
+                          ))}
+                        </div>
+                      </SectionBlock>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4 dark:border-border/50">
                     <button
                       type="button"
-                      disabled={isEmpty}
-                      onClick={() => onGenerate(draft)}
-                      className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() =>
+                        setDraft((current) => ({
+                          ...defaultReportConfig(),
+                          title: current.title,
+                        }))
+                      }
+                      className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
                     >
-                      <FileDown className="h-4 w-4" />
-                      {t("generate")}
+                      <RotateCcw className="h-3.5 w-3.5" />
+                      {t("reset")}
                     </button>
+
+                    <div className="flex items-center gap-2">
+                      {isEmpty && (
+                        <p className="text-xs text-rose-500 dark:text-rose-400">
+                          {t("emptyWarning")}
+                        </p>
+                      )}
+                      <Dialog.Close className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+                        {t("cancel")}
+                      </Dialog.Close>
+                      <button
+                        type="button"
+                        disabled={isEmpty}
+                        onClick={() => onGenerate(draft)}
+                        className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        <FileDown className="h-4 w-4" />
+                        {t("generate")}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            </Dialog.Content>
+                </motion.div>
+              </Dialog.Content>
+            </div>
           </Dialog.Portal>
         )}
       </AnimatePresence>
