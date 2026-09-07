@@ -12,6 +12,7 @@ import {
   SimulationParams,
 } from "@/lib/api";
 import { formatWeightLimits, toWeightBounds } from "@/lib/asset-limits";
+import { correlationFromCovariance } from "@/lib/correlation";
 import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
@@ -106,6 +107,10 @@ export function MarkowitzResults({
     if (matrix.some((row) => row.length !== covarianceLabels.length)) return null;
     return matrix;
   }, [result.covariance_matrix, covarianceLabels.length]);
+  const correlationMatrix = useMemo(
+    () => (covarianceMatrix ? correlationFromCovariance(covarianceMatrix) : null),
+    [covarianceMatrix]
+  );
   const currentStrategy = OPTIMIZATION_STRATEGIES.find(
     (s) => s.value === params.strategy
   );
@@ -927,6 +932,27 @@ export function MarkowitzResults({
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 {t("covarianceMatrixNote")}
+              </p>
+            </div>
+          )}
+
+          {correlationMatrix && (
+            <div className="glass-card p-4 md:p-5">
+              <h3 className="mb-1 font-display text-lg">
+                {t("correlationMatrixTitle")}
+              </h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {t("correlationMatrixSubtitle")}
+              </p>
+              <MatrixTable
+                labels={covarianceLabels}
+                matrix={correlationMatrix}
+                formatValue={(v) => v.toFixed(2)}
+                colorScale
+                isCorrelation
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("correlationMatrixNote")}
               </p>
             </div>
           )}
