@@ -675,20 +675,40 @@ export interface RollingVolatilityResponse {
 }
 
 /**
- * Reference instruments the risk-free rate can be taken from, in the order the
- * picker lists them. `manual` lets the user type their own rate instead.
+ * Reference instruments the risk-free rate can be taken from, grouped by the
+ * currency they are denominated in — a rate only means something against a
+ * portfolio priced in the same currency, and the grouping is what stops a peso
+ * rate from reading as interchangeable with a dollar one. `manual` lets the
+ * user type their own rate instead.
  *
  * These ids mirror `RISK_FREE_INSTRUMENTS` on the API and are used as
  * translation keys, so the two lists must stay in sync.
  */
-export const RISK_FREE_INSTRUMENT_IDS = [
-  "us-t-bill-3m",
-  "us-treasury-5y",
-  "us-treasury-10y",
-  "us-treasury-30y",
+export const RISK_FREE_INSTRUMENT_GROUPS = [
+  {
+    currency: "USD",
+    ids: [
+      "us-t-bill-3m",
+      "us-treasury-2y",
+      "us-treasury-5y",
+      "us-treasury-10y",
+      "us-treasury-30y",
+      "ar-caucion-usd",
+    ],
+  },
+  {
+    currency: "ARS",
+    ids: ["ar-plazo-fijo-30d", "ar-caucion-ars"],
+  },
 ] as const;
 
-export type RiskFreeInstrumentId = (typeof RISK_FREE_INSTRUMENT_IDS)[number];
+export type RiskFreeCurrency = (typeof RISK_FREE_INSTRUMENT_GROUPS)[number]["currency"];
+
+export const RISK_FREE_INSTRUMENT_IDS = RISK_FREE_INSTRUMENT_GROUPS.flatMap(
+  (group) => group.ids
+) as readonly (typeof RISK_FREE_INSTRUMENT_GROUPS)[number]["ids"][number][];
+
+export type RiskFreeInstrumentId = (typeof RISK_FREE_INSTRUMENT_GROUPS)[number]["ids"][number];
 
 /** Where the risk-free rate came from: a reference instrument, or typed by hand. */
 export type RiskFreeSource = RiskFreeInstrumentId | "manual";
@@ -699,7 +719,9 @@ export function isRiskFreeInstrumentId(value: string): value is RiskFreeInstrume
 
 export interface RiskFreeRate {
   id: RiskFreeInstrumentId;
-  ticker: string;
+  currency: RiskFreeCurrency;
+  /** Where the rate was read from — a Yahoo ticker, or a "provider · series" label. */
+  source: string;
   /** Annualised yield as a decimal (0.0425 for 4.25%). */
   rate: number;
   /** ISO timestamp of the quote the rate was read from. */
