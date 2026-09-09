@@ -169,9 +169,17 @@
   },
   "RiskFreeInstruments": {
     "us-t-bill-3m": "Letra del Tesoro EE. UU. 3 meses",
+    "us-treasury-2y": "Bono del Tesoro EE. UU. 2 años",
     "us-treasury-5y": "Bono del Tesoro EE. UU. 5 años",
     "us-treasury-10y": "Bono del Tesoro EE. UU. 10 años",
-    "us-treasury-30y": "Bono del Tesoro EE. UU. 30 años"
+    "us-treasury-30y": "Bono del Tesoro EE. UU. 30 años",
+    "ar-caucion-usd": "Caución bursátil en dólares",
+    "ar-plazo-fijo-30d": "Plazo fijo 30 días",
+    "ar-caucion-ars": "Caución bursátil en pesos"
+  },
+  "RiskFreeCurrencies": {
+    "USD": "En dólares (USD)",
+    "ARS": "En pesos (ARS)"
   },
   "NewOptimization": {
     "signInTitle": "Inicia sesión para crear una optimización",
@@ -241,7 +249,7 @@
     "riskFreeSourceManual": "Manual",
     "riskFreeInstrumentOption": "{name} — {rate}%",
     "riskFreeRateInputAria": "Tasa libre de riesgo en porcentaje",
-    "riskFreeRateQuoteNote": "Rendimiento de {ticker} al {date}.",
+    "riskFreeRateQuoteNote": "Rendimiento de {source} al {date}.",
     "riskFreeRateManualNote": "Tasa introducida manualmente.",
     "riskFreeRatesLoading": "Cargando rendimientos actuales…",
     "riskFreeRatesUnavailable": "No se pudieron cargar los rendimientos; introduce la tasa manualmente.",

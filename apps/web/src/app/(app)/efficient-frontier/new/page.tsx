@@ -12,7 +12,7 @@ import {
   OptimizationStrategy,
   OPTIMIZATION_STRATEGIES,
   strategyUsesParam,
-  RISK_FREE_INSTRUMENT_IDS,
+  RISK_FREE_INSTRUMENT_GROUPS,
   RiskFreeSource,
   SimulationParams,
 } from "@/lib/api";
@@ -41,6 +41,7 @@ function NewOptimizationForm() {
   const tCommon = useTranslations("Common");
   const tBilling = useTranslations("Billing");
   const tInstruments = useTranslations("RiskFreeInstruments");
+  const tCurrencies = useTranslations("RiskFreeCurrencies");
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, isPending: isSessionPending } = authClient.useSession();
@@ -699,19 +700,23 @@ function NewOptimizationForm() {
                   onChange={(e) => setRiskFreeSource(e.target.value as RiskFreeSource)}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  {RISK_FREE_INSTRUMENT_IDS.map((id) => {
-                    const quoted = riskFreeRates?.find((rate) => rate.id === id);
-                    return (
-                      <option key={id} value={id} disabled={!quoted}>
-                        {quoted
-                          ? t("riskFreeInstrumentOption", {
-                              name: tInstruments(id),
-                              rate: percentFromRate(quoted.rate),
-                            })
-                          : tInstruments(id)}
-                      </option>
-                    );
-                  })}
+                  {RISK_FREE_INSTRUMENT_GROUPS.map((group) => (
+                    <optgroup key={group.currency} label={tCurrencies(group.currency)}>
+                      {group.ids.map((id) => {
+                        const quoted = riskFreeRates?.find((rate) => rate.id === id);
+                        return (
+                          <option key={id} value={id} disabled={!quoted}>
+                            {quoted
+                              ? t("riskFreeInstrumentOption", {
+                                  name: tInstruments(id),
+                                  rate: percentFromRate(quoted.rate),
+                                })
+                              : tInstruments(id)}
+                          </option>
+                        );
+                      })}
+                    </optgroup>
+                  ))}
                   <option value="manual">{t("riskFreeSourceManual")}</option>
                 </select>
 
@@ -747,7 +752,7 @@ function NewOptimizationForm() {
                   <p className="flex-1 text-xs text-muted-foreground">
                     {selectedRiskFreeInstrument
                       ? t("riskFreeRateQuoteNote", {
-                          ticker: selectedRiskFreeInstrument.ticker,
+                          source: selectedRiskFreeInstrument.source,
                           date: formatChartDate(selectedRiskFreeInstrument.asOf),
                         })
                       : isRiskFreeRatesPending

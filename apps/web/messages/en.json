@@ -169,9 +169,17 @@
   },
   "RiskFreeInstruments": {
     "us-t-bill-3m": "US 3-Month Treasury Bill",
+    "us-treasury-2y": "US 2-Year Treasury Note",
     "us-treasury-5y": "US 5-Year Treasury Note",
     "us-treasury-10y": "US 10-Year Treasury Note",
-    "us-treasury-30y": "US 30-Year Treasury Bond"
+    "us-treasury-30y": "US 30-Year Treasury Bond",
+    "ar-caucion-usd": "Argentine repo (caución) in dollars",
+    "ar-plazo-fijo-30d": "Argentine 30-day time deposit",
+    "ar-caucion-ars": "Argentine repo (caución) in pesos"
+  },
+  "RiskFreeCurrencies": {
+    "USD": "In dollars (USD)",
+    "ARS": "In pesos (ARS)"
   },
   "NewOptimization": {
     "signInTitle": "Sign in to create an optimization",
@@ -241,7 +249,7 @@
     "riskFreeSourceManual": "Manual",
     "riskFreeInstrumentOption": "{name} — {rate}%",
     "riskFreeRateInputAria": "Risk-free rate as a percentage",
-    "riskFreeRateQuoteNote": "{ticker} yield as of {date}.",
+    "riskFreeRateQuoteNote": "{source} yield as of {date}.",
     "riskFreeRateManualNote": "Manually entered rate.",
     "riskFreeRatesLoading": "Loading current yields…",
     "riskFreeRatesUnavailable": "Yields could not be loaded; enter the rate manually.",
