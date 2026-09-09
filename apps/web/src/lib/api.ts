@@ -236,6 +236,43 @@ export const api = {
     return handleResponse<BenchmarkComparisonResponse>(res);
   },
 
+  // The user's own benchmarks are read back as part of the catalog above, so
+  // there is no separate list call here.
+  async createCustomBenchmark(input: {
+    name: string;
+    components: CustomBenchmarkComponent[];
+  }) {
+    const res = await apiFetch(`${API_BASE}/optimization/custom-benchmarks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return handleResponse<CustomBenchmark>(res);
+  },
+
+  async updateCustomBenchmark(
+    id: string,
+    input: { name: string; components: CustomBenchmarkComponent[] }
+  ) {
+    const res = await apiFetch(
+      `${API_BASE}/optimization/custom-benchmarks/${customBenchmarkRowId(id)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      }
+    );
+    return handleResponse<CustomBenchmark>(res);
+  },
+
+  async deleteCustomBenchmark(id: string) {
+    const res = await apiFetch(
+      `${API_BASE}/optimization/custom-benchmarks/${customBenchmarkRowId(id)}`,
+      { method: "DELETE" }
+    );
+    return handleResponse<{ success: boolean }>(res);
+  },
+
   // Market data
   async getRiskFreeRates() {
     const res = await apiFetch(`${API_BASE}/market/risk-free-rates`);
@@ -544,14 +581,57 @@ export interface EfficientFrontierResponse {
 }
 
 // Benchmark Types
-export type BenchmarkCategory = "equity" | "global" | "diversified";
+export type BenchmarkCategory =
+  | "equity"
+  | "global"
+  | "diversified"
+  | "portfolio"
+  | "custom";
 
 export interface BenchmarkCatalogEntry {
   id: string;
   category: BenchmarkCategory;
-  /** Underlying symbols, shown as the subtitle of a benchmark's row. */
+  /**
+   * Underlying symbols, shown as the subtitle of a benchmark's row. Empty for
+   * the equal-weight benchmark, whose legs are the simulation's own assets.
+   */
   tickers: string[];
+  /** The full legs, so a custom benchmark can be reopened for editing. */
+  components: CustomBenchmarkComponent[];
+  /** Set only on user-authored benchmarks; built-in names come from i18n. */
+  name: string | null;
 }
+
+/** One leg of a user-authored benchmark. */
+export interface CustomBenchmarkComponent {
+  ticker: string;
+  weight: number;
+}
+
+export interface CustomBenchmark {
+  /** Already namespaced (`custom:<uuid>`), so it can be selected directly. */
+  id: string;
+  name: string;
+  components: CustomBenchmarkComponent[];
+}
+
+/** How many legs one custom benchmark may hold — mirrors the API's cap. */
+export const MAX_CUSTOM_BENCHMARK_COMPONENTS = 10;
+
+/** Matches the API's namespacing of user-authored benchmark ids. */
+const CUSTOM_BENCHMARK_PREFIX = "custom:";
+
+export function isCustomBenchmarkId(id: string): boolean {
+  return id.startsWith(CUSTOM_BENCHMARK_PREFIX);
+}
+
+/** The bare row id the REST paths take, from the namespaced id. */
+function customBenchmarkRowId(id: string): string {
+  return encodeURIComponent(id.slice(CUSTOM_BENCHMARK_PREFIX.length));
+}
+
+/** Id of the naive 1/N benchmark over the simulation's own assets. */
+export const EQUAL_WEIGHT_BENCHMARK_ID = "equal-weight";
 
 /** Performance of a portfolio or benchmark over the comparison window. */
 export interface BenchmarkPerformance {
@@ -568,7 +648,9 @@ export interface BenchmarkPerformance {
 export interface BenchmarkComparisonEntry extends BenchmarkPerformance {
   id: string;
   category: BenchmarkCategory;
+  /** The legs actually priced — resolved, so equal-weight lists real symbols. */
   tickers: string[];
+  name: string | null;
 }
 
 export interface BenchmarkComparisonResponse {

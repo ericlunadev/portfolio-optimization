@@ -335,7 +335,9 @@
     "category": {
       "equity": "Índices accionarios",
       "global": "Globales",
-      "diversified": "Diversificados"
+      "diversified": "Diversificados",
+      "portfolio": "Tu portafolio",
+      "custom": "Tus índices"
     },
     "name": {
       "sp500": "S&P 500",
@@ -351,7 +353,9 @@
       "classic-60-40": "Portafolio 60/40",
       "us-bonds": "Bonos EE. UU.",
       "gold": "Oro",
-      "bitcoin": "Bitcoin"
+      "bitcoin": "Bitcoin",
+      "equal-weight": "Peso igual (1/N)",
+      "sp500-equal-weight": "S&P 500 Equiponderado"
     },
     "empty": "Elige uno o más índices para comparar este portafolio.",
     "loading": "Cargando índices...",
@@ -367,7 +371,34 @@
     "growthTitle": "Rendimiento acumulado",
     "growthSubtitle": "Del {start} al {end}, con rebalanceo diario",
     "pdfSubtitle": "El portafolio frente a los índices seleccionados",
-    "note": "Las cifras de los índices se calculan con la misma ventana y la misma anualización que las del portafolio. No incluyen comisiones, impuestos ni costos de rebalanceo."
+    "note": "Las cifras de los índices se calculan con la misma ventana y la misma anualización que las del portafolio. No incluyen comisiones, impuestos ni costos de rebalanceo.",
+    "equalWeightHint": "Tus propios activos, con el mismo peso",
+    "custom": {
+      "add": "Nuevo índice",
+      "empty": "Crea tu propio índice de referencia con cualquier combinación de símbolos.",
+      "editAria": "Editar {name}",
+      "deleteAria": "Eliminar {name}",
+      "createTitle": "Nuevo índice de referencia",
+      "editTitle": "Editar índice de referencia",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "p. ej. Mi portafolio de referencia",
+      "legsLabel": "Componentes",
+      "addLeg": "Agregar componente",
+      "removeLeg": "Quitar componente",
+      "weightAria": "Peso de {ticker}",
+      "duplicateTicker": "Este símbolo ya está en el índice.",
+      "total": "Total: {total}",
+      "underInvested": "Menos de 100%: el resto se mantiene en efectivo al 0%.",
+      "levered": "Más de 100%: este índice está apalancado.",
+      "tickerPlaceholder": "Busca o escribe un símbolo",
+      "useSymbolAsTyped": "Usar este símbolo tal cual",
+      "clearTicker": "Quitar símbolo",
+      "unpricedTickers": "Sin datos de precios para: {tickers}. Revisa los símbolos e inténtalo de nuevo.",
+      "limitReached": "Has alcanzado el máximo de índices personalizados.",
+      "saveFailed": "No se pudo guardar el índice. Inténtalo de nuevo en un momento.",
+      "cancel": "Cancelar",
+      "save": "Guardar"
+    }
   },
   "Pdf": {
     "documentTitle": "Reporte de Optimización de Portafolio",

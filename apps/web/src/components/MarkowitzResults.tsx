@@ -21,7 +21,7 @@ import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
 import { MatrixTable } from "@/components/tables/MatrixTable";
 import { BenchmarkComparison } from "@/components/benchmarks/BenchmarkComparison";
-import { useBenchmarkComparison } from "@/hooks/useBenchmarks";
+import { useBenchmarkCatalog, useBenchmarkComparison } from "@/hooks/useBenchmarks";
 import { buildBenchmarkChartData } from "@/lib/benchmark-chart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
@@ -199,6 +199,9 @@ export function MarkowitzResults({
     { startDate, endDate, riskFreeRate: params.riskFreeRate }
   );
 
+  // Shared cache with the picker below, so naming a benchmark costs no request.
+  const { data: benchmarkCatalog } = useBenchmarkCatalog();
+
   const benchmarkColorById = useMemo(() => {
     const entries = selectedBenchmarks.map((id, i) => [
       id,
@@ -207,12 +210,18 @@ export function MarkowitzResults({
     return Object.fromEntries(entries) as Record<string, string>;
   }, [selectedBenchmarks, chartColors.benchmarks]);
 
-  // A benchmark added to the catalog without a translation yet falls back to
-  // its id rather than rendering next-intl's missing-key marker.
+  // A user-authored benchmark carries its own name, so the catalog is consulted
+  // first. A built-in one added without a translation yet falls back to its id
+  // rather than rendering next-intl's missing-key marker.
   const benchmarkName = useCallback(
-    (id: string) =>
-      tBenchmarks.has(`name.${id}`) ? tBenchmarks(`name.${id}`) : id,
-    [tBenchmarks]
+    (id: string) => {
+      const authored = benchmarkCatalog?.benchmarks.find(
+        (entry) => entry.id === id
+      )?.name;
+      if (authored) return authored;
+      return tBenchmarks.has(`name.${id}`) ? tBenchmarks(`name.${id}`) : id;
+    },
+    [tBenchmarks, benchmarkCatalog]
   );
 
   const benchmarkPoints = useMemo(() => {
