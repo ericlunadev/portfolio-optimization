@@ -3,7 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import { and, eq, desc } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { simulations } from "../../db/schema.js";
+import { simulationRuns, simulations } from "../../db/schema.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { toISOStringOrNow } from "../../lib/dates.js";
 
@@ -62,6 +62,49 @@ app.get("/:id", async (c) => {
     result: JSON.parse(row.result),
     createdAt: toISOStringOrNow(row.createdAt),
   });
+});
+
+// GET /api/simulations/:id/runs - Run history of a simulation, newest first
+app.get("/:id/runs", async (c) => {
+  const { id } = c.req.param();
+  const user = c.get("user");
+
+  const owned = await db.query.simulations.findFirst({
+    where: and(eq(simulations.id, id), eq(simulations.userId, user.id)),
+    columns: { id: true },
+  });
+  if (!owned) {
+    return c.json({ error: "Simulation not found" }, 404);
+  }
+
+  const rows = await db
+    .select()
+    .from(simulationRuns)
+    .where(eq(simulationRuns.simulationId, id))
+    .orderBy(desc(simulationRuns.createdAt))
+    .limit(100);
+
+  return c.json(
+    rows.map((row) => {
+      const params = JSON.parse(row.params);
+      const result = row.result ? JSON.parse(row.result) : null;
+      return {
+        id: row.id,
+        scheduleId: row.scheduleId,
+        status: row.status,
+        errorMessage: row.errorMessage,
+        dateRange: params.dateRange ?? null,
+        expectedReturn: result?.expected_return ?? null,
+        volatility: result?.volatility ?? null,
+        sharpeRatio: result?.sharpe_ratio ?? null,
+        weights: (result?.weights ?? []).map((w: { fund_name: string; weight: number }) => ({
+          ticker: w.fund_name,
+          weight: w.weight,
+        })),
+        createdAt: row.createdAt.toISOString(),
+      };
+    })
+  );
 });
 
 // POST /api/simulations - Save a new simulation

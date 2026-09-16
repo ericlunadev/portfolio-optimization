@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { runStrategy } from "../../lib/math/run-strategy.js";
+import { requiredTargetField, runStrategy } from "../../lib/math/run-strategy.js";
+import { validateAssetBounds } from "../../lib/math/bounds.js";
 import { OPTIMIZATION_STRATEGIES, type OptimizationStrategy } from "../../lib/math/strategies.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { correlationMatrix, normalCDF, stdDev, mean } from "../../lib/math/stats.js";
@@ -66,6 +67,28 @@ export interface OptimizeResponse {
     prob_neg_1y: number;
     prob_neg_2y: number;
   };
+}
+
+/**
+ * Why these params could never produce a portfolio, or `null` when they can.
+ * Callers check this before charging: an infeasible floor/cap combination or a
+ * target strategy with no target is a bad input, not a failed computation.
+ */
+export function optimizeParamsError(
+  params: OptimizeParams
+): { error: string; detail: string } | null {
+  const boundsError = validateAssetBounds(params);
+  if (boundsError) return boundsError;
+
+  const requiredField = requiredTargetField(params.strategy);
+  if (requiredField && params[requiredField] === undefined) {
+    return {
+      error: "missing_strategy_target",
+      detail: `${requiredField} is required for the ${params.strategy} strategy.`,
+    };
+  }
+
+  return null;
 }
 
 /**

@@ -50,8 +50,23 @@ const envSchema = z.object({
     .string()
     .default("https://cal.com/REPLACE_ME/advisor-30min"),
   ADVISOR_CALL_COST_CREDITS: z.coerce.number().int().positive().default(100),
+
+  // Shared secret for machine-to-machine calls (the Vercel cron trigger).
+  INTERNAL_API_SECRET: z.string().min(32).optional(),
 });
 
-export const env = envSchema.parse(process.env);
+export const env = envSchema
+  .superRefine((value, ctx) => {
+    // Refuse to boot rather than expose /api/internal with a guessable or
+    // missing secret.
+    if (process.env.NODE_ENV === "production" && !value.INTERNAL_API_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["INTERNAL_API_SECRET"],
+        message: "INTERNAL_API_SECRET is required in production",
+      });
+    }
+  })
+  .parse(process.env);
 
 export type Env = z.infer<typeof envSchema>;

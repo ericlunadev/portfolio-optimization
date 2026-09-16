@@ -6,7 +6,6 @@ import {
   findMaxSharpePortfolio,
   findMinVariancePortfolio,
 } from "../../lib/math/optimizer.js";
-import { requiredTargetField } from "../../lib/math/run-strategy.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { validateAssetBounds } from "../../lib/math/bounds.js";
 import { normalCDF, rollingStdDev } from "../../lib/math/stats.js";
@@ -27,6 +26,7 @@ import {
 import customBenchmarkRoutes from "./custom-benchmarks.js";
 import {
   getTickerAssumptions,
+  optimizeParamsError,
   optimizeRequestSchema,
   perAssetBoundSchema,
   runOptimization,
@@ -47,24 +47,12 @@ optimization.post(
   async (c) => {
     const body = c.req.valid("json");
 
-    // Validate the weight bounds before metering: an infeasible floor/cap
-    // combination is a bad request, and the user should not be charged for it.
-    const boundsError = validateAssetBounds(body);
-    if (boundsError) {
-      return c.json(boundsError, 400);
-    }
-
-    // Same for a strategy asked for without the target it needs: the request
-    // was never going to produce a portfolio, so it should not cost a credit.
-    const requiredField = requiredTargetField(body.strategy);
-    if (requiredField && body[requiredField] === undefined) {
-      return c.json(
-        {
-          error: "missing_strategy_target",
-          detail: `${requiredField} is required for the ${body.strategy} strategy.`,
-        },
-        400
-      );
+    // Reject inputs that could never produce a portfolio before metering: an
+    // infeasible floor/cap combination or a target strategy with no target is
+    // a bad request, and the user should not be charged for it.
+    const paramsError = optimizeParamsError(body);
+    if (paramsError) {
+      return c.json(paramsError, 400);
     }
 
     const user = c.get("user");
