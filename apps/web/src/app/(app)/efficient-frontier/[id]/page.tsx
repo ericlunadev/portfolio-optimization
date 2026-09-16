@@ -11,6 +11,7 @@ import {
   isDateRangeCurrent,
 } from "@/hooks/useSimulations";
 import { MarkowitzResults } from "@/components/MarkowitzResults";
+import { RunHistory } from "@/components/schedules/RunHistory";
 import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
 import { cn } from "@/lib/utils";
@@ -231,6 +232,8 @@ export default function SimulationDetailPage() {
         result={simulation.result}
         title={displayName}
       />
+
+      <RunHistory simulationId={simulation.id} />
     </div>
   );
 }
