@@ -40,3 +40,10 @@ services:
         sync: false
       - key: COINBASE_COMMERCE_WEBHOOK_SECRET
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      # Must match INTERNAL_API_SECRET on Vercel; the API refuses to start without it.
+      - key: INTERNAL_API_SECRET
+        sync: false

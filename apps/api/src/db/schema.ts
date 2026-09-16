@@ -242,6 +242,85 @@ export const customBenchmarks = sqliteTable(
   })
 );
 
+// ==================== SCHEDULED SIMULATIONS ====================
+
+/**
+ * A recurring re-run of one or more saved simulations, delivered as a single
+ * email digest. Each run replays a simulation's stored params with the end date
+ * moved to the current month (see `CRON.md`).
+ */
+export const simulationSchedules = sqliteTable(
+  "simulation_schedules",
+  {
+    id: text("id").primaryKey(), // UUID
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name"),
+    cadence: text("cadence").notNull(), // daily | weekly | monthly
+    /** 0 (Sunday) – 6 (Saturday); weekly only. */
+    dayOfWeek: integer("day_of_week"),
+    /** 1–28 only, so every month has the day; monthly only. */
+    dayOfMonth: integer("day_of_month"),
+    /** IANA zone the day boundaries are computed in. Not a delivery hour. */
+    timezone: text("timezone").notNull().default("UTC"),
+    /** Captured at creation: a cron run has no request to read the locale cookie from. */
+    locale: text("locale").notNull().default("es"),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    nextRunAt: integer("next_run_at", { mode: "timestamp" }).notNull(),
+    lastRunAt: integer("last_run_at", { mode: "timestamp" }),
+    /** Consecutive runs skipped for lack of credits; drives the auto-pause. */
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  },
+  (t) => [
+    index("simulation_schedules_due_idx").on(t.active, t.nextRunAt),
+    index("simulation_schedules_user_idx").on(t.userId),
+  ]
+);
+
+export const scheduleSimulations = sqliteTable(
+  "schedule_simulations",
+  {
+    scheduleId: text("schedule_id")
+      .notNull()
+      .references(() => simulationSchedules.id, { onDelete: "cascade" }),
+    simulationId: text("simulation_id")
+      .notNull()
+      .references(() => simulations.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    unique("schedule_simulation_unique").on(t.scheduleId, t.simulationId),
+    index("schedule_simulations_simulation_idx").on(t.simulationId),
+  ]
+);
+
+/**
+ * One execution of a simulation, kept so a run can be diffed against the one
+ * before it. `params` is snapshotted per run: the lookback window grows as the
+ * end date moves forward, so two runs of the same simulation differ in inputs.
+ */
+export const simulationRuns = sqliteTable(
+  "simulation_runs",
+  {
+    id: text("id").primaryKey(), // UUID
+    simulationId: text("simulation_id")
+      .notNull()
+      .references(() => simulations.id, { onDelete: "cascade" }),
+    /** Null for a run that did not come from a schedule. */
+    scheduleId: text("schedule_id").references(() => simulationSchedules.id, {
+      onDelete: "set null",
+    }),
+    params: text("params").notNull(), // JSON string
+    result: text("result"), // JSON string; null when the run failed
+    status: text("status").notNull(), // success | failed
+    errorMessage: text("error_message"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+  },
+  (t) => [index("simulation_runs_simulation_idx").on(t.simulationId, t.createdAt)]
+);
+
 // ==================== BILLING ====================
 
 export const walletBalance = sqliteTable("wallet_balance", {
@@ -311,6 +390,7 @@ export const userRelations = relations(user, ({ many }) => ({
   correlations: many(userCorrelations),
   simulations: many(simulations),
   customBenchmarks: many(customBenchmarks),
+  simulationSchedules: many(simulationSchedules),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -396,6 +476,36 @@ export const paymentsRelations = relations(payments, ({ one, many }) => ({
   ledgerRows: many(creditLedger),
 }));
 
+export const simulationSchedulesRelations = relations(simulationSchedules, ({ one, many }) => ({
+  user: one(user, {
+    fields: [simulationSchedules.userId],
+    references: [user.id],
+  }),
+  simulations: many(scheduleSimulations),
+}));
+
+export const scheduleSimulationsRelations = relations(scheduleSimulations, ({ one }) => ({
+  schedule: one(simulationSchedules, {
+    fields: [scheduleSimulations.scheduleId],
+    references: [simulationSchedules.id],
+  }),
+  simulation: one(simulations, {
+    fields: [scheduleSimulations.simulationId],
+    references: [simulations.id],
+  }),
+}));
+
+export const simulationRunsRelations = relations(simulationRuns, ({ one }) => ({
+  simulation: one(simulations, {
+    fields: [simulationRuns.simulationId],
+    references: [simulations.id],
+  }),
+  schedule: one(simulationSchedules, {
+    fields: [simulationRuns.scheduleId],
+    references: [simulationSchedules.id],
+  }),
+}));
+
 export const creditLedgerRelations = relations(creditLedger, ({ one }) => ({
   user: one(user, {
     fields: [creditLedger.userId],
@@ -439,6 +549,11 @@ export type NewSimulation = typeof simulations.$inferInsert;
 
 export type CustomBenchmark = typeof customBenchmarks.$inferSelect;
 export type NewCustomBenchmark = typeof customBenchmarks.$inferInsert;
+
+export type SimulationSchedule = typeof simulationSchedules.$inferSelect;
+export type NewSimulationSchedule = typeof simulationSchedules.$inferInsert;
+export type SimulationRun = typeof simulationRuns.$inferSelect;
+export type NewSimulationRun = typeof simulationRuns.$inferInsert;
 
 export type UserProfile = typeof userProfile.$inferSelect;
 export type NewUserProfile = typeof userProfile.$inferInsert;

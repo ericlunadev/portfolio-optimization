@@ -15,7 +15,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
-    public code?: string
+    public code?: string,
+    /** The parsed error body, for errors that carry more than a message. */
+    public body?: Record<string, unknown>
   ) {
     super(message);
     this.name = "ApiError";
@@ -32,7 +34,8 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new ApiError(
       response.status,
       error.detail || error.error || response.statusText,
-      error.error
+      error.error,
+      error
     );
   }
   return response.json();
@@ -345,6 +348,42 @@ export const api = {
 
   async deleteSimulation(id: string) {
     const res = await apiFetch(`${API_BASE}/simulations/${id}`, {
+      method: "DELETE",
+    });
+    return handleResponse<{ success: boolean }>(res);
+  },
+
+  async listSimulationRuns(id: string) {
+    const res = await apiFetch(`${API_BASE}/simulations/${id}/runs`);
+    return handleResponse<SimulationRun[]>(res);
+  },
+
+  // Schedules
+  async listSchedules() {
+    const res = await apiFetch(`${API_BASE}/schedules`);
+    return handleResponse<SimulationSchedule[]>(res);
+  },
+
+  async createSchedule(input: CreateScheduleInput) {
+    const res = await apiFetch(`${API_BASE}/schedules`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return handleResponse<SimulationSchedule>(res);
+  },
+
+  async updateSchedule(id: string, input: UpdateScheduleInput) {
+    const res = await apiFetch(`${API_BASE}/schedules/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return handleResponse<SimulationSchedule>(res);
+  },
+
+  async deleteSchedule(id: string) {
+    const res = await apiFetch(`${API_BASE}/schedules/${id}`, {
       method: "DELETE",
     });
     return handleResponse<{ success: boolean }>(res);
@@ -788,6 +827,61 @@ export interface SimulationParams {
    * simulations saved before benchmark comparison existed.
    */
   benchmarks?: string[];
+}
+
+// Schedule Types
+export type ScheduleCadence = "daily" | "weekly" | "monthly";
+
+export interface SimulationSchedule {
+  id: string;
+  name: string | null;
+  cadence: ScheduleCadence;
+  /** 0 (Sunday) – 6 (Saturday); weekly only. */
+  dayOfWeek: number | null;
+  /** 1–28; monthly only. */
+  dayOfMonth: number | null;
+  timezone: string;
+  locale: string;
+  active: boolean;
+  nextRunAt: string;
+  lastRunAt: string | null;
+  /** Consecutive runs skipped for lack of credits; three pause the schedule. */
+  consecutiveFailures: number;
+  createdAt: string;
+  simulations: {
+    id: string;
+    name: string | null;
+    tickers: string[];
+    strategy: OptimizationStrategy;
+  }[];
+}
+
+export interface CreateScheduleInput {
+  name?: string | null;
+  cadence: ScheduleCadence;
+  dayOfWeek?: number | null;
+  dayOfMonth?: number | null;
+  timezone: string;
+  locale?: string;
+  simulationIds: string[];
+}
+
+export type UpdateScheduleInput = Partial<
+  Pick<CreateScheduleInput, "name" | "cadence" | "dayOfWeek" | "dayOfMonth" | "timezone">
+> & { active?: boolean };
+
+export interface SimulationRun {
+  id: string;
+  /** Null for a run that did not come from a schedule. */
+  scheduleId: string | null;
+  status: "success" | "failed";
+  errorMessage: string | null;
+  dateRange: DateRange | null;
+  expectedReturn: number | null;
+  volatility: number | null;
+  sharpeRatio: number | null;
+  weights: { ticker: string; weight: number }[];
+  createdAt: string;
 }
 
 export interface SavedSimulation {
