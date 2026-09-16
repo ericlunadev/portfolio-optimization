@@ -2,15 +2,15 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
-  findMinVariancePortfolio,
   calculateEfficientFrontier,
   findMaxSharpePortfolio,
-  findMaxReturnPortfolio,
-  findTargetReturnPortfolio,
-  findTargetRiskPortfolio,
-  findKneePointPortfolio,
-  OptimizationResult,
+  findMinVariancePortfolio,
 } from "../../lib/math/optimizer.js";
+import {
+  requiredTargetField,
+  runStrategy,
+} from "../../lib/math/run-strategy.js";
+import { OPTIMIZATION_STRATEGIES } from "../../lib/math/strategies.js";
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { validateAssetBounds } from "../../lib/math/bounds.js";
 import { correlationMatrix, normalCDF, stdDev, mean, rollingStdDev } from "../../lib/math/stats.js";
@@ -24,8 +24,16 @@ import {
   BENCHMARKS,
   benchmarkTickers,
   buildWeightedSeries,
+  customBenchmarkDefinition,
   findBenchmark,
+  parseCustomBenchmarkId,
+  resolveBenchmarkComponents,
+  type BenchmarkDefinition,
 } from "../../lib/benchmarks.js";
+import customBenchmarkRoutes from "./custom-benchmarks.js";
+import { db } from "../../db/index.js";
+import { customBenchmarks } from "../../db/schema.js";
+import { eq } from "drizzle-orm";
 
 const optimization = new Hono();
 
@@ -68,13 +76,17 @@ optimization.post(
     "json",
     z.object({
       tickers: z.array(z.string()).min(1),
-      strategy: z.enum(["max-sharpe", "min-risk", "max-return", "target-return", "target-risk", "knee-point"]),
+      strategy: z.enum(OPTIMIZATION_STRATEGIES),
       w_max: z.number().min(0).max(1).default(1.0),
       w_min_per_asset: perAssetBoundSchema,
       w_max_per_asset: perAssetBoundSchema,
       risk_free_rate: z.number().min(0).default(0),
       target_return: z.number().optional(),
       target_risk: z.number().optional(),
+      /** Tail cut-off for the `cvar` strategy: 0.95 averages the worst 5%. */
+      cvar_confidence: z.number().min(0.5).max(0.999).default(0.95),
+      /** How far `black-litterman` leans on the history over equilibrium. */
+      view_confidence: z.number().min(0).max(1).default(0.5),
       start_date: z.string().optional(),
       end_date: z.string().optional(),
       enforce_full_investment: z.boolean().default(true),
@@ -83,11 +95,26 @@ optimization.post(
     })
   ),
   async (c) => {
+    const body = c.req.valid("json");
+
     // Validate the weight bounds before metering: an infeasible floor/cap
     // combination is a bad request, and the user should not be charged for it.
-    const boundsError = validateAssetBounds(c.req.valid("json"));
+    const boundsError = validateAssetBounds(body);
     if (boundsError) {
       return c.json(boundsError, 400);
+    }
+
+    // Same for a strategy asked for without the target it needs: the request
+    // was never going to produce a portfolio, so it should not cost a credit.
+    const requiredField = requiredTargetField(body.strategy);
+    if (requiredField && body[requiredField] === undefined) {
+      return c.json(
+        {
+          error: "missing_strategy_target",
+          detail: `${requiredField} is required for the ${body.strategy} strategy.`,
+        },
+        400
+      );
     }
 
     const user = c.get("user");
@@ -106,95 +133,38 @@ optimization.post(
       risk_free_rate,
       target_return,
       target_risk,
+      cvar_confidence,
+      view_confidence,
       start_date,
       end_date,
       enforce_full_investment,
       allow_short_selling,
       max_leverage,
-    } = c.req.valid("json");
+    } = body;
 
-    const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
+    const { expectedReturns, volatilities, corrMatrix, dailyReturns } =
+      await getTickerAssumptions(tickers, start_date, end_date);
     const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
 
-    let result: OptimizationResult & { sharpeRatio?: number };
-
-    switch (strategy) {
-      case "max-sharpe":
-        result = findMaxSharpePortfolio(expectedReturns, covMatrix, {
-          wMax: w_max,
-          wMinPerAsset: w_min_per_asset,
-          wMaxPerAsset: w_max_per_asset,
-          riskFreeRate: risk_free_rate,
-          numFrontierPoints: 50,
-          enforceFullInvestment: enforce_full_investment,
-          allowShortSelling: allow_short_selling,
-          maxLeverage: max_leverage,
-        });
-        break;
-
-      case "min-risk":
-        result = findMinVariancePortfolio(expectedReturns, covMatrix, {
-          rMin: Math.min(...expectedReturns) * max_leverage,
-          wMax: w_max,
-          wMinPerAsset: w_min_per_asset,
-          wMaxPerAsset: w_max_per_asset,
-          enforceFullInvestment: enforce_full_investment,
-          allowShortSelling: allow_short_selling,
-          maxLeverage: max_leverage,
-        });
-        break;
-
-      case "max-return":
-        result = findMaxReturnPortfolio(expectedReturns, covMatrix, {
-          wMax: w_max,
-          wMinPerAsset: w_min_per_asset,
-          wMaxPerAsset: w_max_per_asset,
-          allowShortSelling: allow_short_selling,
-          maxLeverage: max_leverage,
-        });
-        break;
-
-      case "target-return":
-        if (target_return === undefined) {
-          return c.json({ error: "target_return is required for target-return strategy" }, 400);
-        }
-        result = findTargetReturnPortfolio(expectedReturns, covMatrix, target_return, {
-          wMax: w_max,
-          wMinPerAsset: w_min_per_asset,
-          wMaxPerAsset: w_max_per_asset,
-          enforceFullInvestment: enforce_full_investment,
-          allowShortSelling: allow_short_selling,
-          maxLeverage: max_leverage,
-        });
-        break;
-
-      case "target-risk":
-        if (target_risk === undefined) {
-          return c.json({ error: "target_risk is required for target-risk strategy" }, 400);
-        }
-        result = findTargetRiskPortfolio(expectedReturns, covMatrix, target_risk, {
-          wMax: w_max,
-          wMinPerAsset: w_min_per_asset,
-          wMaxPerAsset: w_max_per_asset,
-          numFrontierPoints: 50,
-          enforceFullInvestment: enforce_full_investment,
-          allowShortSelling: allow_short_selling,
-          maxLeverage: max_leverage,
-        });
-        break;
-
-      case "knee-point":
-        result = findKneePointPortfolio(expectedReturns, covMatrix, {
-          wMax: w_max,
-          wMinPerAsset: w_min_per_asset,
-          wMaxPerAsset: w_max_per_asset,
-          numFrontierPoints: 50,
-          enforceFullInvestment: enforce_full_investment,
-          allowShortSelling: allow_short_selling,
-          maxLeverage: max_leverage,
-        });
-        break;
-    }
+    const result = runStrategy({
+      strategy,
+      expectedReturns,
+      covMatrix,
+      dailyReturns,
+      constraints: {
+        wMax: w_max,
+        wMinPerAsset: w_min_per_asset,
+        wMaxPerAsset: w_max_per_asset,
+        enforceFullInvestment: enforce_full_investment,
+        allowShortSelling: allow_short_selling,
+        maxLeverage: max_leverage,
+      },
+      riskFreeRate: risk_free_rate,
+      targetReturn: target_return,
+      targetRisk: target_risk,
+      cvarConfidence: cvar_confidence,
+      viewConfidence: view_confidence,
+    });
 
     const weights = tickers.map((ticker, i) => ({
       fund_id: i,
@@ -662,16 +632,48 @@ optimization.post(
   }
 );
 
+optimization.route("/custom-benchmarks", customBenchmarkRoutes);
+
+/** The user's own benchmarks, skipping any row whose stored legs are unusable. */
+async function userBenchmarkDefinitions(userId: string): Promise<BenchmarkDefinition[]> {
+  const rows = await db
+    .select()
+    .from(customBenchmarks)
+    .where(eq(customBenchmarks.userId, userId));
+
+  return rows.flatMap((row) => {
+    const definition = customBenchmarkDefinition(row);
+    return definition ? [definition] : [];
+  });
+}
+
 // GET /api/optimization/benchmarks - Catalog of reference portfolios to compare against
-optimization.get("/benchmarks", (c) => {
+optimization.get("/benchmarks", async (c) => {
+  const user = c.get("user");
+  const definitions = [...BENCHMARKS, ...(await userBenchmarkDefinitions(user.id))];
+
   return c.json({
-    benchmarks: BENCHMARKS.map((benchmark) => ({
+    benchmarks: definitions.map((benchmark) => ({
       id: benchmark.id,
       category: benchmark.category,
+      // Both are empty for the equal-weight benchmark, whose legs are the
+      // simulation's own assets and so are only known once a comparison is
+      // requested.
       tickers: benchmark.components.map((component) => component.ticker),
+      // Full legs, so the editor can reopen a custom benchmark without a
+      // second round trip for the same rows.
+      components: benchmark.components,
+      name: benchmark.name ?? null,
     })),
   });
 });
+
+/**
+ * Ceiling on one comparison request. The web app caps the picker well below
+ * this; the bound here just keeps a hand-rolled request from asking for a
+ * hundred price series at once.
+ */
+const MAX_COMPARED_BENCHMARKS = 24;
 
 // POST /api/optimization/benchmark-comparison - Measure a portfolio against selected benchmarks
 optimization.post(
@@ -679,7 +681,7 @@ optimization.post(
   zValidator(
     "json",
     z.object({
-      benchmarks: z.array(z.string()).max(BENCHMARKS.length),
+      benchmarks: z.array(z.string()).max(MAX_COMPARED_BENCHMARKS),
       tickers: z.array(z.string()).min(1),
       weights: z.array(z.number()),
       start_date: z.string().optional(),
@@ -700,15 +702,32 @@ optimization.post(
     const period2 = end_date || defaults.period2;
 
     // Unknown ids are dropped rather than rejected: a saved simulation may
-    // still name a benchmark that has since left the catalog.
-    const definitions = benchmarks
-      .map(findBenchmark)
-      .filter((definition): definition is NonNullable<typeof definition> => !!definition);
+    // still name a benchmark that has since left the catalog, or a custom one
+    // its author has since deleted.
+    const user = c.get("user");
+    const customById = benchmarks.some((id) => parseCustomBenchmarkId(id))
+      ? new Map(
+          (await userBenchmarkDefinitions(user.id)).map((definition) => [
+            definition.id,
+            definition,
+          ])
+        )
+      : new Map<string, BenchmarkDefinition>();
+
+    // Resolved up front so the legs used to price a benchmark are the same ones
+    // reported back as its tickers.
+    const resolved = benchmarks.flatMap((id) => {
+      const definition = customById.get(id) ?? findBenchmark(id);
+      if (!definition) return [];
+      const components = resolveBenchmarkComponents(definition, tickers);
+      if (components.length === 0) return [];
+      return [{ ...definition, components }];
+    });
 
     // The portfolio and every benchmark are priced over the same window and
     // through the same math, so the figures on both sides are comparable.
     const pricesByTicker = await fetchTickerPrices(
-      [...new Set([...tickers, ...benchmarkTickers(definitions)])],
+      [...new Set([...tickers, ...benchmarkTickers(resolved)])],
       period1,
       period2
     );
@@ -720,7 +739,7 @@ optimization.post(
     );
 
     const unavailable: string[] = [];
-    const comparisons = definitions.flatMap((definition) => {
+    const comparisons = resolved.flatMap((definition) => {
       const series = buildWeightedSeries(
         definition.components,
         pricesByTicker,
@@ -736,6 +755,7 @@ optimization.post(
         {
           id: definition.id,
           category: definition.category,
+          name: definition.name ?? null,
           tickers: definition.components.map((component) => component.ticker),
           expected_return: series.expectedReturn,
           volatility: series.volatility,
@@ -770,6 +790,12 @@ async function getTickerAssumptions(tickers: string[], startDate?: string, endDa
   expectedReturns: number[];
   volatilities: number[];
   corrMatrix: number[][];
+  /**
+   * Daily log returns per ticker, indexed `[asset][day]` and trimmed so every
+   * ticker covers the same days. Strategies that read the return distribution
+   * directly rather than summarizing it — CVaR — need the raw series.
+   */
+  dailyReturns: number[][];
 }> {
   const defaults = defaultLookbackPeriod();
   const pricesByTicker = await fetchTickerPrices(
@@ -815,7 +841,7 @@ async function getTickerAssumptions(tickers: string[], startDate?: string, endDa
   // Calculate correlation matrix
   const corrMatrix = correlationMatrix(trimmedReturns);
 
-  return { expectedReturns, volatilities, corrMatrix };
+  return { expectedReturns, volatilities, corrMatrix, dailyReturns: trimmedReturns };
 }
 
 export default optimization;

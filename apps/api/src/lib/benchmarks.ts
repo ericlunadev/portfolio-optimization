@@ -11,7 +11,12 @@ const TRADING_DAYS = 252;
  */
 const FLAT_VOLATILITY = 1e-12;
 
-export type BenchmarkCategory = "equity" | "global" | "diversified";
+export type BenchmarkCategory =
+  | "equity"
+  | "global"
+  | "diversified"
+  | "portfolio"
+  | "custom";
 
 /** One leg of a benchmark. Single-leg benchmarks are plain indices. */
 export interface BenchmarkComponent {
@@ -23,11 +28,15 @@ export interface BenchmarkComponent {
  * A reference portfolio a simulation can be measured against. Labels live in
  * the web app's translation files, keyed by `id` — the catalog itself carries
  * no user-facing text.
+ *
+ * `name` is the exception: a user-authored benchmark has no translation to key
+ * off, so it carries its own label.
  */
 export interface BenchmarkDefinition {
   id: string;
   category: BenchmarkCategory;
   components: BenchmarkComponent[];
+  name?: string;
 }
 
 const index = (
@@ -45,8 +54,20 @@ const index = (
  * and ETFs, so index symbols cannot be reached through the asset picker — this
  * catalog is how a user gets at them.
  */
+/**
+ * The naive 1/N portfolio over the simulation's *own* assets — the baseline any
+ * optimizer has to beat to have earned its complexity. Its legs depend on the
+ * request, so the catalog entry carries none and
+ * {@link resolveBenchmarkComponents} fills them in.
+ */
+export const EQUAL_WEIGHT_ID = "equal-weight";
+
 export const BENCHMARKS: BenchmarkDefinition[] = [
+  { id: EQUAL_WEIGHT_ID, category: "portfolio", components: [] },
   index("sp500", "^GSPC", "equity"),
+  // Same 500 companies as ^GSPC, weighted 1/N instead of by market cap — a
+  // read on how much of the index's return came from its largest names.
+  index("sp500-equal-weight", "RSP", "equity"),
   index("nasdaq-100", "^NDX", "equity"),
   index("dow-jones", "^DJI", "equity"),
   index("russell-2000", "^RUT", "equity"),
@@ -86,6 +107,85 @@ export function benchmarkTickers(definitions: BenchmarkDefinition[]): string[] {
     }
   }
   return Array.from(tickers);
+}
+
+/**
+ * The legs to actually price for a benchmark. Every definition but the
+ * equal-weight one already knows its own; that one spreads the portfolio's
+ * assets evenly, so it only exists relative to a given simulation.
+ */
+export function resolveBenchmarkComponents(
+  definition: BenchmarkDefinition,
+  portfolioTickers: string[]
+): BenchmarkComponent[] {
+  if (definition.id !== EQUAL_WEIGHT_ID) return definition.components;
+
+  const tickers = Array.from(new Set(portfolioTickers));
+  if (tickers.length === 0) return [];
+  return tickers.map((ticker) => ({ ticker, weight: 1 / tickers.length }));
+}
+
+// ==================== CUSTOM BENCHMARKS ====================
+
+/**
+ * Ids of user-authored benchmarks are namespaced so they can never collide with
+ * a catalog id, present or future, and so a saved simulation's selection stays
+ * readable without a database lookup.
+ */
+const CUSTOM_PREFIX = "custom:";
+
+/** How many legs one custom benchmark may hold. */
+export const MAX_CUSTOM_BENCHMARK_COMPONENTS = 10;
+
+/** How many custom benchmarks one user may keep. */
+export const MAX_CUSTOM_BENCHMARKS_PER_USER = 20;
+
+export function customBenchmarkId(rowId: string): string {
+  return `${CUSTOM_PREFIX}${rowId}`;
+}
+
+/** The row id behind a namespaced id, or `null` if it is not a custom one. */
+export function parseCustomBenchmarkId(id: string): string | null {
+  return id.startsWith(CUSTOM_PREFIX) ? id.slice(CUSTOM_PREFIX.length) : null;
+}
+
+export interface CustomBenchmarkRow {
+  id: string;
+  name: string;
+  components: string;
+}
+
+/**
+ * Turns a stored row into a definition. Returns `null` when the stored JSON is
+ * unusable, so one corrupt row cannot take down the whole catalog.
+ */
+export function customBenchmarkDefinition(
+  row: CustomBenchmarkRow
+): BenchmarkDefinition | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(row.components);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+
+  const components: BenchmarkComponent[] = [];
+  for (const entry of parsed) {
+    if (typeof entry !== "object" || entry === null) return null;
+    const { ticker, weight } = entry as Record<string, unknown>;
+    if (typeof ticker !== "string" || typeof weight !== "number") return null;
+    if (!Number.isFinite(weight)) return null;
+    components.push({ ticker, weight });
+  }
+  if (components.length === 0) return null;
+
+  return {
+    id: customBenchmarkId(row.id),
+    category: "custom",
+    components,
+    name: row.name,
+  };
 }
 
 export interface SeriesPoint {

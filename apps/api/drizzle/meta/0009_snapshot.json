@@ -1,8 +1,8 @@
 {
-  "id": "ab024683-a967-469f-8521-8d21ab7cbbbd",
-  "prevId": "df3b872c-4814-49de-98f0-f971d6897197",
   "version": "6",
   "dialect": "sqlite",
+  "id": "df3b872c-4814-49de-98f0-f971d6897197",
+  "prevId": "5707a701-733e-4518-8a86-8bf3ccb665e6",
   "tables": {
     "account": {
       "name": "account",
@@ -104,15 +104,15 @@
         "account_user_id_user_id_fk": {
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -216,28 +216,28 @@
         "background_tasks_user_id_user_id_fk": {
           "name": "background_tasks_user_id_user_id_fk",
           "tableFrom": "background_tasks",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "background_tasks_organization_id_organization_id_fk": {
           "name": "background_tasks_organization_id_organization_id_fk",
           "tableFrom": "background_tasks",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -353,54 +353,54 @@
         "credit_ledger_user_id_user_id_fk": {
           "name": "credit_ledger_user_id_user_id_fk",
           "tableFrom": "credit_ledger",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "credit_ledger_organization_id_organization_id_fk": {
           "name": "credit_ledger_organization_id_organization_id_fk",
           "tableFrom": "credit_ledger",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "credit_ledger_payment_id_payments_id_fk": {
           "name": "credit_ledger_payment_id_payments_id_fk",
           "tableFrom": "credit_ledger",
+          "tableTo": "payments",
           "columnsFrom": [
             "payment_id"
           ],
-          "tableTo": "payments",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "credit_ledger_simulation_id_simulations_id_fk": {
           "name": "credit_ledger_simulation_id_simulations_id_fk",
           "tableFrom": "credit_ledger",
+          "tableTo": "simulations",
           "columnsFrom": [
             "simulation_id"
           ],
-          "tableTo": "simulations",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -471,6 +471,82 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "custom_benchmarks": {
+      "name": "custom_benchmarks",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "components": {
+          "name": "components",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "(unixepoch())"
+        }
+      },
+      "indexes": {
+        "custom_benchmarks_user_idx": {
+          "name": "custom_benchmarks_user_idx",
+          "columns": [
+            "user_id"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "custom_benchmarks_user_id_user_id_fk": {
+          "name": "custom_benchmarks_user_id_user_id_fk",
+          "tableFrom": "custom_benchmarks",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
@@ -911,15 +987,15 @@
         "organization_branding_organization_id_organization_id_fk": {
           "name": "organization_branding_organization_id_organization_id_fk",
           "tableFrom": "organization_branding",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -979,15 +1055,15 @@
         "organization_domain_organization_id_organization_id_fk": {
           "name": "organization_domain_organization_id_organization_id_fk",
           "tableFrom": "organization_domain",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1055,28 +1131,28 @@
         "organization_member_organization_id_organization_id_fk": {
           "name": "organization_member_organization_id_organization_id_fk",
           "tableFrom": "organization_member",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "organization_member_user_id_user_id_fk": {
           "name": "organization_member_user_id_user_id_fk",
           "tableFrom": "organization_member",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1161,15 +1237,15 @@
         "organization_settings_organization_id_organization_id_fk": {
           "name": "organization_settings_organization_id_organization_id_fk",
           "tableFrom": "organization_settings",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1300,41 +1376,41 @@
         "payments_user_id_user_id_fk": {
           "name": "payments_user_id_user_id_fk",
           "tableFrom": "payments",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "payments_organization_id_organization_id_fk": {
           "name": "payments_organization_id_organization_id_fk",
           "tableFrom": "payments",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "payments_package_id_credit_packages_id_fk": {
           "name": "payments_package_id_credit_packages_id_fk",
           "tableFrom": "payments",
+          "tableTo": "credit_packages",
           "columnsFrom": [
             "package_id"
           ],
-          "tableTo": "credit_packages",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1401,15 +1477,15 @@
         "prices_fund_id_funds_id_fk": {
           "name": "prices_fund_id_funds_id_fk",
           "tableFrom": "prices",
+          "tableTo": "funds",
           "columnsFrom": [
             "fund_id"
           ],
-          "tableTo": "funds",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1489,15 +1565,15 @@
         "session_user_id_user_id_fk": {
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1587,28 +1663,28 @@
         "simulations_user_id_user_id_fk": {
           "name": "simulations_user_id_user_id_fk",
           "tableFrom": "simulations",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "set null"
+          "onDelete": "set null",
+          "onUpdate": "no action"
         },
         "simulations_organization_id_organization_id_fk": {
           "name": "simulations_organization_id_organization_id_fk",
           "tableFrom": "simulations",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1757,41 +1833,41 @@
         "user_assumptions_user_id_user_id_fk": {
           "name": "user_assumptions_user_id_user_id_fk",
           "tableFrom": "user_assumptions",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_assumptions_organization_id_organization_id_fk": {
           "name": "user_assumptions_organization_id_organization_id_fk",
           "tableFrom": "user_assumptions",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_assumptions_fund_id_funds_id_fk": {
           "name": "user_assumptions_fund_id_funds_id_fk",
           "tableFrom": "user_assumptions",
+          "tableTo": "funds",
           "columnsFrom": [
             "fund_id"
           ],
-          "tableTo": "funds",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1874,54 +1950,54 @@
         "user_correlations_user_id_user_id_fk": {
           "name": "user_correlations_user_id_user_id_fk",
           "tableFrom": "user_correlations",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_correlations_organization_id_organization_id_fk": {
           "name": "user_correlations_organization_id_organization_id_fk",
           "tableFrom": "user_correlations",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_correlations_fund_id_1_funds_id_fk": {
           "name": "user_correlations_fund_id_1_funds_id_fk",
           "tableFrom": "user_correlations",
+          "tableTo": "funds",
           "columnsFrom": [
             "fund_id_1"
           ],
-          "tableTo": "funds",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         },
         "user_correlations_fund_id_2_funds_id_fk": {
           "name": "user_correlations_fund_id_2_funds_id_fk",
           "tableFrom": "user_correlations",
+          "tableTo": "funds",
           "columnsFrom": [
             "fund_id_2"
           ],
-          "tableTo": "funds",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "no action"
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2074,28 +2150,28 @@
         "user_profile_user_id_user_id_fk": {
           "name": "user_profile_user_id_user_id_fk",
           "tableFrom": "user_profile",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "user_profile_organization_id_organization_id_fk": {
           "name": "user_profile_organization_id_organization_id_fk",
           "tableFrom": "user_profile",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2193,28 +2269,28 @@
         "wallet_balance_user_id_user_id_fk": {
           "name": "wallet_balance_user_id_user_id_fk",
           "tableFrom": "wallet_balance",
+          "tableTo": "user",
           "columnsFrom": [
             "user_id"
           ],
-          "tableTo": "user",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         },
         "wallet_balance_organization_id_organization_id_fk": {
           "name": "wallet_balance_organization_id_organization_id_fk",
           "tableFrom": "wallet_balance",
+          "tableTo": "organization",
           "columnsFrom": [
             "organization_id"
           ],
-          "tableTo": "organization",
           "columnsTo": [
             "id"
           ],
-          "onUpdate": "no action",
-          "onDelete": "cascade"
+          "onDelete": "cascade",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -2225,9 +2301,9 @@
   "views": {},
   "enums": {},
   "_meta": {
-    "columns": {},
     "schemas": {},
-    "tables": {}
+    "tables": {},
+    "columns": {}
   },
   "internal": {
     "indexes": {}

@@ -1,9 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   BENCHMARKS,
+  EQUAL_WEIGHT_ID,
   benchmarkTickers,
   buildWeightedSeries,
+  customBenchmarkDefinition,
+  customBenchmarkId,
   findBenchmark,
+  parseCustomBenchmarkId,
+  resolveBenchmarkComponents,
 } from "./benchmarks.js";
 import type { PricePoint } from "./yahoo.js";
 
@@ -17,8 +22,10 @@ describe("benchmark catalog", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("gives every benchmark at least one component with positive weight", () => {
-    for (const benchmark of BENCHMARKS) {
+  it("gives every fixed benchmark at least one component with positive weight", () => {
+    // The equal-weight benchmark is the one entry with no fixed legs — it
+    // borrows the simulation's own assets, so it is exercised separately.
+    for (const benchmark of BENCHMARKS.filter((b) => b.id !== EQUAL_WEIGHT_ID)) {
       expect(benchmark.components.length).toBeGreaterThan(0);
       const total = benchmark.components.reduce((sum, c) => sum + c.weight, 0);
       expect(total).toBeGreaterThan(0);
@@ -28,6 +35,38 @@ describe("benchmark catalog", () => {
   it("looks a benchmark up by id", () => {
     expect(findBenchmark("sp500")?.components[0].ticker).toBe("^GSPC");
     expect(findBenchmark("not-a-benchmark")).toBeUndefined();
+  });
+
+  it("spreads the portfolio's own assets evenly for the equal-weight benchmark", () => {
+    const definition = findBenchmark(EQUAL_WEIGHT_ID)!;
+    const components = resolveBenchmarkComponents(definition, ["AAPL", "MSFT", "KO", "JNJ"]);
+
+    expect(components).toEqual([
+      { ticker: "AAPL", weight: 0.25 },
+      { ticker: "MSFT", weight: 0.25 },
+      { ticker: "KO", weight: 0.25 },
+      { ticker: "JNJ", weight: 0.25 },
+    ]);
+  });
+
+  it("counts a repeated portfolio asset once when equal-weighting", () => {
+    const definition = findBenchmark(EQUAL_WEIGHT_ID)!;
+    const components = resolveBenchmarkComponents(definition, ["AAPL", "AAPL", "MSFT"]);
+
+    expect(components.map((c) => c.ticker)).toEqual(["AAPL", "MSFT"]);
+    expect(components.every((c) => c.weight === 0.5)).toBe(true);
+  });
+
+  it("resolves an empty equal-weight benchmark to no legs at all", () => {
+    const definition = findBenchmark(EQUAL_WEIGHT_ID)!;
+    expect(resolveBenchmarkComponents(definition, [])).toEqual([]);
+  });
+
+  it("leaves a fixed benchmark's legs alone when resolving", () => {
+    const definition = findBenchmark("classic-60-40")!;
+    expect(resolveBenchmarkComponents(definition, ["AAPL", "MSFT"])).toEqual(
+      definition.components
+    );
   });
 
   it("collects the symbols to fetch without repeating shared ones", () => {
@@ -265,6 +304,68 @@ describe("buildWeightedSeries", () => {
           ],
         ])
       )
+    ).toBeNull();
+  });
+});
+
+describe("custom benchmarks", () => {
+  it("namespaces ids so they cannot collide with the catalog", () => {
+    const id = customBenchmarkId("abc-123");
+    expect(parseCustomBenchmarkId(id)).toBe("abc-123");
+    expect(findBenchmark(id)).toBeUndefined();
+  });
+
+  it("does not read a catalog id as a custom one", () => {
+    expect(parseCustomBenchmarkId("sp500")).toBeNull();
+  });
+
+  it("builds a definition from a stored row", () => {
+    const definition = customBenchmarkDefinition({
+      id: "abc-123",
+      name: "My blend",
+      components: JSON.stringify([
+        { ticker: "SPY", weight: 0.7 },
+        { ticker: "GLD", weight: 0.3 },
+      ]),
+    });
+
+    expect(definition).toEqual({
+      id: "custom:abc-123",
+      category: "custom",
+      name: "My blend",
+      components: [
+        { ticker: "SPY", weight: 0.7 },
+        { ticker: "GLD", weight: 0.3 },
+      ],
+    });
+  });
+
+  it("keeps its own legs when resolved against a portfolio", () => {
+    const definition = customBenchmarkDefinition({
+      id: "abc-123",
+      name: "My blend",
+      components: JSON.stringify([{ ticker: "SPY", weight: 1 }]),
+    })!;
+
+    expect(resolveBenchmarkComponents(definition, ["AAPL", "MSFT"])).toEqual([
+      { ticker: "SPY", weight: 1 },
+    ]);
+  });
+
+  it("rejects a row whose stored legs are unusable", () => {
+    const row = { id: "abc-123", name: "Broken" };
+
+    expect(customBenchmarkDefinition({ ...row, components: "not json" })).toBeNull();
+    expect(customBenchmarkDefinition({ ...row, components: "{}" })).toBeNull();
+    expect(customBenchmarkDefinition({ ...row, components: "[]" })).toBeNull();
+    expect(
+      customBenchmarkDefinition({ ...row, components: JSON.stringify([{ ticker: "SPY" }]) })
+    ).toBeNull();
+    expect(
+      customBenchmarkDefinition({
+        ...row,
+        components: JSON.stringify([{ ticker: "SPY", weight: "1" }]),
+      })
     ).toBeNull();
   });
 });

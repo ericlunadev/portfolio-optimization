@@ -29,7 +29,7 @@ const staticTrustedOrigins = [
 
 // Gives a brand-new account the organization that `authMiddleware` needs: it
 // resolves the tenant from `organization_member` and throws 500 when there is no
-// row, so without this every request after signup would fail. Migration 0007
+// row, so without this every request after signup would fail. Migration 0008
 // covered everyone who existed at the backfill; this covers everyone since.
 //
 // Not a transaction, deliberately. Overlapping `db.transaction()` calls against
@@ -43,7 +43,7 @@ export async function provisionOrganizationForUser(newUser: {
   name: string;
   email: string;
 }): Promise<string> {
-  // Same derivation as migration 0007 step (3): the BetterAuth user id, never the
+  // Same derivation as migration 0008 step (3): the BetterAuth user id, never the
   // email local-part, which is usually an invalid DNS label. The id is a 32-char
   // alphanumeric, so the slug is unique by construction.
   const slug = `u-${newUser.id.toLowerCase()}`;
@@ -77,7 +77,7 @@ export async function provisionOrganizationForUser(newUser: {
     })
     .onConflictDoNothing();
 
-  // Today's D2C behaviour, matching migration 0007 step (5) — not the schema.ts
+  // Today's D2C behaviour, matching migration 0008 step (5) — not the schema.ts
   // column defaults, which are the whitelabel defaults ('off', no crypto rail)
   // and would silently drop the advisor CTA and the crypto tab for a new signup.
   await db
@@ -90,7 +90,7 @@ export async function provisionOrganizationForUser(newUser: {
     })
     .onConflictDoNothing();
 
-  // Today's brand values, matching migration 0007 step (6). supportEmail,
+  // Today's brand values, matching migration 0008 step (6). supportEmail,
   // privacyPolicyUrl and termsUrl stay NULL: no value for any of them exists in
   // the repo yet (PLAN.md §0.2 item 3).
   await db

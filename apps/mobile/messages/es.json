@@ -34,6 +34,8 @@
     "riskFreeRate": "Tasa libre de riesgo (%)",
     "targetReturn": "Rendimiento objetivo (%)",
     "targetRisk": "Riesgo objetivo (%)",
+    "cvarConfidence": "Nivel de confianza CVaR (%)",
+    "viewConfidence": "Confianza en el histórico (%)",
     "constraintsLabel": "Restricciones",
     "fullInvestment": "Inversión completa (los pesos suman 100%)",
     "allowShortSelling": "Permitir ventas en corto",
@@ -118,6 +120,30 @@
       "knee-point": {
         "label": "Punto de Inflexión",
         "description": "Punto de máxima curvatura en la frontera"
+      },
+      "risk-parity": {
+        "label": "Paridad de Riesgo",
+        "description": "Cada activo aporta la misma cantidad de riesgo"
+      },
+      "black-litterman": {
+        "label": "Black-Litterman",
+        "description": "Combina el equilibrio del mercado con el histórico"
+      },
+      "hrp": {
+        "label": "Paridad de Riesgo Jerárquica",
+        "description": "Agrupa activos por correlación y reparte por ramas"
+      },
+      "max-diversification": {
+        "label": "Máxima Diversificación",
+        "description": "Maximiza el beneficio de la baja correlación"
+      },
+      "cvar": {
+        "label": "Valor en Riesgo Condicional",
+        "description": "Minimiza la pérdida media en los peores periodos"
+      },
+      "equal-weight": {
+        "label": "Equiponderada",
+        "description": "La misma proporción en cada activo"
       }
     }
   },

@@ -82,6 +82,30 @@
     "knee-point": {
       "label": "Punto de Inflexión",
       "description": "Punto de máxima curvatura en la frontera"
+    },
+    "risk-parity": {
+      "label": "Paridad de Riesgo",
+      "description": "Cada activo aporta la misma cantidad de riesgo"
+    },
+    "black-litterman": {
+      "label": "Black-Litterman",
+      "description": "Combina el equilibrio del mercado con el histórico"
+    },
+    "hrp": {
+      "label": "Paridad de Riesgo Jerárquica",
+      "description": "Agrupa activos por correlación y reparte por ramas"
+    },
+    "max-diversification": {
+      "label": "Máxima Diversificación",
+      "description": "Maximiza el beneficio de la baja correlación"
+    },
+    "cvar": {
+      "label": "Valor en Riesgo Condicional",
+      "description": "Minimiza la pérdida media en los peores periodos"
+    },
+    "equal-weight": {
+      "label": "Equiponderada",
+      "description": "La misma proporción en cada activo"
     }
   },
   "HomePage": {
@@ -91,8 +115,8 @@
     "ctaStart": "Comenzar Optimización",
     "feature1Title": "Frontera Eficiente",
     "feature1Description": "Visualiza el conjunto óptimo de portafolios que ofrecen el mayor rendimiento para cada nivel de riesgo.",
-    "feature2Title": "6 Estrategias",
-    "feature2Description": "Desde Máximo Sharpe hasta Punto de Inflexión. Elige la estrategia que mejor se adapte a tu perfil.",
+    "feature2Title": "12 Estrategias",
+    "feature2Description": "Desde Máximo Sharpe hasta Paridad de Riesgo Jerárquica. Elige la estrategia que mejor se adapte a tu perfil.",
     "feature3Title": "Análisis de Riesgo",
     "feature3Description": "Probabilidad de rendimiento negativo, volatilidad histórica y métricas de confianza para decisiones informadas."
   },
@@ -148,9 +172,17 @@
   },
   "RiskFreeInstruments": {
     "us-t-bill-3m": "Letra del Tesoro EE. UU. 3 meses",
+    "us-treasury-2y": "Bono del Tesoro EE. UU. 2 años",
     "us-treasury-5y": "Bono del Tesoro EE. UU. 5 años",
     "us-treasury-10y": "Bono del Tesoro EE. UU. 10 años",
-    "us-treasury-30y": "Bono del Tesoro EE. UU. 30 años"
+    "us-treasury-30y": "Bono del Tesoro EE. UU. 30 años",
+    "ar-caucion-usd": "Caución bursátil en dólares",
+    "ar-plazo-fijo-30d": "Plazo fijo 30 días",
+    "ar-caucion-ars": "Caución bursátil en pesos"
+  },
+  "RiskFreeCurrencies": {
+    "USD": "En dólares (USD)",
+    "ARS": "En pesos (ARS)"
   },
   "NewOptimization": {
     "signInTitle": "Inicia sesión para crear una optimización",
@@ -191,6 +223,22 @@
     "strategyTargetRiskText": "Encuentra el portafolio de máximo rendimiento para un nivel de riesgo específico.",
     "strategyInflectionLabel": "Punto de Inflexión:",
     "strategyInflectionText": "Identifica el punto de máxima curvatura en la frontera eficiente, donde el beneficio marginal de asumir más riesgo comienza a disminuir.",
+    "strategyRiskParityLabel": "Paridad de Riesgo:",
+    "strategyRiskParityText": "Ajusta los pesos para que cada activo aporte la misma cantidad de riesgo al portafolio. Un activo volátil recibe una posición más pequeña.",
+    "strategyBlackLittermanLabel": "Black-Litterman:",
+    "strategyBlackLittermanText": "Parte de los rendimientos que el mercado ya implica y los combina con los del histórico, en la proporción que indiques. Evita que un dato ruidoso domine la asignación.",
+    "strategyHrpLabel": "Paridad de Riesgo Jerárquica:",
+    "strategyHrpText": "Agrupa los activos por correlación y reparte el capital rama por rama. No invierte la matriz de covarianzas, así que es estable cuando varios activos se mueven juntos.",
+    "strategyMaxDiversificationLabel": "Máxima Diversificación:",
+    "strategyMaxDiversificationText": "Maximiza cuánto riesgo cancela la baja correlación entre activos, en lugar de buscar simplemente los más tranquilos.",
+    "strategyCvarLabel": "Valor en Riesgo Condicional:",
+    "strategyCvarText": "Minimiza la pérdida media en los peores periodos del histórico. Lee la cola izquierda directamente en vez de asumir que los rendimientos son normales.",
+    "strategyEqualWeightLabel": "Equiponderada:",
+    "strategyEqualWeightText": "Reparte el capital por igual entre todos los activos. Sin parámetros que estimar, es la referencia que las demás estrategias deben superar.",
+    "cvarConfidenceSlider": "Nivel de confianza: {value}% (peor {tail}% de los periodos)",
+    "cvarConfidenceHelp": "Un nivel más alto juzga el portafolio por una cola más extrema y más corta.",
+    "viewConfidenceSlider": "Confianza en el histórico: {value}%",
+    "viewConfidenceHelp": "Al 0% manda el equilibrio del mercado; al 100%, el rendimiento histórico.",
     "targetReturnSlider": "Rendimiento objetivo: {value}%",
     "targetRiskSlider": "Riesgo objetivo (volatilidad): {value}%",
     "targetRiskInfoAria": "Información sobre riesgo objetivo",
@@ -204,7 +252,7 @@
     "riskFreeSourceManual": "Manual",
     "riskFreeInstrumentOption": "{name} — {rate}%",
     "riskFreeRateInputAria": "Tasa libre de riesgo en porcentaje",
-    "riskFreeRateQuoteNote": "Rendimiento de {ticker} al {date}.",
+    "riskFreeRateQuoteNote": "Rendimiento de {source} al {date}.",
     "riskFreeRateManualNote": "Tasa introducida manualmente.",
     "riskFreeRatesLoading": "Cargando rendimientos actuales…",
     "riskFreeRatesUnavailable": "No se pudieron cargar los rendimientos; introduce la tasa manualmente.",
@@ -275,6 +323,9 @@
     "covarianceMatrixTitle": "Matriz de Covarianza",
     "covarianceMatrixSubtitle": "Cómo se mueven juntos los rendimientos de cada par de activos. La diagonal contiene la varianza (σ²) de cada activo.",
     "covarianceMatrixNote": "* Covarianzas anualizadas, expresadas en porcentaje (×100)",
+    "correlationMatrixTitle": "Matriz de Correlaciones",
+    "correlationMatrixSubtitle": "La misma relación en escala comparable, de -1 a 1. Rojo = los activos se mueven juntos (diversifican poco). Azul = se mueven al revés (buena diversificación).",
+    "correlationMatrixNote": "* Correlación de Pearson entre rendimientos diarios. La diagonal siempre vale 1.",
     "compareReturnLabel": "Rendimiento",
     "compareVolatilityLabel": "Volatilidad",
     "compareOptimal": "Óptimo",
@@ -295,7 +346,9 @@
     "category": {
       "equity": "Índices accionarios",
       "global": "Globales",
-      "diversified": "Diversificados"
+      "diversified": "Diversificados",
+      "portfolio": "Tu portafolio",
+      "custom": "Tus índices"
     },
     "name": {
       "sp500": "S&P 500",
@@ -311,7 +364,9 @@
       "classic-60-40": "Portafolio 60/40",
       "us-bonds": "Bonos EE. UU.",
       "gold": "Oro",
-      "bitcoin": "Bitcoin"
+      "bitcoin": "Bitcoin",
+      "equal-weight": "Peso igual (1/N)",
+      "sp500-equal-weight": "S&P 500 Equiponderado"
     },
     "empty": "Elige uno o más índices para comparar este portafolio.",
     "loading": "Cargando índices...",
@@ -327,7 +382,34 @@
     "growthTitle": "Rendimiento acumulado",
     "growthSubtitle": "Del {start} al {end}, con rebalanceo diario",
     "pdfSubtitle": "El portafolio frente a los índices seleccionados",
-    "note": "Las cifras de los índices se calculan con la misma ventana y la misma anualización que las del portafolio. No incluyen comisiones, impuestos ni costos de rebalanceo."
+    "note": "Las cifras de los índices se calculan con la misma ventana y la misma anualización que las del portafolio. No incluyen comisiones, impuestos ni costos de rebalanceo.",
+    "equalWeightHint": "Tus propios activos, con el mismo peso",
+    "custom": {
+      "add": "Nuevo índice",
+      "empty": "Crea tu propio índice de referencia con cualquier combinación de símbolos.",
+      "editAria": "Editar {name}",
+      "deleteAria": "Eliminar {name}",
+      "createTitle": "Nuevo índice de referencia",
+      "editTitle": "Editar índice de referencia",
+      "nameLabel": "Nombre",
+      "namePlaceholder": "p. ej. Mi portafolio de referencia",
+      "legsLabel": "Componentes",
+      "addLeg": "Agregar componente",
+      "removeLeg": "Quitar componente",
+      "weightAria": "Peso de {ticker}",
+      "duplicateTicker": "Este símbolo ya está en el índice.",
+      "total": "Total: {total}",
+      "underInvested": "Menos de 100%: el resto se mantiene en efectivo al 0%.",
+      "levered": "Más de 100%: este índice está apalancado.",
+      "tickerPlaceholder": "Busca o escribe un símbolo",
+      "useSymbolAsTyped": "Usar este símbolo tal cual",
+      "clearTicker": "Quitar símbolo",
+      "unpricedTickers": "Sin datos de precios para: {tickers}. Revisa los símbolos e inténtalo de nuevo.",
+      "limitReached": "Has alcanzado el máximo de índices personalizados.",
+      "saveFailed": "No se pudo guardar el índice. Inténtalo de nuevo en un momento.",
+      "cancel": "Cancelar",
+      "save": "Guardar"
+    }
   },
   "Pdf": {
     "documentTitle": "Reporte de Optimización de Portafolio",
@@ -401,6 +483,8 @@
     "riskFreeRate": "Tasa Libre de Riesgo",
     "targetReturn": "Rendimiento Objetivo",
     "targetRisk": "Riesgo Objetivo",
+    "cvarConfidence": "Nivel de Confianza (CVaR)",
+    "viewConfidence": "Confianza en el Histórico",
     "fullInvestment": "Inversión Completa",
     "shortSelling": "Ventas en Corto",
     "shortSellingAllowed": "Permitidas",

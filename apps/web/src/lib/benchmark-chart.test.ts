@@ -28,6 +28,7 @@ function benchmark(
     id,
     category: "equity",
     tickers: [id.toUpperCase()],
+    name: null,
   };
 }
 

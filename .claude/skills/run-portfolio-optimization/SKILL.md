@@ -119,7 +119,7 @@ pnpm --filter api test
 pnpm --filter web test
 ```
 
-At the time of writing: 313 API tests across 24 files and 366 web tests across 18 files.
+At the time of writing: 409 API tests across 27 files and 380 web tests across 19 files.
 
 ## Gotchas
 

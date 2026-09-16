@@ -5,7 +5,7 @@
 // organization is a database where nothing works. Run this once against a fresh
 // file:portfolio.db, right after `pnpm db:migrate`, before signing up.
 //
-// It writes the same ids and values as migration 0007's backfill, so the two
+// It writes the same ids and values as migration 0008's backfill, so the two
 // converge on one default tenant instead of racing to create two, and it adds
 // the `localhost` domain row that the migration deliberately does not write.
 //
@@ -28,7 +28,7 @@ import {
   user,
 } from "../db/schema.js";
 
-// Same ids as drizzle/0007_backfill_organizations.sql. Changing one here without
+// Same ids as drizzle/0008_backfill_organizations.sql. Changing one here without
 // changing it there gives a migrated database two default tenants.
 const ORG_ID = "org-d2c";
 const ORG_SLUG = "d2c";

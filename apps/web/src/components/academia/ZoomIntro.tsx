@@ -71,10 +71,15 @@ export function ZoomIntro() {
         </div>
       </motion.div>
 
+      {/*
+        The horizontal centring rides in `animate` rather than a
+        `-translate-x-1/2` class: Framer Motion writes the animated `y` into an
+        inline `transform` that outranks the class-based one and would drop it.
+      */}
       <motion.div
-        animate={{ y: [0, 8, 0] }}
+        animate={{ x: "-50%", y: [0, 8, 0] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 text-muted-foreground"
+        className="absolute bottom-10 left-1/2 text-muted-foreground"
       >
         <ChevronDown className="h-6 w-6" />
       </motion.div>

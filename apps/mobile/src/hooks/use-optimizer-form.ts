@@ -8,7 +8,7 @@ import {
   type AssetLimit,
   type AssetLimits,
 } from '@/lib/optimizer/asset-limits';
-import { strategyParam } from '@/lib/optimizer/strategies';
+import { strategyUsesParam, type StrategyParam } from '@/lib/optimizer/strategies';
 
 const MIN_TICKERS = 2;
 const MIN_LEVERAGE = 1;
@@ -55,6 +55,8 @@ export function useOptimizerForm() {
   const [riskFreeRate, setRiskFreeRate] = useState('0');
   const [targetReturn, setTargetReturn] = useState('');
   const [targetRisk, setTargetRisk] = useState('');
+  const [cvarConfidence, setCvarConfidence] = useState('95');
+  const [viewConfidence, setViewConfidence] = useState('50');
   const [enforceFullInvestment, setEnforceFullInvestment] = useState(true);
   const [allowShortSelling, setAllowShortSelling] = useState(false);
 
@@ -80,15 +82,27 @@ export function useOptimizerForm() {
   const [useAssetLimits, setUseAssetLimits] = useState(false);
   const [assetLimits, setAssetLimits] = useState<AssetLimits>({});
 
-  const param = strategyParam(strategy);
+  const usesParam = (param: StrategyParam) => strategyUsesParam(strategy, param);
 
   const hasEnoughTickers = tickers.length >= MIN_TICKERS;
+
+  // Only the parameters the chosen strategy actually reads have to be valid;
+  // the rest keep whatever the user last typed without blocking submission.
+  const cvarConfidenceValue = percentToDecimal(cvarConfidence);
+  const viewConfidenceValue = percentToDecimal(viewConfidence);
   const paramValid =
-    param === 'target_return'
-      ? isValidNumber(targetReturn)
-      : param === 'target_risk'
-        ? isValidNumber(targetRisk)
-        : true;
+    (!usesParam('target_return') || isValidNumber(targetReturn)) &&
+    (!usesParam('target_risk') || isValidNumber(targetRisk)) &&
+    // The API accepts a tail cut-off in [0.5, 0.999] and a view confidence in
+    // [0, 1]; reject out-of-range input here rather than on a failed request.
+    (!usesParam('cvar_confidence') ||
+      (isValidNumber(cvarConfidence) &&
+        cvarConfidenceValue >= 0.5 &&
+        cvarConfidenceValue <= 0.999)) &&
+    (!usesParam('view_confidence') ||
+      (isValidNumber(viewConfidence) &&
+        viewConfidenceValue >= 0 &&
+        viewConfidenceValue <= 1));
 
   // Date range is invalid only when enabled and start is after end.
   const dateRangeInvalid =
@@ -129,11 +143,15 @@ export function useOptimizerForm() {
     return {
       tickers,
       strategy,
-      ...(param === 'risk_free_rate'
+      ...(usesParam('risk_free_rate')
         ? { risk_free_rate: percentToDecimal(riskFreeRate || '0') }
         : {}),
-      ...(param === 'target_return' ? { target_return: percentToDecimal(targetReturn) } : {}),
-      ...(param === 'target_risk' ? { target_risk: percentToDecimal(targetRisk) } : {}),
+      ...(usesParam('target_return')
+        ? { target_return: percentToDecimal(targetReturn) }
+        : {}),
+      ...(usesParam('target_risk') ? { target_risk: percentToDecimal(targetRisk) } : {}),
+      ...(usesParam('cvar_confidence') ? { cvar_confidence: cvarConfidenceValue } : {}),
+      ...(usesParam('view_confidence') ? { view_confidence: viewConfidenceValue } : {}),
       ...(useDateRange
         ? {
             start_date: toStartOfMonth(startYear, startMonth),
@@ -180,13 +198,17 @@ export function useOptimizerForm() {
     removeTicker,
     strategy,
     setStrategy,
-    param,
+    usesParam,
     riskFreeRate,
     setRiskFreeRate,
     targetReturn,
     setTargetReturn,
     targetRisk,
     setTargetRisk,
+    cvarConfidence,
+    setCvarConfidence,
+    viewConfidence,
+    setViewConfidence,
     enforceFullInvestment,
     setEnforceFullInvestment,
     allowShortSelling,

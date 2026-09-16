@@ -3,6 +3,7 @@ import {
   OPTIMIZATION_STRATEGIES,
   RiskFreeSource,
   isRiskFreeInstrumentId,
+  strategyUsesParam,
 } from "@/lib/api";
 import { DateRange } from "@/components/forms/DateRangePicker";
 import { AssetRow } from "@/components/forms/AssetAllocationForm";
@@ -20,6 +21,10 @@ export interface OptimizationFormState {
   strategy: OptimizationStrategy;
   targetReturn: number;
   targetRisk: number;
+  /** Tail cut-off for the CVaR strategy, as a fraction (0.95 = worst 5%). */
+  cvarConfidence: number;
+  /** Trust in the historical estimates for Black-Litterman, 0 to 1. */
+  viewConfidence: number;
   riskFreeRate: number;
   /** Which reference instrument the rate came from, or "manual" if typed. */
   riskFreeSource: RiskFreeSource;
@@ -68,6 +73,8 @@ export function defaultFormState(currentYear: number): OptimizationFormState {
     strategy: "max-sharpe",
     targetReturn: 0.1,
     targetRisk: 0.15,
+    cvarConfidence: 0.95,
+    viewConfidence: 0.5,
     riskFreeRate: 0.05,
     riskFreeSource: "manual",
     enforceFullInvestment: true,
@@ -190,10 +197,28 @@ export function encodeFormState(
   if (state.strategy === "target-risk") {
     params.set("targetRisk", String(state.targetRisk));
   }
-  if (state.strategy === "max-sharpe" && state.riskFreeRate !== defaults.riskFreeRate) {
+  if (
+    strategyUsesParam(state.strategy, "cvar-confidence") &&
+    state.cvarConfidence !== defaults.cvarConfidence
+  ) {
+    params.set("cvarConfidence", String(state.cvarConfidence));
+  }
+  if (
+    strategyUsesParam(state.strategy, "view-confidence") &&
+    state.viewConfidence !== defaults.viewConfidence
+  ) {
+    params.set("viewConfidence", String(state.viewConfidence));
+  }
+  if (
+    strategyUsesParam(state.strategy, "risk-free-rate") &&
+    state.riskFreeRate !== defaults.riskFreeRate
+  ) {
     params.set("riskFreeRate", String(state.riskFreeRate));
   }
-  if (state.strategy === "max-sharpe" && state.riskFreeSource !== defaults.riskFreeSource) {
+  if (
+    strategyUsesParam(state.strategy, "risk-free-rate") &&
+    state.riskFreeSource !== defaults.riskFreeSource
+  ) {
     params.set("riskFreeSource", state.riskFreeSource);
   }
 
@@ -254,6 +279,8 @@ export function decodeFormState(
     strategy,
     targetReturn: parseNum(params.get("targetReturn"), defaults.targetReturn),
     targetRisk: parseNum(params.get("targetRisk"), defaults.targetRisk),
+    cvarConfidence: parseNum(params.get("cvarConfidence"), defaults.cvarConfidence),
+    viewConfidence: parseNum(params.get("viewConfidence"), defaults.viewConfidence),
     riskFreeRate: parseNum(params.get("riskFreeRate"), defaults.riskFreeRate),
     riskFreeSource: parseRiskFreeSource(params.get("riskFreeSource"), defaults.riskFreeSource),
     enforceFullInvestment: parseBool(

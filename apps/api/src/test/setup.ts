@@ -15,7 +15,7 @@
 // The migrations are the COMMITTED files under `drizzle/`, applied with
 // drizzle-orm's runtime migrator — drizzle-kit is a CLI and cannot be called
 // from a test. Tests therefore run against the schema production actually gets,
-// including the 0007/0009 backfills, rather than a `db:push` of schema.ts.
+// including the 0008/0010 backfills, rather than a `db:push` of schema.ts.
 
 import { createClient } from "@libsql/client";
 import { drizzle } from "drizzle-orm/libsql";

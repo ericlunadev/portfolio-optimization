@@ -5,6 +5,7 @@ import {
   encodeFormState,
   OptimizationFormState,
 } from "./optimization-url";
+import { OPTIMIZATION_STRATEGIES, strategyUsesParam } from "./api";
 
 const YEAR = 2026;
 
@@ -132,5 +133,91 @@ describe("optimization-url risk-free rate source", () => {
 
     expect(decoded.riskFreeSource).toBe("manual");
     expect(decoded.riskFreeRate).toBe(0.02);
+  });
+});
+
+describe("optimization-url strategy parameters", () => {
+  it("round-trips the CVaR confidence level", () => {
+    const state = stateWith({ strategy: "cvar", cvarConfidence: 0.99 });
+    const decoded = decodeFormState(encodeFormState(state, YEAR), YEAR);
+
+    expect(decoded.strategy).toBe("cvar");
+    expect(decoded.cvarConfidence).toBe(0.99);
+  });
+
+  it("round-trips the Black-Litterman view confidence", () => {
+    const state = stateWith({ strategy: "black-litterman", viewConfidence: 0.8 });
+    const decoded = decodeFormState(encodeFormState(state, YEAR), YEAR);
+
+    expect(decoded.strategy).toBe("black-litterman");
+    expect(decoded.viewConfidence).toBe(0.8);
+  });
+
+  it("leaves a strategy's parameters out of the link when it does not use them", () => {
+    // Risk parity reads none of the three knobs, so a link to it should carry
+    // only the strategy — no stale slider values from an earlier choice.
+    const params = encodeFormState(
+      stateWith({
+        strategy: "risk-parity",
+        cvarConfidence: 0.99,
+        viewConfidence: 0.8,
+        riskFreeRate: 0.07,
+      }),
+      YEAR
+    );
+
+    expect(params.get("strategy")).toBe("risk-parity");
+    expect(params.get("cvarConfidence")).toBeNull();
+    expect(params.get("viewConfidence")).toBeNull();
+    expect(params.get("riskFreeRate")).toBeNull();
+  });
+
+  it("still writes the risk-free rate for Black-Litterman", () => {
+    const params = encodeFormState(
+      stateWith({ strategy: "black-litterman", riskFreeRate: 0.07 }),
+      YEAR
+    );
+
+    expect(params.get("riskFreeRate")).toBe("0.07");
+  });
+
+  it("falls back to the defaults for a link written before these knobs existed", () => {
+    const decoded = decodeFormState(new URLSearchParams("strategy=cvar"), YEAR);
+    const defaults = defaultFormState(YEAR);
+
+    expect(decoded.cvarConfidence).toBe(defaults.cvarConfidence);
+    expect(decoded.viewConfidence).toBe(defaults.viewConfidence);
+  });
+
+  it("accepts every strategy the picker offers", () => {
+    OPTIMIZATION_STRATEGIES.forEach(({ value }) => {
+      const decoded = decodeFormState(
+        encodeFormState(stateWith({ strategy: value }), YEAR),
+        YEAR
+      );
+      expect(decoded.strategy).toBe(value);
+    });
+  });
+});
+
+describe("strategyUsesParam", () => {
+  it("reports the inputs each strategy reads", () => {
+    expect(strategyUsesParam("max-sharpe", "risk-free-rate")).toBe(true);
+    expect(strategyUsesParam("black-litterman", "risk-free-rate")).toBe(true);
+    expect(strategyUsesParam("black-litterman", "view-confidence")).toBe(true);
+    expect(strategyUsesParam("cvar", "cvar-confidence")).toBe(true);
+    expect(strategyUsesParam("target-return", "target-return")).toBe(true);
+    expect(strategyUsesParam("target-risk", "target-risk")).toBe(true);
+  });
+
+  it("reports the risk-based allocators as needing nothing", () => {
+    (["risk-parity", "hrp", "max-diversification", "equal-weight"] as const).forEach(
+      (strategy) => {
+        expect(strategyUsesParam(strategy, "risk-free-rate")).toBe(false);
+        expect(strategyUsesParam(strategy, "target-return")).toBe(false);
+        expect(strategyUsesParam(strategy, "cvar-confidence")).toBe(false);
+        expect(strategyUsesParam(strategy, "view-confidence")).toBe(false);
+      }
+    );
   });
 });

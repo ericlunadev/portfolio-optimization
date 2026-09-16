@@ -1,21 +1,39 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
-import { Loader2, Scale } from "lucide-react";
+import { Loader2, Pencil, Plus, Scale, Trash2 } from "lucide-react";
 import {
   BenchmarkCategory,
   BenchmarkComparisonResponse,
+  isCustomBenchmarkId,
+  type CustomBenchmark,
 } from "@/lib/api";
-import { useBenchmarkCatalog } from "@/hooks/useBenchmarks";
+import {
+  useBenchmarkCatalog,
+  useCreateCustomBenchmark,
+  useDeleteCustomBenchmark,
+  useUpdateCustomBenchmark,
+} from "@/hooks/useBenchmarks";
+import { CustomBenchmarkEditor } from "./CustomBenchmarkEditor";
 import { buildBenchmarkChartData } from "@/lib/benchmark-chart";
 import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsChart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { formatChartDate, useChartColors } from "@/components/charts/chart-theme";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 
-/** Order the picker groups its options in. */
-const CATEGORY_ORDER: BenchmarkCategory[] = ["equity", "global", "diversified"];
+/**
+ * Order the picker groups its options in. The portfolio's own baseline leads,
+ * since 1/N is the first thing an optimized result should be held against, and
+ * the user's own benchmarks close the list.
+ */
+const CATEGORY_ORDER: BenchmarkCategory[] = [
+  "portfolio",
+  "equity",
+  "global",
+  "diversified",
+  "custom",
+];
 
 /**
  * How many benchmarks can be compared at once. Beyond a handful the chart's
@@ -51,15 +69,29 @@ export function BenchmarkComparison({
   const colors = useChartColors();
   const { data: catalog } = useBenchmarkCatalog();
 
+  const createCustom = useCreateCustomBenchmark();
+  const updateCustom = useUpdateCustomBenchmark();
+  const deleteCustom = useDeleteCustomBenchmark();
+
+  /** `"new"` while creating, a benchmark id while editing, null when closed. */
+  const [editing, setEditing] = useState<string | null>(null);
+
   const groups = useMemo(() => {
     const entries = catalog?.benchmarks ?? [];
     return CATEGORY_ORDER.map((category) => ({
       category,
       entries: entries.filter((entry) => entry.category === category),
-    })).filter((group) => group.entries.length > 0);
+    })).filter((group) => group.entries.length > 0 || group.category === "custom");
   }, [catalog]);
 
   const atLimit = selected.length >= MAX_BENCHMARKS;
+
+  const editingBenchmark: CustomBenchmark | undefined = useMemo(() => {
+    if (!editing || editing === "new") return undefined;
+    const entry = catalog?.benchmarks.find((candidate) => candidate.id === editing);
+    if (!entry) return undefined;
+    return { id: entry.id, name: entry.name ?? "", components: entry.components };
+  }, [editing, catalog]);
 
   function toggle(id: string) {
     if (selected.includes(id)) {
@@ -67,6 +99,29 @@ export function BenchmarkComparison({
     } else if (!atLimit) {
       onSelectedChange([...selected, id]);
     }
+  }
+
+  async function saveCustom(input: {
+    name: string;
+    components: { ticker: string; weight: number }[];
+  }) {
+    if (editingBenchmark) {
+      await updateCustom.mutateAsync({ id: editingBenchmark.id, ...input });
+    } else {
+      // A benchmark the user just built is almost always one they want to see,
+      // so it goes straight into the comparison — unless the picker is full.
+      const created = await createCustom.mutateAsync(input);
+      if (selected.length < MAX_BENCHMARKS) {
+        onSelectedChange([...selected, created.id]);
+      }
+    }
+    setEditing(null);
+  }
+
+  async function removeCustom(id: string) {
+    await deleteCustom.mutateAsync(id);
+    onSelectedChange(selected.filter((entry) => entry !== id));
+    if (editing === id) setEditing(null);
   }
 
   // Keep the table and the chart in the order the user picked, not the order
@@ -120,40 +175,99 @@ export function BenchmarkComparison({
               {group.entries.map((entry) => {
                 const isSelected = selected.includes(entry.id);
                 const isDisabled = !isSelected && atLimit;
+                const isCustom = isCustomBenchmarkId(entry.id);
                 return (
-                  <button
+                  <span
                     key={entry.id}
-                    type="button"
-                    onClick={() => toggle(entry.id)}
-                    disabled={isDisabled}
-                    aria-pressed={isSelected}
-                    title={entry.tickers.join(" · ")}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                      "inline-flex items-center rounded-full border text-xs font-medium transition-all",
                       isSelected
                         ? "border-primary/40 bg-primary/10 text-primary"
                         : "border-border/50 bg-card/60 text-muted-foreground hover:border-border hover:bg-accent hover:text-foreground",
-                      isDisabled && "cursor-not-allowed opacity-40 hover:bg-card/60"
+                      isDisabled && "opacity-40"
                     )}
                   >
-                    {isSelected && (
-                      <span
-                        className="h-2 w-2 shrink-0 rounded-full"
-                        style={{ background: colorById[entry.id] }}
-                        aria-hidden
-                      />
+                    <button
+                      type="button"
+                      onClick={() => toggle(entry.id)}
+                      disabled={isDisabled}
+                      aria-pressed={isSelected}
+                      // The equal-weight benchmark is the one entry with no
+                      // fixed symbols to name, so it explains itself instead.
+                      title={
+                        entry.tickers.length > 0
+                          ? entry.tickers.join(" · ")
+                          : t("equalWeightHint")
+                      }
+                      className={cn(
+                        "inline-flex items-center gap-1.5 py-1.5 pl-3",
+                        isCustom ? "pr-1.5" : "pr-3",
+                        isDisabled && "cursor-not-allowed"
+                      )}
+                    >
+                      {isSelected && (
+                        <span
+                          className="h-2 w-2 shrink-0 rounded-full"
+                          style={{ background: colorById[entry.id] }}
+                          aria-hidden
+                        />
+                      )}
+                      {nameById(entry.id)}
+                    </button>
+                    {isCustom && (
+                      <span className="flex items-center gap-0.5 pr-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setEditing(entry.id)}
+                          aria-label={t("custom.editAria", { name: nameById(entry.id) })}
+                          className="rounded-full p-1 transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          <Pencil className="h-3 w-3" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeCustom(entry.id)}
+                          disabled={deleteCustom.isPending}
+                          aria-label={t("custom.deleteAria", { name: nameById(entry.id) })}
+                          className="rounded-full p-1 transition-colors hover:bg-accent hover:text-destructive disabled:opacity-40"
+                        >
+                          <Trash2 className="h-3 w-3" aria-hidden />
+                        </button>
+                      </span>
                     )}
-                    {nameById(entry.id)}
-                  </button>
+                  </span>
                 );
               })}
+              {group.category === "custom" && (
+                <button
+                  type="button"
+                  onClick={() => setEditing("new")}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                >
+                  <Plus className="h-3 w-3" aria-hidden />
+                  {t("custom.add")}
+                </button>
+              )}
             </div>
+            {group.category === "custom" && group.entries.length === 0 && !editing && (
+              <p className="mt-1.5 text-xs text-muted-foreground">{t("custom.empty")}</p>
+            )}
           </div>
         ))}
         {atLimit && (
           <p className="text-xs text-muted-foreground">
             {t("maxSelected", { count: MAX_BENCHMARKS })}
           </p>
+        )}
+        {editing && (
+          <CustomBenchmarkEditor
+            key={editing}
+            benchmark={editingBenchmark}
+            onSave={saveCustom}
+            onCancel={() => setEditing(null)}
+            isSaving={createCustom.isPending || updateCustom.isPending}
+            error={editingBenchmark ? updateCustom.error : createCustom.error}
+          />
         )}
       </fieldset>
 

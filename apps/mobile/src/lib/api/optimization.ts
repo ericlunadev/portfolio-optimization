@@ -13,7 +13,13 @@ export type OptimizationStrategy =
   | 'max-return'
   | 'target-return'
   | 'target-risk'
-  | 'knee-point';
+  | 'knee-point'
+  | 'risk-parity'
+  | 'black-litterman'
+  | 'hrp'
+  | 'max-diversification'
+  | 'cvar'
+  | 'equal-weight';
 
 export type OptimizeRequest = {
   tickers: string[];
@@ -26,6 +32,10 @@ export type OptimizeRequest = {
   risk_free_rate?: number;
   target_return?: number;
   target_risk?: number;
+  /** Tail cut-off for `cvar`: 0.95 averages the worst 5% of periods. */
+  cvar_confidence?: number;
+  /** How far `black-litterman` leans on the history over equilibrium. */
+  view_confidence?: number;
   start_date?: string;
   end_date?: string;
   enforce_full_investment?: boolean;

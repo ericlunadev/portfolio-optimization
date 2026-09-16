@@ -77,7 +77,7 @@ describe("signup provisioning", () => {
     expect(all).toHaveLength(1);
   });
 
-  it("derives the slug the way migration 0007 does", async () => {
+  it("derives the slug the way migration 0008 does", async () => {
     const member = await membershipFor(userId);
     const org = await db.query.organization.findFirst({
       where: eq(organization.id, member!.organizationId),

@@ -6,6 +6,7 @@ import {
   findMaxSharpePortfolio,
   findMinVariancePortfolio,
   findTargetReturnPortfolio,
+  findTangencyPortfolio,
   findTargetRiskPortfolio,
 } from "./optimizer.js";
 import { buildCovarianceMatrix } from "./matrix.js";
@@ -383,5 +384,68 @@ describe("bounds across every strategy", () => {
       expectWithinBounds(weights, wMinPerAsset, wMaxPerAsset);
       expect(total(weights)).toBeCloseTo(1, 6);
     });
+  });
+});
+
+describe("findTangencyPortfolio", () => {
+  /** Sharpe ratio of a portfolio, measured straight from the definition. */
+  function sharpe(weights: number[], riskFreeRate = 0): number {
+    let variance = 0;
+    for (let i = 0; i < weights.length; i++) {
+      for (let j = 0; j < weights.length; j++) {
+        variance += weights[i] * weights[j] * COV[i][j];
+      }
+    }
+    const excess = weights.reduce(
+      (acc, w, i) => acc + w * (EXPECTED_RETURNS[i] - riskFreeRate),
+      0
+    );
+    return excess / Math.sqrt(variance);
+  }
+
+  it("finds a higher Sharpe ratio than the sampled frontier does", () => {
+    const exact = findTangencyPortfolio(EXPECTED_RETURNS, COV);
+    const sampled = findMaxSharpePortfolio(EXPECTED_RETURNS, COV, {
+      numFrontierPoints: 200,
+    });
+    expect(sharpe(exact.weights)).toBeGreaterThan(sharpe(sampled.weights));
+  });
+
+  it("beats every neighbouring portfolio on a fine grid", () => {
+    const result = findTangencyPortfolio(EXPECTED_RETURNS, COV);
+    const best = sharpe(result.weights);
+
+    for (let a = 0; a <= 1.0000001; a += 0.01) {
+      for (let b = 0; a + b <= 1.0000001; b += 0.01) {
+        expect(sharpe([a, b, 1 - a - b])).toBeLessThanOrEqual(best + 1e-9);
+      }
+    }
+  });
+
+  it("reproduces the reported Sharpe ratio", () => {
+    const result = findTangencyPortfolio(EXPECTED_RETURNS, COV, {
+      riskFreeRate: 0.02,
+    });
+    expect(result.sharpeRatio).toBeCloseTo(sharpe(result.weights, 0.02), 9);
+    expect(total(result.weights)).toBeCloseTo(1, 6);
+  });
+
+  it("stays inside per-asset bounds", () => {
+    const result = findTangencyPortfolio(EXPECTED_RETURNS, COV, {
+      wMinPerAsset: [null, 0.2, null],
+      wMaxPerAsset: [0.5, null, 0.3],
+    });
+    expectWithinBounds(result.weights, [null, 0.2, null], [0.5, null, 0.3]);
+    expect(total(result.weights)).toBeCloseTo(1, 6);
+  });
+
+  it("falls back to the even split when the covariance matrix is singular", () => {
+    const singular = [
+      [0.04, 0.04],
+      [0.04, 0.04],
+    ];
+    const result = findTangencyPortfolio([0.1, 0.1], singular);
+    expect(total(result.weights)).toBeCloseTo(1, 6);
+    result.weights.forEach((w) => expect(Number.isFinite(w)).toBe(true));
   });
 });

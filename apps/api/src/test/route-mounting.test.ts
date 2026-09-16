@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from "vitest";
 import app from "../app.js";
+import { asUser, seedUser } from "./factories.js";
 
 const ORIGIN = "http://api.test";
 
@@ -36,8 +37,23 @@ describe("route mounting", () => {
     ["/api/onboarding", "onboarding"],
     ["/api/market/risk-free-rates", "market rates"],
     ["/api/historical/search?q=SPY", "ticker search"],
+    ["/api/optimization/benchmarks", "the benchmark catalog"],
   ])("mounts %s (%s)", async (path) => {
     expect(await status(path)).not.toBe(404);
+  });
+
+  // Custom benchmarks are a router mounted *inside* the optimization router, so
+  // an anonymous request proves nothing: the parent's wildcard authMiddleware
+  // answers 401 before routing reaches the child, mounted or not. Signed in, an
+  // unmounted child falls through to 404 while a mounted one rejects the empty
+  // body in its validator.
+  it("mounts /api/optimization/custom-benchmarks (custom benchmarks)", async () => {
+    const fetchAs = asUser(await seedUser());
+    const response = await fetchAs("/api/optimization/custom-benchmarks", {
+      method: "POST",
+      json: {},
+    });
+    expect(response.status).not.toBe(404);
   });
 
   // `by-host` must not sit under /api/organizations: that prefix registers a

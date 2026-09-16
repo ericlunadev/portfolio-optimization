@@ -162,7 +162,7 @@ export function asAnonymous(): TestFetch {
  * seeding neither, or both the same, makes the lookup's org filter invisible to
  * a mutation pass.
  *
- * Defaults are the D2C behaviour set that migration 0007 and the signup hook
+ * Defaults are the D2C behaviour set that migration 0008 and the signup hook
  * both write, not the whitelabel column defaults in schema.ts.
  */
 export async function seedOrg(

@@ -1,5 +1,11 @@
+import { Matrix, inverse } from "ml-matrix";
 import { portfolioVariance, portfolioReturn, sum } from "./matrix.js";
-import { AssetBounds, AssetBoundsInput, resolveAssetBounds } from "./bounds.js";
+import {
+  AssetBounds,
+  AssetBoundsInput,
+  projectOntoBounded,
+  resolveAssetBounds,
+} from "./bounds.js";
 
 export interface OptimizationResult {
   weights: number[];
@@ -138,71 +144,6 @@ interface ProjectionOptions {
   bounds: AssetBounds;
   enforceFullInvestment: boolean;
   maxLeverage: number;
-}
-
-/**
- * Euclidean projection onto { sum(w) = target, lower <= w <= upper }.
- *
- * The KKT conditions make the solution w(theta)[i] = clamp(v[i] - theta) for a
- * single scalar theta, and sum(w(theta)) decreases monotonically in theta — so
- * a bisection on theta lands exactly on the target. This handles per-asset
- * floors, per-asset caps and short selling in one step, where a plain simplex
- * projection only handles a zero floor.
- *
- * When `enforceEquality` is false the total may sit anywhere in [0, target] —
- * the uninvested remainder is cash. It is floored at zero because a portfolio
- * that is net short overall is not "holding cash"; without that floor, short
- * positions run away to their bounds.
- */
-function projectOntoBounded(
-  v: number[],
-  target: number,
-  bounds: AssetBounds,
-  enforceEquality: boolean
-): number[] {
-  const { lower, upper } = bounds;
-  const clampAll = (theta: number) =>
-    v.map((vi, i) => Math.min(upper[i], Math.max(lower[i], vi - theta)));
-  const totalAt = (theta: number) => sum(clampAll(theta));
-
-  // Infeasible targets are pulled back to the closest reachable total, so an
-  // over-tight set of bounds degrades to its nearest portfolio instead of
-  // returning garbage. The API rejects those inputs before we get here.
-  const minTotal = sum(lower);
-  const maxTotal = sum(upper);
-  const clampToReachable = (t: number) => Math.min(Math.max(t, minTotal), maxTotal);
-  let goal = clampToReachable(target);
-
-  if (!enforceEquality) {
-    const asIs = clampAll(0);
-    const asIsTotal = sum(asIs);
-    if (asIsTotal >= -1e-10 && asIsTotal <= goal + 1e-10) return asIs;
-    // Outside the band: pull the total back to the nearer edge.
-    goal = asIsTotal < 0 ? clampToReachable(0) : goal;
-  }
-
-  // Bracket theta: at -spread every weight sits at its cap, at +spread at its floor.
-  const spread =
-    Math.max(...v.map(Math.abs), ...upper.map(Math.abs), ...lower.map(Math.abs), 1) * 2 + 1;
-  let lo = -spread;
-  let hi = spread;
-
-  for (let iter = 0; iter < 100; iter++) {
-    const mid = (lo + hi) / 2;
-    const total = totalAt(mid);
-    if (Math.abs(total - goal) < 1e-12) {
-      lo = hi = mid;
-      break;
-    }
-    // totalAt is non-increasing in theta.
-    if (total > goal) {
-      lo = mid;
-    } else {
-      hi = mid;
-    }
-  }
-
-  return clampAll((lo + hi) / 2);
 }
 
 /**
@@ -360,6 +301,109 @@ export function findMaxSharpePortfolio(
     return: frontier.returns[bestIndex],
     volatility: frontier.volatilities[bestIndex],
     sharpeRatio: maxSharpe,
+    success: true,
+  };
+}
+
+/**
+ * Find the tangency portfolio: the feasible portfolio with the highest Sharpe
+ * ratio, solved directly rather than by scanning the frontier.
+ *
+ * `findMaxSharpePortfolio` picks the best of a few dozen sampled frontier
+ * points, which is accurate enough to plot but lands slightly off the true
+ * optimum — and Black-Litterman needs the exact answer, because its whole
+ * premise is that reverse-optimizing a portfolio and then re-optimizing gives
+ * that portfolio back. A frontier scan loses that identity, and the equilibrium
+ * anchor along with it.
+ *
+ * Two starting points are tried: the closed-form unconstrained tangency
+ * `COV^-1 * (r - rf)`, exact whenever no bound binds, and the even split as a
+ * fallback for a singular covariance matrix. The better one is then polished by
+ * projected gradient ascent on the Sharpe ratio, whose gradient is
+ * `(r - rf) / sigma - excess * (COV * w) / sigma^3`.
+ */
+export function findTangencyPortfolio(
+  expectedReturns: number[],
+  covMatrix: number[][],
+  options: ConstraintOptions & {
+    riskFreeRate?: number;
+    maxIterations?: number;
+  } = {}
+): OptimizationResult & { sharpeRatio: number } {
+  const n = expectedReturns.length;
+  const { riskFreeRate = 0, maxIterations = 500, maxLeverage = 1.0 } = options;
+
+  const bounds = resolveAssetBounds(n, options);
+  const enforceEquality = requiresFullInvestment(options);
+  const project = (w: number[]) =>
+    projectOntoBounded(w, maxLeverage, bounds, enforceEquality);
+
+  // Only the invested capital carries a risk premium: whatever is not invested
+  // earns the risk-free rate and contributes no excess return.
+  const excessReturns = expectedReturns.map((r) => r - riskFreeRate);
+
+  const sharpeOf = (w: number[]) => {
+    const variance = portfolioVariance(w, covMatrix);
+    if (variance <= 1e-18) return -Infinity;
+    return portfolioReturn(w, excessReturns) / Math.sqrt(variance);
+  };
+
+  let weights = project(Array(n).fill(maxLeverage / n));
+  let best = sharpeOf(weights);
+
+  // The closed-form optimum, valid when no bound binds; projection keeps it
+  // feasible when one does.
+  try {
+    const raw = inverse(new Matrix(covMatrix))
+      .mmul(Matrix.columnVector(excessReturns))
+      .to1DArray();
+    const scale = sum(raw);
+    if (Number.isFinite(scale) && Math.abs(scale) > 1e-12) {
+      const candidate = project(raw.map((x) => (x / scale) * maxLeverage));
+      const candidateSharpe = sharpeOf(candidate);
+      if (candidateSharpe > best) {
+        weights = candidate;
+        best = candidateSharpe;
+      }
+    }
+  } catch {
+    // A singular covariance matrix has no closed form; the even split stands.
+  }
+
+  let step = 0.25;
+
+  for (let iter = 0; iter < maxIterations && step > 1e-14; iter++) {
+    const variance = portfolioVariance(weights, covMatrix);
+    if (variance <= 1e-18) break;
+
+    const sigma = Math.sqrt(variance);
+    const excess = portfolioReturn(weights, excessReturns);
+    const marginal = covMatrix.map((row) => portfolioReturn(weights, row));
+    const gradient = excessReturns.map(
+      (r, i) => r / sigma - (excess * marginal[i]) / Math.pow(sigma, 3)
+    );
+
+    const norm = Math.sqrt(gradient.reduce((acc, g) => acc + g * g, 0));
+    if (norm < 1e-15) break;
+
+    const candidate = project(weights.map((w, i) => w + (step * gradient[i]) / norm));
+    const candidateSharpe = sharpeOf(candidate);
+
+    if (candidateSharpe > best) {
+      const shift = Math.max(...candidate.map((w, i) => Math.abs(w - weights[i])));
+      weights = candidate;
+      best = candidateSharpe;
+      if (shift < 1e-12) break;
+    } else {
+      step *= 0.5;
+    }
+  }
+
+  return {
+    weights,
+    return: portfolioReturn(weights, expectedReturns),
+    volatility: Math.sqrt(Math.max(0, portfolioVariance(weights, covMatrix))),
+    sharpeRatio: best,
     success: true,
   };
 }

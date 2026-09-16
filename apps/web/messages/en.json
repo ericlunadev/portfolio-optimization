@@ -82,6 +82,30 @@
     "knee-point": {
       "label": "Inflection Point",
       "description": "Point of maximum curvature on the frontier"
+    },
+    "risk-parity": {
+      "label": "Risk Parity",
+      "description": "Every asset contributes the same amount of risk"
+    },
+    "black-litterman": {
+      "label": "Black-Litterman",
+      "description": "Blends market equilibrium with the price history"
+    },
+    "hrp": {
+      "label": "Hierarchical Risk Parity",
+      "description": "Clusters assets by correlation and splits by branch"
+    },
+    "max-diversification": {
+      "label": "Maximum Diversification",
+      "description": "Maximizes the benefit of low correlation"
+    },
+    "cvar": {
+      "label": "Conditional Value at Risk",
+      "description": "Minimizes the average loss in the worst periods"
+    },
+    "equal-weight": {
+      "label": "Equal Weight",
+      "description": "The same share in every asset"
     }
   },
   "HomePage": {
@@ -91,8 +115,8 @@
     "ctaStart": "Start Optimization",
     "feature1Title": "Efficient Frontier",
     "feature1Description": "Visualize the optimal set of portfolios that offer the highest return for each level of risk.",
-    "feature2Title": "6 Strategies",
-    "feature2Description": "From Max Sharpe to Inflection Point. Choose the strategy that best fits your profile.",
+    "feature2Title": "12 Strategies",
+    "feature2Description": "From Max Sharpe to Hierarchical Risk Parity. Choose the strategy that best fits your profile.",
     "feature3Title": "Risk Analysis",
     "feature3Description": "Probability of negative return, historical volatility, and confidence metrics for informed decisions."
   },
@@ -148,9 +172,17 @@
   },
   "RiskFreeInstruments": {
     "us-t-bill-3m": "US 3-Month Treasury Bill",
+    "us-treasury-2y": "US 2-Year Treasury Note",
     "us-treasury-5y": "US 5-Year Treasury Note",
     "us-treasury-10y": "US 10-Year Treasury Note",
-    "us-treasury-30y": "US 30-Year Treasury Bond"
+    "us-treasury-30y": "US 30-Year Treasury Bond",
+    "ar-caucion-usd": "Argentine repo (caución) in dollars",
+    "ar-plazo-fijo-30d": "Argentine 30-day time deposit",
+    "ar-caucion-ars": "Argentine repo (caución) in pesos"
+  },
+  "RiskFreeCurrencies": {
+    "USD": "In dollars (USD)",
+    "ARS": "In pesos (ARS)"
   },
   "NewOptimization": {
     "signInTitle": "Sign in to create an optimization",
@@ -191,6 +223,22 @@
     "strategyTargetRiskText": "Finds the maximum-return portfolio for a specific risk level.",
     "strategyInflectionLabel": "Inflection Point:",
     "strategyInflectionText": "Identifies the point of maximum curvature on the efficient frontier, where the marginal benefit of taking on more risk starts to diminish.",
+    "strategyRiskParityLabel": "Risk Parity:",
+    "strategyRiskParityText": "Sizes positions so every asset contributes the same amount of risk to the portfolio. A volatile asset simply gets a smaller position.",
+    "strategyBlackLittermanLabel": "Black-Litterman:",
+    "strategyBlackLittermanText": "Starts from the returns the market already implies and blends them with the price history, in the proportion you choose. Keeps one noisy estimate from dominating the allocation.",
+    "strategyHrpLabel": "Hierarchical Risk Parity:",
+    "strategyHrpText": "Clusters assets by correlation and splits capital branch by branch. It never inverts the covariance matrix, so it stays stable when several assets move together.",
+    "strategyMaxDiversificationLabel": "Maximum Diversification:",
+    "strategyMaxDiversificationText": "Maximizes how much risk the low correlation between assets cancels out, rather than simply seeking the quietest ones.",
+    "strategyCvarLabel": "Conditional Value at Risk:",
+    "strategyCvarText": "Minimizes the average loss across the worst periods in the history. It reads the left tail directly instead of assuming returns are normal.",
+    "strategyEqualWeightLabel": "Equal Weight:",
+    "strategyEqualWeightText": "Splits capital evenly across every asset. With no parameters to estimate, it is the benchmark the other strategies have to beat.",
+    "cvarConfidenceSlider": "Confidence level: {value}% (worst {tail}% of periods)",
+    "cvarConfidenceHelp": "A higher level judges the portfolio on a shorter, more extreme tail.",
+    "viewConfidenceSlider": "Confidence in the price history: {value}%",
+    "viewConfidenceHelp": "At 0% market equilibrium decides; at 100%, the historical returns do.",
     "targetReturnSlider": "Target return: {value}%",
     "targetRiskSlider": "Target risk (volatility): {value}%",
     "targetRiskInfoAria": "Target risk information",
@@ -204,7 +252,7 @@
     "riskFreeSourceManual": "Manual",
     "riskFreeInstrumentOption": "{name} — {rate}%",
     "riskFreeRateInputAria": "Risk-free rate as a percentage",
-    "riskFreeRateQuoteNote": "{ticker} yield as of {date}.",
+    "riskFreeRateQuoteNote": "{source} yield as of {date}.",
     "riskFreeRateManualNote": "Manually entered rate.",
     "riskFreeRatesLoading": "Loading current yields…",
     "riskFreeRatesUnavailable": "Yields could not be loaded; enter the rate manually.",
@@ -275,6 +323,9 @@
     "covarianceMatrixTitle": "Covariance Matrix",
     "covarianceMatrixSubtitle": "How each pair of assets' returns move together. The diagonal holds each asset's variance (σ²).",
     "covarianceMatrixNote": "* Annualized covariances, shown as percentages (×100)",
+    "correlationMatrixTitle": "Correlation Matrix",
+    "correlationMatrixSubtitle": "The same relationship on a comparable scale, from -1 to 1. Red = the assets move together (poor diversification). Blue = they move opposite (good diversification).",
+    "correlationMatrixNote": "* Pearson correlation between daily returns. The diagonal is always 1.",
     "compareReturnLabel": "Return",
     "compareVolatilityLabel": "Volatility",
     "compareOptimal": "Optimal",
@@ -295,7 +346,9 @@
     "category": {
       "equity": "Equity indices",
       "global": "Global",
-      "diversified": "Diversified"
+      "diversified": "Diversified",
+      "portfolio": "Your portfolio",
+      "custom": "Your benchmarks"
     },
     "name": {
       "sp500": "S&P 500",
@@ -311,7 +364,9 @@
       "classic-60-40": "60/40 Portfolio",
       "us-bonds": "US Bonds",
       "gold": "Gold",
-      "bitcoin": "Bitcoin"
+      "bitcoin": "Bitcoin",
+      "equal-weight": "Equal weight (1/N)",
+      "sp500-equal-weight": "S&P 500 Equal Weight"
     },
     "empty": "Pick one or more benchmarks to compare this portfolio against.",
     "loading": "Loading benchmarks...",
@@ -327,7 +382,34 @@
     "growthTitle": "Cumulative performance",
     "growthSubtitle": "From {start} to {end}, rebalanced daily",
     "pdfSubtitle": "The portfolio against the selected benchmarks",
-    "note": "Benchmark figures use the same window and the same annualization as the portfolio's. They exclude commissions, taxes and rebalancing costs."
+    "note": "Benchmark figures use the same window and the same annualization as the portfolio's. They exclude commissions, taxes and rebalancing costs.",
+    "equalWeightHint": "Your own assets, weighted equally",
+    "custom": {
+      "add": "New benchmark",
+      "empty": "Build your own benchmark from any combination of symbols.",
+      "editAria": "Edit {name}",
+      "deleteAria": "Delete {name}",
+      "createTitle": "New benchmark",
+      "editTitle": "Edit benchmark",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. My reference portfolio",
+      "legsLabel": "Components",
+      "addLeg": "Add component",
+      "removeLeg": "Remove component",
+      "weightAria": "Weight of {ticker}",
+      "duplicateTicker": "This symbol is already in the benchmark.",
+      "total": "Total: {total}",
+      "underInvested": "Below 100% — the remainder is held as cash at 0%.",
+      "levered": "Above 100% — this benchmark is levered.",
+      "tickerPlaceholder": "Search or type a symbol",
+      "useSymbolAsTyped": "Use this symbol as typed",
+      "clearTicker": "Clear symbol",
+      "unpricedTickers": "No price data for: {tickers}. Check the symbols and try again.",
+      "limitReached": "You have reached the maximum number of custom benchmarks.",
+      "saveFailed": "The benchmark could not be saved. Try again in a moment.",
+      "cancel": "Cancel",
+      "save": "Save"
+    }
   },
   "Pdf": {
     "documentTitle": "Portfolio Optimization Report",
@@ -401,6 +483,8 @@
     "riskFreeRate": "Risk-Free Rate",
     "targetReturn": "Target Return",
     "targetRisk": "Target Risk",
+    "cvarConfidence": "Confidence Level (CVaR)",
+    "viewConfidence": "Confidence in the History",
     "fullInvestment": "Full Investment",
     "shortSelling": "Short Selling",
     "shortSellingAllowed": "Allowed",

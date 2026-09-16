@@ -336,6 +336,31 @@ export const simulations = sqliteTable(
   (t) => [index("simulations_org_idx").on(t.organizationId)]
 );
 
+// ==================== CUSTOM BENCHMARKS ====================
+
+/**
+ * A reference portfolio the user assembled themselves, to measure simulations
+ * against something the curated catalog does not cover — a personal holding, a
+ * competitor's fund, or a home-currency blend of indices.
+ */
+export const customBenchmarks = sqliteTable(
+  "custom_benchmarks",
+  {
+    id: text("id").primaryKey(), // UUID
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** JSON string: [{ ticker, weight }] — weights are literal exposures. */
+    components: text("components").notNull(),
+    createdAt: integer("created_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+    updatedAt: integer("updated_at", { mode: "timestamp" }).default(sql`(unixepoch())`),
+  },
+  (table) => ({
+    userIdx: index("custom_benchmarks_user_idx").on(table.userId),
+  })
+);
+
 // ==================== BILLING ====================
 
 // Keyed on the organization: one wallet per tenant, with per-user attribution in
@@ -427,6 +452,7 @@ export const userRelations = relations(user, ({ many }) => ({
   assumptions: many(userAssumptions),
   correlations: many(userCorrelations),
   simulations: many(simulations),
+  customBenchmarks: many(customBenchmarks),
 }));
 
 export const sessionRelations = relations(session, ({ one }) => ({
@@ -446,6 +472,13 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const simulationsRelations = relations(simulations, ({ one }) => ({
   user: one(user, {
     fields: [simulations.userId],
+    references: [user.id],
+  }),
+}));
+
+export const customBenchmarksRelations = relations(customBenchmarks, ({ one }) => ({
+  user: one(user, {
+    fields: [customBenchmarks.userId],
     references: [user.id],
   }),
 }));
@@ -556,6 +589,9 @@ export type NewBackgroundTask = typeof backgroundTasks.$inferInsert;
 
 export type Simulation = typeof simulations.$inferSelect;
 export type NewSimulation = typeof simulations.$inferInsert;
+
+export type CustomBenchmark = typeof customBenchmarks.$inferSelect;
+export type NewCustomBenchmark = typeof customBenchmarks.$inferInsert;
 
 export type UserProfile = typeof userProfile.$inferSelect;
 export type NewUserProfile = typeof userProfile.$inferInsert;

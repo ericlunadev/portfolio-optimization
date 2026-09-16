@@ -1,6 +1,22 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 import { cn } from "@/lib/utils";
+
+/**
+ * Correlation heat, read as diversification: red means the pair moves together
+ * (little diversification), blue means it moves apart (real diversification) —
+ * the same reading the academia station teaches. The scale is alpha-composited
+ * over the page, so it lands light on a light theme and dark on a dark one
+ * while the number keeps its own token colour.
+ */
+function correlationBackground(value: number): string {
+  const strength = Math.min(Math.abs(value), 1);
+  const alpha = strength * 0.55 + 0.04;
+  const hue = value >= 0 ? "0 65% 55%" : "200 55% 55%";
+  return `hsl(${hue} / ${alpha})`;
+}
 
 interface MatrixTableProps {
   title?: string;
@@ -19,21 +35,16 @@ export function MatrixTable({
   colorScale = false,
   isCorrelation = false,
 }: MatrixTableProps) {
-  const getColorClass = (value: number, isCorrelationCell: boolean) => {
-    if (!colorScale) return "";
-
-    if (isCorrelationCell) {
-      // For correlation: -1 to 1. Strongest band first, otherwise a value of
-      // -0.9 would be caught by the -0.3 band and never reach the -0.7 one.
-      if (value >= 0.7) return "bg-green-100 dark:bg-green-900/30";
-      if (value >= 0.3) return "bg-green-50 dark:bg-green-900/10";
-      if (value <= -0.7) return "bg-red-100 dark:bg-red-900/30";
-      if (value <= -0.3) return "bg-red-50 dark:bg-red-900/10";
-      return "";
-    } else {
-      // For covariance: highlight diagonal (variance)
-      return "";
-    }
+  const getCellStyle = (
+    value: number,
+    isDiagonal: boolean
+  ): CSSProperties | undefined => {
+    // Covariances are not bounded, so only correlations get a heat scale.
+    if (!colorScale || !isCorrelation) return undefined;
+    // The diagonal is always 1 and says nothing about diversification, so it
+    // takes the neutral accent instead of the hottest red on the scale.
+    if (isDiagonal) return { background: "hsl(var(--primary) / 0.12)" };
+    return { background: correlationBackground(value) };
   };
 
   return (
@@ -62,9 +73,9 @@ export function MatrixTable({
                     key={j}
                     className={cn(
                       "px-2 py-2 text-center font-mono",
-                      i === j && "font-semibold",
-                      getColorClass(value, isCorrelation)
+                      i === j && "font-semibold"
                     )}
+                    style={getCellStyle(value, i === j)}
                   >
                     {formatValue(value)}
                   </td>

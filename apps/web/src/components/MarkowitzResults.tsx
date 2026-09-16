@@ -12,6 +12,7 @@ import {
   SimulationParams,
 } from "@/lib/api";
 import { formatWeightLimits, toWeightBounds } from "@/lib/asset-limits";
+import { correlationFromCovariance } from "@/lib/correlation";
 import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
@@ -20,7 +21,7 @@ import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
 import { RollingVolatilityChart } from "@/components/charts/RollingVolatilityChart";
 import { MatrixTable } from "@/components/tables/MatrixTable";
 import { BenchmarkComparison } from "@/components/benchmarks/BenchmarkComparison";
-import { useBenchmarkComparison } from "@/hooks/useBenchmarks";
+import { useBenchmarkCatalog, useBenchmarkComparison } from "@/hooks/useBenchmarks";
 import { buildBenchmarkChartData } from "@/lib/benchmark-chart";
 import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
@@ -109,6 +110,10 @@ export function MarkowitzResults({
     if (matrix.some((row) => row.length !== covarianceLabels.length)) return null;
     return matrix;
   }, [result.covariance_matrix, covarianceLabels.length]);
+  const correlationMatrix = useMemo(
+    () => (covarianceMatrix ? correlationFromCovariance(covarianceMatrix) : null),
+    [covarianceMatrix]
+  );
   const currentStrategy = OPTIMIZATION_STRATEGIES.find(
     (s) => s.value === params.strategy
   );
@@ -197,6 +202,9 @@ export function MarkowitzResults({
     { startDate, endDate, riskFreeRate: params.riskFreeRate }
   );
 
+  // Shared cache with the picker below, so naming a benchmark costs no request.
+  const { data: benchmarkCatalog } = useBenchmarkCatalog();
+
   const benchmarkColorById = useMemo(() => {
     const entries = selectedBenchmarks.map((id, i) => [
       id,
@@ -205,12 +213,18 @@ export function MarkowitzResults({
     return Object.fromEntries(entries) as Record<string, string>;
   }, [selectedBenchmarks, chartColors.benchmarks]);
 
-  // A benchmark added to the catalog without a translation yet falls back to
-  // its id rather than rendering next-intl's missing-key marker.
+  // A user-authored benchmark carries its own name, so the catalog is consulted
+  // first. A built-in one added without a translation yet falls back to its id
+  // rather than rendering next-intl's missing-key marker.
   const benchmarkName = useCallback(
-    (id: string) =>
-      tBenchmarks.has(`name.${id}`) ? tBenchmarks(`name.${id}`) : id,
-    [tBenchmarks]
+    (id: string) => {
+      const authored = benchmarkCatalog?.benchmarks.find(
+        (entry) => entry.id === id
+      )?.name;
+      if (authored) return authored;
+      return tBenchmarks.has(`name.${id}`) ? tBenchmarks(`name.${id}`) : id;
+    },
+    [tBenchmarks, benchmarkCatalog]
   );
 
   const benchmarkPoints = useMemo(() => {
@@ -620,6 +634,8 @@ export function MarkowitzResults({
       riskFreeRate: tSummary("riskFreeRate"),
       targetReturn: tSummary("targetReturn"),
       targetRisk: tSummary("targetRisk"),
+      cvarConfidence: tSummary("cvarConfidence"),
+      viewConfidence: tSummary("viewConfidence"),
       fullInvestment: tSummary("fullInvestment"),
       shortSelling: tSummary("shortSelling"),
       shortSellingAllowed: tSummary("shortSellingAllowed"),
@@ -928,6 +944,27 @@ export function MarkowitzResults({
               />
               <p className="mt-2 text-xs text-muted-foreground">
                 {t("covarianceMatrixNote")}
+              </p>
+            </div>
+          )}
+
+          {correlationMatrix && (
+            <div className="glass-card p-4 md:p-5">
+              <h3 className="mb-1 font-display text-lg">
+                {t("correlationMatrixTitle")}
+              </h3>
+              <p className="mb-4 text-sm text-muted-foreground">
+                {t("correlationMatrixSubtitle")}
+              </p>
+              <MatrixTable
+                labels={covarianceLabels}
+                matrix={correlationMatrix}
+                formatValue={(v) => v.toFixed(2)}
+                colorScale
+                isCorrelation
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("correlationMatrixNote")}
               </p>
             </div>
           )}

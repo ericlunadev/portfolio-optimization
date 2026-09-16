@@ -52,6 +52,10 @@ export const api = {
       riskFreeRate?: number;
       targetReturn?: number;
       targetRisk?: number;
+      /** Tail cut-off for `cvar`: 0.95 averages the worst 5% of periods. */
+      cvarConfidence?: number;
+      /** How far `black-litterman` leans on the history over equilibrium. */
+      viewConfidence?: number;
       startDate?: string;
       endDate?: string;
       enforceFullInvestment?: boolean;
@@ -71,6 +75,8 @@ export const api = {
         risk_free_rate: options.riskFreeRate ?? 0,
         target_return: options.targetReturn,
         target_risk: options.targetRisk,
+        cvar_confidence: options.cvarConfidence,
+        view_confidence: options.viewConfidence,
         start_date: options.startDate,
         end_date: options.endDate,
         enforce_full_investment: options.enforceFullInvestment ?? true,
@@ -228,6 +234,43 @@ export const api = {
       }),
     });
     return handleResponse<BenchmarkComparisonResponse>(res);
+  },
+
+  // The user's own benchmarks are read back as part of the catalog above, so
+  // there is no separate list call here.
+  async createCustomBenchmark(input: {
+    name: string;
+    components: CustomBenchmarkComponent[];
+  }) {
+    const res = await apiFetch(`${API_BASE}/optimization/custom-benchmarks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    return handleResponse<CustomBenchmark>(res);
+  },
+
+  async updateCustomBenchmark(
+    id: string,
+    input: { name: string; components: CustomBenchmarkComponent[] }
+  ) {
+    const res = await apiFetch(
+      `${API_BASE}/optimization/custom-benchmarks/${customBenchmarkRowId(id)}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      }
+    );
+    return handleResponse<CustomBenchmark>(res);
+  },
+
+  async deleteCustomBenchmark(id: string) {
+    const res = await apiFetch(
+      `${API_BASE}/optimization/custom-benchmarks/${customBenchmarkRowId(id)}`,
+      { method: "DELETE" }
+    );
+    return handleResponse<{ success: boolean }>(res);
   },
 
   // Market data
@@ -420,19 +463,64 @@ export type OptimizationStrategy =
   | "max-return"
   | "target-return"
   | "target-risk"
-  | "knee-point";
+  | "knee-point"
+  | "risk-parity"
+  | "black-litterman"
+  | "hrp"
+  | "max-diversification"
+  | "cvar"
+  | "equal-weight";
 
+/**
+ * The extra input a strategy needs from the user. A strategy can need more than
+ * one — Black-Litterman blends against a risk-free rate *and* asks how much to
+ * trust the historical estimates.
+ */
+export type StrategyParam =
+  | "risk-free-rate"
+  | "target-return"
+  | "target-risk"
+  | "cvar-confidence"
+  | "view-confidence";
+
+/**
+ * Strategies in the order the picker offers them: the six that walk the
+ * mean-variance efficient frontier first, then the six that size positions from
+ * risk alone. Labels and descriptions live under the `Strategies.<value>` i18n
+ * keys.
+ */
 export const OPTIMIZATION_STRATEGIES: {
   value: OptimizationStrategy;
-  requiresTarget?: "return" | "risk";
+  params: StrategyParam[];
 }[] = [
-  { value: "max-sharpe" },
-  { value: "min-risk" },
-  { value: "max-return" },
-  { value: "target-return", requiresTarget: "return" },
-  { value: "target-risk", requiresTarget: "risk" },
-  { value: "knee-point" },
+  { value: "max-sharpe", params: ["risk-free-rate"] },
+  { value: "min-risk", params: [] },
+  { value: "max-return", params: [] },
+  { value: "target-return", params: ["target-return"] },
+  { value: "target-risk", params: ["target-risk"] },
+  { value: "knee-point", params: [] },
+  { value: "risk-parity", params: [] },
+  { value: "black-litterman", params: ["risk-free-rate", "view-confidence"] },
+  { value: "hrp", params: [] },
+  { value: "max-diversification", params: [] },
+  { value: "cvar", params: ["cvar-confidence"] },
+  { value: "equal-weight", params: [] },
 ];
+
+/**
+ * Whether a strategy reads a given input. Every place that shows, saves or
+ * sends one of these values asks here, so a strategy's inputs are declared once
+ * rather than re-derived from a chain of `strategy === "..."` checks.
+ */
+export function strategyUsesParam(
+  strategy: OptimizationStrategy,
+  param: StrategyParam
+): boolean {
+  return (
+    OPTIMIZATION_STRATEGIES.find((s) => s.value === strategy)?.params.includes(param) ??
+    false
+  );
+}
 
 // Types
 export interface OptimizationResult {
@@ -509,14 +597,57 @@ export interface EfficientFrontierResponse {
 }
 
 // Benchmark Types
-export type BenchmarkCategory = "equity" | "global" | "diversified";
+export type BenchmarkCategory =
+  | "equity"
+  | "global"
+  | "diversified"
+  | "portfolio"
+  | "custom";
 
 export interface BenchmarkCatalogEntry {
   id: string;
   category: BenchmarkCategory;
-  /** Underlying symbols, shown as the subtitle of a benchmark's row. */
+  /**
+   * Underlying symbols, shown as the subtitle of a benchmark's row. Empty for
+   * the equal-weight benchmark, whose legs are the simulation's own assets.
+   */
   tickers: string[];
+  /** The full legs, so a custom benchmark can be reopened for editing. */
+  components: CustomBenchmarkComponent[];
+  /** Set only on user-authored benchmarks; built-in names come from i18n. */
+  name: string | null;
 }
+
+/** One leg of a user-authored benchmark. */
+export interface CustomBenchmarkComponent {
+  ticker: string;
+  weight: number;
+}
+
+export interface CustomBenchmark {
+  /** Already namespaced (`custom:<uuid>`), so it can be selected directly. */
+  id: string;
+  name: string;
+  components: CustomBenchmarkComponent[];
+}
+
+/** How many legs one custom benchmark may hold — mirrors the API's cap. */
+export const MAX_CUSTOM_BENCHMARK_COMPONENTS = 10;
+
+/** Matches the API's namespacing of user-authored benchmark ids. */
+const CUSTOM_BENCHMARK_PREFIX = "custom:";
+
+export function isCustomBenchmarkId(id: string): boolean {
+  return id.startsWith(CUSTOM_BENCHMARK_PREFIX);
+}
+
+/** The bare row id the REST paths take, from the namespaced id. */
+function customBenchmarkRowId(id: string): string {
+  return encodeURIComponent(id.slice(CUSTOM_BENCHMARK_PREFIX.length));
+}
+
+/** Id of the naive 1/N benchmark over the simulation's own assets. */
+export const EQUAL_WEIGHT_BENCHMARK_ID = "equal-weight";
 
 /** Performance of a portfolio or benchmark over the comparison window. */
 export interface BenchmarkPerformance {
@@ -533,7 +664,9 @@ export interface BenchmarkPerformance {
 export interface BenchmarkComparisonEntry extends BenchmarkPerformance {
   id: string;
   category: BenchmarkCategory;
+  /** The legs actually priced — resolved, so equal-weight lists real symbols. */
   tickers: string[];
+  name: string | null;
 }
 
 export interface BenchmarkComparisonResponse {
@@ -558,20 +691,40 @@ export interface RollingVolatilityResponse {
 }
 
 /**
- * Reference instruments the risk-free rate can be taken from, in the order the
- * picker lists them. `manual` lets the user type their own rate instead.
+ * Reference instruments the risk-free rate can be taken from, grouped by the
+ * currency they are denominated in — a rate only means something against a
+ * portfolio priced in the same currency, and the grouping is what stops a peso
+ * rate from reading as interchangeable with a dollar one. `manual` lets the
+ * user type their own rate instead.
  *
  * These ids mirror `RISK_FREE_INSTRUMENTS` on the API and are used as
  * translation keys, so the two lists must stay in sync.
  */
-export const RISK_FREE_INSTRUMENT_IDS = [
-  "us-t-bill-3m",
-  "us-treasury-5y",
-  "us-treasury-10y",
-  "us-treasury-30y",
+export const RISK_FREE_INSTRUMENT_GROUPS = [
+  {
+    currency: "USD",
+    ids: [
+      "us-t-bill-3m",
+      "us-treasury-2y",
+      "us-treasury-5y",
+      "us-treasury-10y",
+      "us-treasury-30y",
+      "ar-caucion-usd",
+    ],
+  },
+  {
+    currency: "ARS",
+    ids: ["ar-plazo-fijo-30d", "ar-caucion-ars"],
+  },
 ] as const;
 
-export type RiskFreeInstrumentId = (typeof RISK_FREE_INSTRUMENT_IDS)[number];
+export type RiskFreeCurrency = (typeof RISK_FREE_INSTRUMENT_GROUPS)[number]["currency"];
+
+export const RISK_FREE_INSTRUMENT_IDS = RISK_FREE_INSTRUMENT_GROUPS.flatMap(
+  (group) => group.ids
+) as readonly (typeof RISK_FREE_INSTRUMENT_GROUPS)[number]["ids"][number][];
+
+export type RiskFreeInstrumentId = (typeof RISK_FREE_INSTRUMENT_GROUPS)[number]["ids"][number];
 
 /** Where the risk-free rate came from: a reference instrument, or typed by hand. */
 export type RiskFreeSource = RiskFreeInstrumentId | "manual";
@@ -582,7 +735,9 @@ export function isRiskFreeInstrumentId(value: string): value is RiskFreeInstrume
 
 export interface RiskFreeRate {
   id: RiskFreeInstrumentId;
-  ticker: string;
+  currency: RiskFreeCurrency;
+  /** Where the rate was read from — a Yahoo ticker, or a "provider · series" label. */
+  source: string;
   /** Annualised yield as a decimal (0.0425 for 4.25%). */
   rate: number;
   /** ISO timestamp of the quote the rate was read from. */
@@ -630,6 +785,10 @@ export interface SimulationParams {
   strategy: OptimizationStrategy;
   targetReturn?: number;
   targetRisk?: number;
+  /** Tail cut-off for `cvar`. Absent on simulations saved before it existed. */
+  cvarConfidence?: number;
+  /** View confidence for `black-litterman`, likewise optional on old rows. */
+  viewConfidence?: number;
   riskFreeRate: number;
   enforceFullInvestment: boolean;
   allowShortSelling: boolean;
