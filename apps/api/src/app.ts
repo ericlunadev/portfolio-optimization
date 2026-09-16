@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { env } from "./config/env.js";
+import { resolveTenantOrigin } from "./lib/trusted-origins.js";
 import { errorHandler } from "./middleware/error.js";
 
 // Import routes
@@ -30,7 +31,11 @@ app.use("*", errorHandler);
 app.use(
   "*",
   cors({
-    origin: env.FRONTEND_URL,
+    // FRONTEND_URL or a registered tenant (lib/trusted-origins.ts), reflected
+    // verbatim; anything else gets no Access-Control-Allow-Origin at all. The
+    // equality check means only a canonical Origin header is ever echoed back.
+    origin: async (origin) =>
+      origin === env.FRONTEND_URL || (await resolveTenantOrigin(origin)) === origin ? origin : null,
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     // Idempotency-Key is sent by the web and mobile clients on billing writes;

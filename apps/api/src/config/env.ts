@@ -68,4 +68,9 @@ const envSchema = z.object({
 
 export const env = envSchema.parse(process.env);
 
+// The API's one definition of "production": an https BACKEND_URL. It picks the
+// cookie attributes (lib/auth.ts) and decides whether a tenant origin may be
+// plain http (lib/trusted-origins.ts), so both have to agree on it.
+export const isProduction = env.BACKEND_URL.startsWith("https://");
+
 export type Env = z.infer<typeof envSchema>;

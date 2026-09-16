@@ -10,11 +10,11 @@ does the dozen setup steps a fresh checkout needs and never touches a real datab
 
 All paths are relative to the repo root. Verified on macOS (Darwin, Apple Silicon).
 
-| tenant | URL | tier | accent | analyst (password `demo-password-123`) |
-| --- | --- | --- | --- | --- |
-| `d2c` | http://localhost:3000 | co-branded, default | gold `#d7a042` | `analista@d2c.example` |
-| `acme` | http://acme.localhost:3000 | whitelabel | teal `#0f766e` | `analyst@acme.example` |
-| `borealis` | http://borealis.localhost:3000 | co-branded | indigo `#4338ca` | `analyst@borealis.example` |
+| tenant | URL | tier | accent | analyst (password `demo-password-123`) | header when signed in |
+| --- | --- | --- | --- | --- | --- |
+| `d2c` | http://localhost:3000 | co-branded, default | gold `#d7a042` | `analista@d2c.example` | Martín Gómez |
+| `acme` | http://acme.localhost:3000 | whitelabel | teal `#0f766e` | `analyst@acme.example` | Lucía Fernández |
+| `borealis` | http://borealis.localhost:3000 | co-branded | indigo `#4338ca` | `analyst@borealis.example` | Noah Lindqvist |
 
 Each analyst owns their tenant, has finished onboarding, and has 250 credits.
 
@@ -45,13 +45,35 @@ bash .claude/skills/run-portfolio-optimization/run.sh status
 
 Prints API health, which organization each hostname resolves to, and the web app's HTTP status.
 
-**Sign a tenant's analyst into a browser session** (the session is named after the tenant):
+**Sign in through the form** — works on all three hostnames. **Set a tall viewport first and run
+one command at a time** (see Gotchas):
+
+```bash
+agent-browser --session acme set viewport 1440 3200
+agent-browser --session acme open http://acme.localhost:3000
+agent-browser --session acme find role button click --name "Iniciar Sesión"
+agent-browser --session acme snapshot -i -c
+```
+
+The modal has its own "Iniciar Sesión" button besides the header's, so take the refs from the
+snapshot: fill the "Correo electrónico" and "Contraseña" textboxes, then click the modal's button.
+The refs below are the ones the modal had on all three hostnames; re-snapshot if they don't match.
+
+```bash
+agent-browser --session acme fill @e22 "analyst@acme.example"
+agent-browser --session acme fill @e23 "demo-password-123"
+agent-browser --session acme click @e24
+agent-browser --session acme wait --text "Lucía Fernández"
+```
+
+**Shortcut when sign-in itself is not what you are checking** (the session is named after the
+tenant; it signs in server-side — see Gotchas):
 
 ```bash
 bash .claude/skills/run-portfolio-optimization/run.sh login acme
 ```
 
-Then drive it. **Set a tall viewport first and run one command at a time** — see Gotchas:
+Then drive it:
 
 ```bash
 agent-browser --session acme set viewport 1440 3200
@@ -87,9 +109,8 @@ bash .claude/skills/run-portfolio-optimization/run.sh stop
 
 ## Run (human path)
 
-After `run.sh up`, open the three URLs above in any Chromium-based browser. Signing in through
-the form only works on `http://localhost:3000` — tenant hostnames answer the sign-in with 403
-(Gotchas).
+After `run.sh up`, open the three URLs above in any Chromium-based browser and sign in through
+the header's "Iniciar Sesión" button with the analyst for that hostname.
 
 ## Test
 
@@ -98,7 +119,7 @@ pnpm --filter api test
 pnpm --filter web test
 ```
 
-At the time of writing: 268 API tests across 22 files and 366 web tests across 18 files.
+At the time of writing: 313 API tests across 24 files and 366 web tests across 18 files.
 
 ## Gotchas
 
@@ -112,11 +133,17 @@ At the time of writing: 268 API tests across 22 files and 366 web tests across 1
   anything else in parallel produces `Resource temporarily unavailable (os error 35)`. It then
   leaves the session's daemon hung: `get url` and `close` hang, and it ignores SIGTERM. Recovery
   is in Troubleshooting.
-- **Tenant hostnames can't sign in through the browser.** `POST /api/auth/sign-in/email`
-  with `Origin: http://acme.localhost:3000` returns **403**. BetterAuth's `trustedOrigins` is
-  still the single static `FRONTEND_URL`; PLAN.md Task 1.0 is unbuilt. `run.sh login` signs
-  in server-side (no `Origin` header) and hands the session cookie to `agent-browser`. Run it
-  again after every `up`, which wipes the database.
+- **A hostname can sign in only if it has an `organization_domain` row.** The API trusts
+  `FRONTEND_URL` plus each registered hostname, for both BetterAuth's origin check and CORS
+  (`apps/api/src/lib/trusted-origins.ts`). Any other `Origin` — including lookalikes such as
+  `evil-acme.localhost` — gets **403** from `POST /api/auth/sign-in/email`, and `api.log` shows
+  `[Better Auth]: Invalid origin: <origin>`. The API caches the hostname list for 10 s: a row
+  inserted into the running database with `sqlite3` answered 403 immediately and 200 eleven
+  seconds later, with no restart.
+- **`run.sh login` cannot tell you whether sign-in works.** It signs in with `curl` and no
+  `Origin` header, which BetterAuth does not check, then hands the cookie to `agent-browser`. Use
+  it to get to a page quickly; use the form when auth is what changed. Run it again after every
+  `up`, which wipes the database.
 - **Branding follows the hostname, not the login.** Any hostname without an
   `organization_domain` row renders the default D2C tenant. To check what an arbitrary host
   resolves to without a browser: `curl -s "http://localhost:8001/api/tenants/by-host?host=acme.localhost"`.

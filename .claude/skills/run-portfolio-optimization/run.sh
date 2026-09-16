@@ -173,9 +173,9 @@ cmd_login() {
   origin="$(origin_for "$tenant")"
   email="$(email_for "$tenant")"
 
-  # Sign in server-side, with no Origin header. From a tenant hostname the
-  # browser's own sign-in gets a 403: BetterAuth's trustedOrigins is still the
-  # single static FRONTEND_URL (PLAN Task 1.0 is unbuilt).
+  # Sign in server-side, with no Origin header, which BetterAuth does not check.
+  # A shortcut past the sign-in form; it proves nothing about which hostnames
+  # the API trusts (see Gotchas in SKILL.md).
   token="$(curl -s -D - -o /dev/null -X POST "$API/api/auth/sign-in/email" \
       -H 'Content-Type: application/json' \
       -d "{\"email\":\"$email\",\"password\":\"$PASSWORD\"}" \

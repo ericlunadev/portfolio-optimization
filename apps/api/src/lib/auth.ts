@@ -4,7 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "../db/index.js";
-import { env } from "../config/env.js";
+import { env, isProduction } from "../config/env.js";
 import * as schema from "../db/schema.js";
 import {
   organization,
@@ -17,8 +17,15 @@ import { emailMessages } from "./email/i18n.js";
 import { getLocaleFromRequest } from "./email/locale.js";
 import { VerifyEmail } from "./email/templates/VerifyEmail.js";
 import { ResetPassword } from "./email/templates/ResetPassword.js";
+import { resolveTenantOrigin } from "./trusted-origins.js";
 
-const isProduction = env.BACKEND_URL.startsWith("https://");
+const staticTrustedOrigins = [
+  env.FRONTEND_URL,
+  // Native app deep-link scheme for OAuth redirects.
+  env.MOBILE_APP_SCHEME,
+  // Expo Go / dev client tunnels used during local development.
+  ...(isProduction ? [] : ["exp://", "exp://*", "exp://**"]),
+];
 
 // Gives a brand-new account the organization that `authMiddleware` needs: it
 // resolves the tenant from `organization_member` and throws 500 when there is no
@@ -189,14 +196,23 @@ export const auth = betterAuth({
         }
       : {}),
   },
-  trustedOrigins: [
-    env.FRONTEND_URL,
-    // Native app deep-link scheme for OAuth redirects.
-    env.MOBILE_APP_SCHEME,
-    // Expo Go / dev client tunnels used during local development.
-    ...(isProduction ? [] : ["exp://", "exp://*", "exp://**"]),
-  ],
+  // A function, so a tenant provisioned at runtime is trusted without a redeploy
+  // (lib/trusted-origins.ts). BetterAuth 1.6 calls it with the incoming request
+  // when the handler builds its context — that list also vets callbackURL and
+  // redirectTo, so a tenant URL there is accepted only from that same tenant —
+  // and again in the origin check every non-GET endpoint runs, sign-up, sign-in
+  // and sign-out included. It reads the header that check compares: Origin, else
+  // Referer. At startup it is called with no request and returns the fixed list.
+  trustedOrigins: async (request) => {
+    const claimed = request?.headers.get("origin") || request?.headers.get("referer");
+    const tenantOrigin = claimed ? await resolveTenantOrigin(claimed) : null;
+    return tenantOrigin ? [...staticTrustedOrigins, tenantOrigin] : staticTrustedOrigins;
+  },
   advanced: {
+    // Already the default everywhere except NODE_ENV=test, where BetterAuth 1.6
+    // switches its origin and CSRF checks off. Pinned so the test suite runs the
+    // gate production runs instead of passing every origin.
+    disableOriginCheck: false,
     defaultCookieAttributes: isProduction
       ? {
           // Cross-origin cookies for production (frontend + API on different domains)
