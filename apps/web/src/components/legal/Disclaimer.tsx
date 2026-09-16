@@ -1,5 +1,6 @@
 import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { resolveDisclaimerText } from "@/lib/disclaimer";
 import { cn } from "@/lib/utils";
 
 /**
@@ -11,14 +12,20 @@ export type DisclaimerVariant = "results" | "projections" | "advisor" | "profile
 
 interface DisclaimerProps {
   variant: DisclaimerVariant;
+  /**
+   * Tenant-authored wording from `organization_branding.disclaimer_text`, which
+   * replaces ours for this notice. Blank or absent falls back to the `Legal`
+   * key: a tenant may reword the disclaimer, never remove it.
+   */
+  tenantText?: string | null;
   /** Frames the notice in a bordered box instead of running it as a footnote. */
   boxed?: boolean;
   className?: string;
 }
 
-export function Disclaimer({ variant, boxed = false, className }: DisclaimerProps) {
+export function Disclaimer({ variant, tenantText, boxed = false, className }: DisclaimerProps) {
   const t = useTranslations("Legal");
-  const text = t(variant);
+  const text = resolveDisclaimerText(tenantText, t(variant));
 
   if (!boxed) {
     return (

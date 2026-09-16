@@ -1,4 +1,5 @@
 import { getTranslations } from "next-intl/server";
+import { AcademiaGate } from "@/components/academia/AcademiaGate";
 import { ZoomIntro } from "@/components/academia/ZoomIntro";
 import { StationNav } from "@/components/academia/StationNav";
 import { Station1Macro } from "@/components/academia/Station1Macro";
@@ -10,19 +11,21 @@ import { Station5Portfolio } from "@/components/academia/Station5Portfolio";
 export default async function AcademiaPage() {
   const t = await getTranslations("Academia.Page");
   return (
-    <div className="relative overflow-x-hidden">
-      <StationNav />
-      <div id="intro">
-        <ZoomIntro />
+    <AcademiaGate>
+      <div className="relative overflow-x-hidden">
+        <StationNav />
+        <div id="intro">
+          <ZoomIntro />
+        </div>
+        <Station1Macro id="station-macro" />
+        <Station2Allocation id="station-allocation" />
+        <Station3Sectors id="station-sectors" />
+        <Station4Assets id="station-assets" />
+        <Station5Portfolio id="station-portfolio" />
+        <footer className="py-16 text-center text-xs text-muted-foreground border-t border-border dark:border-border/30">
+          {t("footer")}
+        </footer>
       </div>
-      <Station1Macro id="station-macro" />
-      <Station2Allocation id="station-allocation" />
-      <Station3Sectors id="station-sectors" />
-      <Station4Assets id="station-assets" />
-      <Station5Portfolio id="station-portfolio" />
-      <footer className="py-16 text-center text-xs text-muted-foreground border-t border-border dark:border-border/30">
-        {t("footer")}
-      </footer>
-    </div>
+    </AcademiaGate>
   );
 }

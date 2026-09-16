@@ -2,20 +2,26 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { and, desc, eq, lt } from "drizzle-orm";
-import { randomUUID } from "node:crypto";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
+import { randomUUID, timingSafeEqual } from "node:crypto";
 import type Stripe from "stripe";
 import { db } from "../../db/index.js";
 import {
   creditLedger,
   creditPackages,
+  organization,
+  organizationMember,
+  organizationSettings,
   payments,
+  simulations,
+  user,
   walletBalance,
 } from "../../db/schema.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
 import { grantCredits, spendCredit } from "../../lib/billing/spend.js";
-import { newIdempotencyKey } from "../../lib/billing/metering.js";
+import { resolveAdvisorConfig } from "../../lib/advisor.js";
+import { clientIdempotencyKey } from "../../lib/billing/metering.js";
 import { getStripe, getWebhookSecret } from "./stripe.js";
 import {
   createCharge,
@@ -112,6 +118,8 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session): Promise
   const userId = session.metadata?.userId;
   const packageId = session.metadata?.packageId;
   if (!userId || !packageId) {
+    // Returns rather than throws: the metadata is fixed on the session, so no
+    // retry can ever succeed. Needs a human, not a 3-day retry loop.
     console.error(`[billing] session ${session.id} missing metadata`, session.metadata);
     return;
   }
@@ -120,16 +128,21 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session): Promise
     where: eq(creditPackages.id, packageId),
   });
   if (!pkg) {
-    console.error(`[billing] session ${session.id} references unknown package ${packageId}`);
-    return;
+    // Throw, not return: returning 200 drops a paid session silently. The 500
+    // this becomes makes Stripe retry, which gives an operator the retry window
+    // to seed the missing package.
+    throw new Error(`session ${session.id} references unknown package ${packageId}`);
   }
 
+  // The organization comes from the payments row written at checkout — never
+  // from the buyer's current membership. Stripe retries for up to 3 days, and a
+  // user who moved organization inside that window would otherwise have their
+  // firm's purchase credited to the wrong tenant.
   const paymentRow = await db.query.payments.findFirst({
     where: eq(payments.externalId, session.id),
   });
   if (!paymentRow) {
-    console.error(`[billing] no payments row for session ${session.id}`);
-    return;
+    throw new Error(`no payments row for session ${session.id} — cannot resolve organization`);
   }
 
   // Mark payment succeeded (idempotent — only flip from pending).
@@ -140,8 +153,10 @@ async function fulfillCheckoutSession(session: Stripe.Checkout.Session): Promise
       .where(eq(payments.id, paymentRow.id));
   }
 
-  // Grant credits idempotently — same idempotencyKey on retry returns the original row.
+  // Grant credits idempotently — same idempotencyKey on retry returns the
+  // original row, now looked up within the organization.
   await grantCredits({
+    organizationId: paymentRow.organizationId,
     userId,
     credits: pkg.credits,
     reason: "purchase",
@@ -222,6 +237,7 @@ async function fulfillCoinbaseCharge(charge: CoinbaseCharge): Promise<void> {
   const userId = charge.metadata?.userId as string | undefined;
   const packageId = charge.metadata?.packageId as string | undefined;
   if (!userId || !packageId) {
+    // Unrecoverable by retry, exactly as in the Stripe path above.
     console.error(`[billing] charge ${charge.id} missing metadata`, charge.metadata);
     return;
   }
@@ -230,16 +246,16 @@ async function fulfillCoinbaseCharge(charge: CoinbaseCharge): Promise<void> {
     where: eq(creditPackages.id, packageId),
   });
   if (!pkg) {
-    console.error(`[billing] charge ${charge.id} references unknown package ${packageId}`);
-    return;
+    throw new Error(`charge ${charge.id} references unknown package ${packageId}`);
   }
 
+  // Organization resolved from the payments row, not from membership — see
+  // fulfillCheckoutSession.
   const paymentRow = await db.query.payments.findFirst({
     where: eq(payments.externalId, charge.id),
   });
   if (!paymentRow) {
-    console.error(`[billing] no payments row for charge ${charge.id}`);
-    return;
+    throw new Error(`no payments row for charge ${charge.id} — cannot resolve organization`);
   }
 
   if (paymentRow.status !== "succeeded") {
@@ -250,6 +266,7 @@ async function fulfillCoinbaseCharge(charge: CoinbaseCharge): Promise<void> {
   }
 
   await grantCredits({
+    organizationId: paymentRow.organizationId,
     userId,
     credits: pkg.credits,
     reason: "purchase",
@@ -258,20 +275,159 @@ async function fulfillCoinbaseCharge(charge: CoinbaseCharge): Promise<void> {
   });
 }
 
+// ---------- Internal operator endpoints (shared secret, no session) ----------
+
+// A grant is written by an operator for a customer who pays on an invoice. The
+// amounts are large by nature, so this cap only has to catch a fat-fingered
+// purchase order — a real grant never approaches it.
+const MAX_GRANT_CREDITS = 1_000_000;
+
+// Constant-time comparison of the caller's bearer token against
+// INTERNAL_API_SECRET.
+//
+// Read from `process.env` at call time rather than through `config/env.ts`: the
+// secret has no entry in that schema yet (see the follow-up), and reading it per
+// request is also what lets a test set it. An unset secret matches nothing — the
+// middleware answers 503 before it reaches here.
+function internalSecretMatches(header: string | undefined): boolean {
+  const expected = process.env.INTERNAL_API_SECRET;
+  if (!expected) return false;
+
+  const provided = Buffer.from(header?.replace(/^Bearer\s+/i, "") ?? "");
+  const secret = Buffer.from(expected);
+  // timingSafeEqual throws on a length mismatch, so lengths are compared first.
+  // That leaks the secret's length and nothing else.
+  if (provided.length !== secret.length) return false;
+  return timingSafeEqual(provided, secret);
+}
+
+// **The authority model here is provisional.** There is no platform-admin
+// concept in this API to hang an admin role off — `user` has no role column,
+// `organization_member.role` is a role *inside* one tenant, and BetterAuth runs
+// with `plugins: [expo()]` only. So the guard is the shared secret CRON.md
+// already proposes for internal routes: it needs no new auth concept and is
+// unreachable from any browser session. PLAN §9.5 escalates what the real model
+// should be; whoever answers it replaces this middleware, not the handler below.
+app.use("/internal/*", async (c, next) => {
+  if (!process.env.INTERNAL_API_SECRET) {
+    console.error("[billing] internal route hit but INTERNAL_API_SECRET is not configured");
+    return c.json({ error: "Internal API not configured" }, 503);
+  }
+  if (!internalSecretMatches(c.req.header("Authorization"))) {
+    return c.json({ error: "Unauthorized" }, 401);
+  }
+  await next();
+});
+
+// POST /api/billing/internal/grant — credit an organization's wallet.
+//
+// This is how an invoiced customer gets credits: they pay a net-30 purchase
+// order and an operator runs this, which lands a `reason: 'grant'` ledger row
+// with no acting user. D8 says a tenant's end users never transact, so without
+// this route a whitelabel tenant has no way to be topped up at all.
+app.post(
+  "/internal/grant",
+  zValidator(
+    "json",
+    z.object({
+      organizationId: z.string().min(1),
+      credits: z.number().int().positive().max(MAX_GRANT_CREDITS),
+      // The purchase order or invoice number, and the idempotency key: re-running
+      // the same grant after a timeout must be a no-op rather than a second gift,
+      // and there is no key this handler could safely invent for itself.
+      reference: z.string().min(1).max(200),
+      note: z.string().max(500).optional(),
+    })
+  ),
+  async (c) => {
+    const { organizationId, credits, reference, note } = c.req.valid("json");
+
+    // Checked before the write: `grantCredits` would otherwise fail on the
+    // foreign key and surface as a 500, which reads like our bug rather than a
+    // mistyped organization id.
+    const org = await db.query.organization.findFirst({
+      where: eq(organization.id, organizationId),
+      columns: { id: true, slug: true },
+    });
+    if (!org) {
+      return c.json({ error: "Organization not found" }, 404);
+    }
+
+    const result = await grantCredits({
+      organizationId,
+      // No acting user: the grant is ours, not any analyst's. Attributing it to
+      // one would also drop it into that person's own ledger view.
+      userId: null,
+      credits,
+      reason: "grant",
+      idempotencyKey: `grant:${reference}`,
+    });
+
+    // The grant is idempotent on the reference, so a repeat returns the original
+    // row instead of granting again. Report what that row holds rather than what
+    // was asked for: an operator re-sending a corrected amount under the same
+    // purchase order has granted nothing, and needs to see that in the answer.
+    const written = await db.query.creditLedger.findFirst({
+      where: eq(creditLedger.id, result.ledgerId),
+      columns: { delta: true },
+    });
+    const granted = written?.delta ?? credits;
+
+    console.log(
+      `[billing] grant ref=${reference} on organization ${org.slug} (${organizationId}): ${granted} credits${
+        granted === credits ? "" : ` (requested ${credits}, reference already used)`
+      }${note ? `, note=${note}` : ""}`
+    );
+
+    return c.json({
+      organizationId,
+      credits: granted,
+      reference,
+      ledgerId: result.ledgerId,
+      balanceAfter: result.balanceAfter,
+    });
+  }
+);
+
 // ---------- Auth-gated endpoints ----------
 
 app.use("*", authMiddleware);
 
 // GET /api/billing/wallet — current balance
 app.get("/wallet", async (c) => {
-  const user = c.get("user");
   const row = await db.query.walletBalance.findFirst({
-    where: eq(walletBalance.userId, user.id),
+    where: eq(walletBalance.organizationId, c.get("organizationId")),
   });
   return c.json({
     credits: row?.credits ?? 0,
     updatedAt: row?.updatedAt ?? null,
   });
+});
+
+type Rail = "stripe" | "coinbase_commerce";
+
+// Which payment rails this tenant may use (PLAN Task 2.7).
+//
+// Card is always on. Crypto is a switch because a corporate finance department
+// pays by card or on an invoice, and a "Pay with crypto" tab in a whitelabel app
+// is at best noise and at worst a compliance conversation. The column defaults to
+// false and a missing settings row means the same: off unless a tenant is
+// deliberately opted in.
+async function availableRails(organizationId: string): Promise<Rail[]> {
+  const settings = await db.query.organizationSettings.findFirst({
+    where: eq(organizationSettings.organizationId, organizationId),
+    columns: { cryptoRailEnabled: true },
+  });
+  return settings?.cryptoRailEnabled ? ["stripe", "coinbase_commerce"] : ["stripe"];
+}
+
+// GET /api/billing/rails — the rails this organization may pay with.
+//
+// The client needs the answer before it renders the rail tabs, and the packages
+// endpoint cannot give it: an empty list there is indistinguishable from a rail
+// nobody has seeded packages for.
+app.get("/rails", async (c) => {
+  return c.json({ rails: await availableRails(c.get("organizationId")) });
 });
 
 // GET /api/billing/packages?rail=stripe — active packages
@@ -285,10 +441,17 @@ app.get(
   ),
   async (c) => {
     const { rail } = c.req.valid("query");
+    // Filtered by the tenant's rails, not only by the query parameter, so a
+    // gated rail's packages never reach a client that asks for the whole list.
+    const rails = await availableRails(c.get("organizationId"));
+    if (rail && !rails.includes(rail)) {
+      return c.json([]);
+    }
+
     const rows = await db.query.creditPackages.findMany({
       where: rail
         ? and(eq(creditPackages.isActive, true), eq(creditPackages.rail, rail))
-        : eq(creditPackages.isActive, true),
+        : and(eq(creditPackages.isActive, true), inArray(creditPackages.rail, rails)),
       orderBy: [creditPackages.sortOrder],
     });
     return c.json(
@@ -358,6 +521,9 @@ app.post(
     await db.insert(payments).values({
       id: paymentId,
       userId: user.id,
+      // Stamped here so the webhook can resolve the organization from this row
+      // without a session.
+      organizationId: c.get("organizationId"),
       packageId: pkg.id,
       rail: "stripe",
       externalId: session.id,
@@ -384,8 +550,19 @@ app.post(
     })
   ),
   async (c) => {
-    const user = c.get("user");
+    const currentUser = c.get("user");
+    const organizationId = c.get("organizationId");
     const { packageId } = c.req.valid("json");
+
+    // The tenant's own switch is checked before the platform's configuration:
+    // whether we hold Coinbase credentials is irrelevant to an organization that
+    // does not offer the rail. 404 rather than 403, matching /advisor-call — the
+    // rail does not exist for this tenant, so neither does the endpoint.
+    if (!(await availableRails(organizationId)).includes("coinbase_commerce")) {
+      throw new HTTPException(404, {
+        message: "Crypto payment is not available for this organization",
+      });
+    }
 
     if (!isCoinbaseConfigured()) {
       throw new HTTPException(503, { message: "Coinbase not configured" });
@@ -412,7 +589,7 @@ app.post(
         description: `${pkg.credits} corridas de optimización`,
         amountUsd,
         metadata: {
-          userId: user.id,
+          userId: currentUser.id,
           packageId: pkg.id,
           paymentId,
         },
@@ -426,7 +603,8 @@ app.post(
 
     await db.insert(payments).values({
       id: paymentId,
-      userId: user.id,
+      userId: currentUser.id,
+      organizationId,
       packageId: pkg.id,
       rail: "coinbase_commerce",
       externalId: charge.id,
@@ -454,9 +632,24 @@ app.get(
     const user = c.get("user");
     const { cursor, limit } = c.req.valid("query");
 
+    // Organization first, then the caller's own rows. The organization predicate
+    // is not redundant: a user who changed organization keeps their old rows,
+    // and those belong to the previous tenant.
+    //
+    // This stays a personal view on purpose (PLAN Task 2.4). It is the answer to
+    // "what have I spent", and an analyst has no business reading what their
+    // colleagues spend. The consequence is that the org-wide balance above it
+    // cannot be reconciled from these deltas alone — rows belonging to other
+    // members, and rows whose user was deleted (`user_id` set null), are not
+    // here. `GET /api/billing/usage` is the reconcilable view, and only an owner
+    // may read it.
+    const mine = and(
+      eq(creditLedger.organizationId, c.get("organizationId")),
+      eq(creditLedger.userId, user.id)
+    );
     const where = cursor
-      ? and(eq(creditLedger.userId, user.id), lt(creditLedger.createdAt, new Date(cursor)))
-      : eq(creditLedger.userId, user.id);
+      ? and(mine, lt(creditLedger.createdAt, new Date(cursor)))
+      : mine;
 
     const rows = await db.query.creditLedger.findMany({
       where,
@@ -483,21 +676,220 @@ app.get(
   }
 );
 
+// `owner` is the only role that may read the whole tenant's spending —
+// the same rule `GET /api/organizations/export` applies to the whole tenant's
+// data. Duplicated rather than imported while both files are in flight; see the
+// follow-up about hoisting it.
+async function isOwner(organizationId: string, userId: string): Promise<boolean> {
+  const membership = await db.query.organizationMember.findFirst({
+    where: and(
+      eq(organizationMember.organizationId, organizationId),
+      eq(organizationMember.userId, userId)
+    ),
+    columns: { role: true },
+  });
+
+  return membership?.role === "owner";
+}
+
+/** `integer(mode: "timestamp")` columns hold seconds; raw aggregates return them unconverted. */
+function epochSecondsToIso(seconds: number | null): string | null {
+  if (seconds === null || seconds === undefined) return null;
+  return new Date(Number(seconds) * 1000).toISOString();
+}
+
+// GET /api/billing/usage — who in this organization is spending the credits.
+//
+// The owner's view, and the main thing an org owner signs in for: they are
+// invoiced for one shared wallet (D7) and need to see which seats it went to.
+//
+// Deliberately org-wide, where `/ledger` is deliberately personal. That split is
+// what makes the numbers add up: a member sees an org-wide balance above their
+// own subset of rows, so the reconcilable view has to exist somewhere, and the
+// owner is the only person entitled to it. Ledger rows whose user is gone
+// (`user_id` set null on delete) count towards the wallet and appear in no
+// member's ledger at all; here they are a row of their own with `userId: null`,
+// which the client renders as a former member rather than dropping.
+app.get(
+  "/usage",
+  zValidator(
+    "query",
+    z.object({
+      limit: z.coerce.number().min(1).max(100).default(20),
+    })
+  ),
+  async (c) => {
+    const organizationId = c.get("organizationId");
+    const currentUser = c.get("user");
+    const { limit } = c.req.valid("query");
+
+    if (!(await isOwner(organizationId, currentUser.id))) {
+      return c.json({ error: "Only an organization owner can view usage" }, 403);
+    }
+
+    const [seats, ledgerByUser, simulationsByUser, wallet, recentRows] = await Promise.all([
+      db
+        .select({
+          userId: organizationMember.userId,
+          role: organizationMember.role,
+          name: user.name,
+          email: user.email,
+        })
+        .from(organizationMember)
+        .innerJoin(user, eq(user.id, organizationMember.userId))
+        .where(eq(organizationMember.organizationId, organizationId)),
+
+      // One grouped pass over the ledger. `spent` is reported positive because
+      // "spent 12 credits" is the sentence the owner is reading.
+      db
+        .select({
+          userId: creditLedger.userId,
+          spent: sql<number>`coalesce(sum(case when ${creditLedger.delta} < 0 then -${creditLedger.delta} else 0 end), 0)`,
+          added: sql<number>`coalesce(sum(case when ${creditLedger.delta} > 0 then ${creditLedger.delta} else 0 end), 0)`,
+          runs: sql<number>`coalesce(sum(case when ${creditLedger.reason} = 'spend' then 1 else 0 end), 0)`,
+          lastActivityAt: sql<number | null>`max(${creditLedger.createdAt})`,
+        })
+        .from(creditLedger)
+        .where(eq(creditLedger.organizationId, organizationId))
+        .groupBy(creditLedger.userId),
+
+      db
+        .select({
+          userId: simulations.userId,
+          saved: sql<number>`count(*)`,
+        })
+        .from(simulations)
+        .where(eq(simulations.organizationId, organizationId))
+        .groupBy(simulations.userId),
+
+      db.query.walletBalance.findFirst({
+        where: eq(walletBalance.organizationId, organizationId),
+      }),
+
+      db.query.creditLedger.findMany({
+        where: eq(creditLedger.organizationId, organizationId),
+        orderBy: [desc(creditLedger.createdAt)],
+        limit,
+      }),
+    ]);
+
+    // Names for people who show up in the ledger but hold no seat here today:
+    // an analyst who moved organization, whose rows stay with the tenant that
+    // paid for them.
+    const seatIds = new Set(seats.map((s) => s.userId));
+    const strangerIds = [
+      ...new Set(
+        [...ledgerByUser, ...simulationsByUser]
+          .map((r) => r.userId)
+          .filter((id): id is string => id !== null && !seatIds.has(id))
+      ),
+    ];
+    const strangers = strangerIds.length
+      ? await db
+          .select({ id: user.id, name: user.name, email: user.email })
+          .from(user)
+          .where(inArray(user.id, strangerIds))
+      : [];
+
+    // `role: null` for a stranger: they hold no seat here, so they have no role
+    // in this organization.
+    const identities = new Map<string, { name: string; email: string; role: string | null }>([
+      ...seats.map(
+        (s) => [s.userId, { name: s.name, email: s.email, role: s.role }] as const
+      ),
+      ...strangers.map(
+        (s) => [s.id, { name: s.name, email: s.email, role: null }] as const
+      ),
+    ]);
+
+    const ledgerById = new Map(ledgerByUser.map((r) => [r.userId, r]));
+    const simulationsById = new Map(simulationsByUser.map((r) => [r.userId, Number(r.saved)]));
+
+    // Every id that owes the owner a row: current seats, plus anyone with
+    // activity who is no longer one — including the null bucket.
+    const rowIds: (string | null)[] = [
+      ...seats.map((s) => s.userId),
+      ...strangerIds,
+      ...(ledgerById.has(null) || simulationsById.has(null) ? [null] : []),
+    ];
+
+    const members = rowIds
+      .map((userId) => {
+        const activity = ledgerById.get(userId);
+        const identity = userId === null ? null : identities.get(userId) ?? null;
+        return {
+          userId,
+          name: identity?.name ?? null,
+          email: identity?.email ?? null,
+          role: identity?.role ?? null,
+          // False for the null bucket and for anyone who moved on. The client
+          // labels those rows instead of showing a blank name.
+          isCurrentMember: userId !== null && seatIds.has(userId),
+          spent: Number(activity?.spent ?? 0),
+          added: Number(activity?.added ?? 0),
+          runs: Number(activity?.runs ?? 0),
+          simulations: simulationsById.get(userId) ?? 0,
+          lastActivityAt: epochSecondsToIso(activity?.lastActivityAt ?? null),
+        };
+      })
+      .sort((a, b) => b.spent - a.spent || (a.name ?? "").localeCompare(b.name ?? ""));
+
+    return c.json({
+      totals: {
+        balance: wallet?.credits ?? 0,
+        spent: members.reduce((sum, m) => sum + m.spent, 0),
+        added: members.reduce((sum, m) => sum + m.added, 0),
+        runs: members.reduce((sum, m) => sum + m.runs, 0),
+        simulations: members.reduce((sum, m) => sum + m.simulations, 0),
+        seats: seats.length,
+      },
+      members,
+      recent: recentRows.map((r) => ({
+        id: r.id,
+        delta: r.delta,
+        reason: r.reason,
+        balanceAfter: r.balanceAfter,
+        simulationId: r.simulationId,
+        createdAt: r.createdAt,
+        // The actor column. Null means the row outlived its user — a grant we
+        // wrote for the organization, or a departed analyst's spend.
+        actor: r.userId === null ? null : { userId: r.userId, name: identities.get(r.userId)?.name ?? null },
+      })),
+    });
+  }
+);
+
 // POST /api/billing/advisor-call — spend credits, reveal the booking URL.
 // Idempotent on the Idempotency-Key header so a double-click does not double-charge.
+//
+// Both the destination and the price come from the caller's organization, not
+// from env: on a tenant's branded app the platform's advisor is the wrong
+// answer. See `lib/advisor.ts` and PLAN Task 3.3.
 app.post("/advisor-call", async (c) => {
   const user = c.get("user");
-  const idempotencyKey = c.req.header("Idempotency-Key") ?? newIdempotencyKey();
+  const organizationId = c.get("organizationId");
+  const idempotencyKey = clientIdempotencyKey(c.req.header("Idempotency-Key"));
+
+  // Resolved before the spend. An organization with the CTA switched off, or a
+  // tenant that has not configured a booking URL, has no advisor call to sell —
+  // 404 rather than charging for a link that does not exist.
+  const advisor = await resolveAdvisorConfig(organizationId);
+  if (!advisor.bookable || advisor.bookingUrl === null) {
+    throw new HTTPException(404, {
+      message: "Advisor booking is not available for this organization",
+    });
+  }
 
   await spendCredit({
+    organizationId,
     userId: user.id,
     idempotencyKey,
-    cost: env.ADVISOR_CALL_COST_CREDITS,
+    cost: advisor.costCredits,
   });
 
   return c.json({
-    bookingUrl: env.ADVISOR_BOOKING_URL,
-    costCredits: env.ADVISOR_CALL_COST_CREDITS,
+    bookingUrl: advisor.bookingUrl,
+    costCredits: advisor.costCredits,
   });
 });
 

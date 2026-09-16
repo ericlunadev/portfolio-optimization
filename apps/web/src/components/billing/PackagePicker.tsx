@@ -10,12 +10,17 @@ import {
 } from "@/hooks/useBilling";
 import { SalesFinalNotice } from "./SalesFinalNotice";
 import { formatUsdCents } from "@/lib/utils";
+import { isRailAvailable, RAILS_FALLBACK, type Rail } from "@/app/(app)/billing/rails";
 
-type Rail = "stripe" | "coinbase_commerce";
-
-export function PackagePicker() {
+/**
+ * `rails` are the ones this organization may pay with (PLAN Task 2.7). Card only
+ * by default: a rail the tenant has switched off must never appear, and the
+ * caller passing nothing is the state where we do not yet know.
+ */
+export function PackagePicker({ rails = RAILS_FALLBACK }: { rails?: Rail[] }) {
   const t = useTranslations("Billing");
   const [rail, setRail] = useState<Rail>("stripe");
+  const showCryptoTab = isRailAvailable(rails, "coinbase_commerce");
   const { data: packages, isLoading } = usePackages(rail);
   const fiatCheckout = useCreateCheckout();
   const cryptoCheckout = useCreateCryptoCheckout();
@@ -46,40 +51,44 @@ export function PackagePicker() {
 
   return (
     <div className="space-y-4">
-      <div
-        role="tablist"
-        aria-label={t("railTabsAria")}
-        className="inline-flex rounded-lg border border-border bg-muted p-1 dark:border-border/60 dark:bg-card/30"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={rail === "stripe"}
-          onClick={() => handleRailChange("stripe")}
-          className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
-            rail === "stripe"
-              ? "bg-primary/15 text-foreground dark:bg-primary/10"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
+      {/* One rail is not a choice: with crypto off, the tab strip would offer a
+          single option and imply a second one is missing. */}
+      {showCryptoTab && (
+        <div
+          role="tablist"
+          aria-label={t("railTabsAria")}
+          className="inline-flex rounded-lg border border-border bg-muted p-1 dark:border-border/60 dark:bg-card/30"
         >
-          <CreditCard className="h-4 w-4" />
-          {t("railCard")}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={rail === "coinbase_commerce"}
-          onClick={() => handleRailChange("coinbase_commerce")}
-          className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
-            rail === "coinbase_commerce"
-              ? "bg-primary/15 text-foreground dark:bg-primary/10"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Bitcoin className="h-4 w-4" />
-          {t("railCrypto")}
-        </button>
-      </div>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={rail === "stripe"}
+            onClick={() => handleRailChange("stripe")}
+            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
+              rail === "stripe"
+                ? "bg-primary/15 text-foreground dark:bg-primary/10"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <CreditCard className="h-4 w-4" />
+            {t("railCard")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={rail === "coinbase_commerce"}
+            onClick={() => handleRailChange("coinbase_commerce")}
+            className={`flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors ${
+              rail === "coinbase_commerce"
+                ? "bg-primary/15 text-foreground dark:bg-primary/10"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Bitcoin className="h-4 w-4" />
+            {t("railCrypto")}
+          </button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-sm text-muted-foreground">{t("loadingPackages")}</div>

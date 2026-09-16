@@ -1,12 +1,13 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { userProfile, type UserProfile } from "../../db/schema.js";
+import { organizationSettings, userProfile, type UserProfile } from "../../db/schema.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { grantCredits } from "../../lib/billing/spend.js";
 
+// Fallback only — the real amount lives in `organization_settings.signup_grant_credits`.
 const SIGNUP_GRANT_CREDITS = 3;
 
 const app = new Hono();
@@ -44,15 +45,20 @@ function serialize(row: UserProfile): Serialized {
   };
 }
 
-async function ensureRow(userId: string): Promise<UserProfile> {
+// The profile is per-user; the organization is a second predicate on every read
+// and write, never a replacement for the user filter. A row whose org no longer
+// matches the caller's membership is unreachable rather than silently readable,
+// and the INSERT below then fails loudly on `user_profile.user_id`'s unique
+// index — the same stance the middleware takes on a missing membership.
+async function ensureRow(userId: string, organizationId: string): Promise<UserProfile> {
   const existing = await db.query.userProfile.findFirst({
-    where: eq(userProfile.userId, userId),
+    where: and(eq(userProfile.userId, userId), eq(userProfile.organizationId, organizationId)),
   });
   if (existing) return existing;
 
-  await db.insert(userProfile).values({ userId });
+  await db.insert(userProfile).values({ userId, organizationId });
   const created = await db.query.userProfile.findFirst({
-    where: eq(userProfile.userId, userId),
+    where: and(eq(userProfile.userId, userId), eq(userProfile.organizationId, organizationId)),
   });
   return created!;
 }
@@ -60,7 +66,7 @@ async function ensureRow(userId: string): Promise<UserProfile> {
 // GET /api/onboarding — auto-creates a row on first call
 app.get("/", async (c) => {
   const user = c.get("user");
-  const row = await ensureRow(user.id);
+  const row = await ensureRow(user.id, c.get("organizationId"));
   return c.json(serialize(row));
 });
 
@@ -89,11 +95,12 @@ const step3Schema = z
 
 async function patchStep(
   userId: string,
+  organizationId: string,
   step: 1 | 2 | 3,
   patch: Partial<typeof userProfile.$inferInsert>
 ) {
   const existing = await db.query.userProfile.findFirst({
-    where: eq(userProfile.userId, userId),
+    where: and(eq(userProfile.userId, userId), eq(userProfile.organizationId, organizationId)),
   });
   if (!existing) return null;
 
@@ -101,10 +108,10 @@ async function patchStep(
   await db
     .update(userProfile)
     .set({ ...patch, currentStep: nextStep, updatedAt: sql`(unixepoch())` })
-    .where(eq(userProfile.userId, userId));
+    .where(and(eq(userProfile.userId, userId), eq(userProfile.organizationId, organizationId)));
 
   const updated = await db.query.userProfile.findFirst({
-    where: eq(userProfile.userId, userId),
+    where: and(eq(userProfile.userId, userId), eq(userProfile.organizationId, organizationId)),
   });
   return updated!;
 }
@@ -112,7 +119,7 @@ async function patchStep(
 app.patch("/step/1", zValidator("json", step1Schema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
-  const row = await patchStep(user.id, 1, {
+  const row = await patchStep(user.id, c.get("organizationId"), 1, {
     countryCode: body.countryCode,
     currency: body.currency,
   });
@@ -123,7 +130,7 @@ app.patch("/step/1", zValidator("json", step1Schema), async (c) => {
 app.patch("/step/2", zValidator("json", step2Schema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
-  const row = await patchStep(user.id, 2, {
+  const row = await patchStep(user.id, c.get("organizationId"), 2, {
     experience: body.experience,
     horizon: body.horizon,
     riskBehavior: body.riskBehavior,
@@ -137,7 +144,7 @@ app.patch("/step/2", zValidator("json", step2Schema), async (c) => {
 app.patch("/step/3", zValidator("json", step3Schema), async (c) => {
   const user = c.get("user");
   const body = c.req.valid("json");
-  const row = await patchStep(user.id, 3, {
+  const row = await patchStep(user.id, c.get("organizationId"), 3, {
     marketsOfInterest: JSON.stringify(body.marketsOfInterest),
     otherMarkets: JSON.stringify(body.otherMarkets),
     conceptFamiliarity: JSON.stringify(body.conceptFamiliarity),
@@ -146,11 +153,24 @@ app.patch("/step/3", zValidator("json", step3Schema), async (c) => {
   return c.json(serialize(row));
 });
 
+// The grant lands on the organization's wallet now, so it is paid once per seat
+// out of the balance the tenant is invoiced for. Whitelabel tenants switch it
+// off by setting `signup_grant_credits` to 0; the module constant only covers an
+// org with no settings row.
+async function resolveSignupGrant(organizationId: string): Promise<number> {
+  const settings = await db.query.organizationSettings.findFirst({
+    where: eq(organizationSettings.organizationId, organizationId),
+    columns: { signupGrantCredits: true },
+  });
+  return settings?.signupGrantCredits ?? SIGNUP_GRANT_CREDITS;
+}
+
 // POST /api/onboarding/complete — sets completedAt; rejects if any required field missing
 app.post("/complete", async (c) => {
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
   const row = await db.query.userProfile.findFirst({
-    where: eq(userProfile.userId, user.id),
+    where: and(eq(userProfile.userId, user.id), eq(userProfile.organizationId, organizationId)),
   });
   if (!row) return c.json({ error: "Profile not initialized" }, 404);
 
@@ -171,18 +191,24 @@ app.post("/complete", async (c) => {
   await db
     .update(userProfile)
     .set({ completedAt: new Date(), updatedAt: sql`(unixepoch())` })
-    .where(eq(userProfile.userId, user.id));
+    .where(and(eq(userProfile.userId, user.id), eq(userProfile.organizationId, organizationId)));
 
-  // Idempotent: re-completing onboarding won't re-grant credits.
-  await grantCredits({
-    userId: user.id,
-    credits: SIGNUP_GRANT_CREDITS,
-    reason: "grant",
-    idempotencyKey: `signup-grant:${user.id}`,
-  });
+  // Idempotent: re-completing onboarding won't re-grant credits. The key format
+  // is this endpoint's ONLY re-grant guard — there is no already-completed
+  // check — so it must not be namespaced or otherwise changed.
+  const signupGrant = await resolveSignupGrant(organizationId);
+  if (signupGrant > 0) {
+    await grantCredits({
+      organizationId,
+      userId: user.id,
+      credits: signupGrant,
+      reason: "grant",
+      idempotencyKey: `signup-grant:${user.id}`,
+    });
+  }
 
   const updated = await db.query.userProfile.findFirst({
-    where: eq(userProfile.userId, user.id),
+    where: and(eq(userProfile.userId, user.id), eq(userProfile.organizationId, organizationId)),
   });
   return c.json(serialize(updated!));
 });

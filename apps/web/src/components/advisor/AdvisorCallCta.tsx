@@ -5,18 +5,32 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { CalendarClock, ExternalLink, Loader2, X } from "lucide-react";
 import { useWallet, useBookAdvisorCall } from "@/hooks/useBilling";
+import { useOrgSettings } from "@/hooks/useOrgSettings";
+import { advisorCtaView } from "@/lib/org-settings";
 import { Disclaimer } from "@/components/legal/Disclaimer";
 import { ApiError } from "@/lib/api";
 
-const ADVISOR_CALL_COST = 100;
-
 type ModalView = "confirm" | "insufficient" | "success";
 
+/**
+ * Rendered only where the caller's organization has an advisor to book: the
+ * platform's, in `advisor_mode = 'platform'`, or the tenant's own. Anything else
+ * renders nothing at all — routing a tenant's clients to our advisor is a channel
+ * conflict and, in most jurisdictions, a licensing problem. See PLAN Task 3.3.
+ *
+ * The cost and the advisor's name are data, not constants and not translated
+ * copy, so a tenant inherits neither our price nor our possessive.
+ */
 export function AdvisorCallCta() {
   const t = useTranslations("AdvisorCta");
+  const { settings } = useOrgSettings();
+  const advisor = advisorCtaView(settings);
+  const cost = advisor.visible ? advisor.costCredits : 0;
+  const providerName = advisor.visible ? advisor.providerName : null;
+
   const { data: wallet } = useWallet();
   const balance = wallet?.credits ?? 0;
-  const canAfford = balance >= ADVISOR_CALL_COST;
+  const canAfford = balance >= cost;
 
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<ModalView>("confirm");
@@ -54,6 +68,9 @@ export function AdvisorCallCta() {
     }
   }
 
+  // After every hook, so the hook order does not change with the tenant.
+  if (!advisor.visible) return null;
+
   return (
     <>
       <div className="glass-card mt-6 p-5">
@@ -64,7 +81,11 @@ export function AdvisorCallCta() {
             </div>
             <div>
               <h3 className="font-medium text-foreground">{t("title")}</h3>
-              <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+              <p className="text-sm text-muted-foreground">
+                {providerName
+                  ? t("subtitleNamed", { provider: providerName })
+                  : t("subtitle")}
+              </p>
             </div>
           </div>
           <button
@@ -82,6 +103,8 @@ export function AdvisorCallCta() {
         <AdvisorModal
           view={view}
           balance={balance}
+          cost={cost}
+          providerName={providerName}
           bookingUrl={bookingUrl}
           errorMessage={errorMessage}
           isPending={book.isPending}
@@ -96,6 +119,8 @@ export function AdvisorCallCta() {
 interface AdvisorModalProps {
   view: ModalView;
   balance: number;
+  cost: number;
+  providerName: string | null;
   bookingUrl: string | null;
   errorMessage: string;
   isPending: boolean;
@@ -106,6 +131,8 @@ interface AdvisorModalProps {
 function AdvisorModal({
   view,
   balance,
+  cost,
+  providerName,
   bookingUrl,
   errorMessage,
   isPending,
@@ -144,10 +171,12 @@ function AdvisorModal({
           <div className="space-y-4">
             <div>
               <h2 className="font-display text-xl tracking-tight">
-                {t("modalTitle")}
+                {providerName
+                  ? t("modalTitleNamed", { provider: providerName })
+                  : t("modalTitle")}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                {t("modalBody", { cost: ADVISOR_CALL_COST })}
+                {t("modalBody", { cost })}
               </p>
               <p className="mt-3 text-xs text-muted-foreground">
                 {t("modalBalance", { balance })}
@@ -178,7 +207,7 @@ function AdvisorModal({
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-                {t("confirm", { cost: ADVISOR_CALL_COST })}
+                {t("confirm", { cost })}
               </button>
             </div>
           </div>
@@ -191,7 +220,7 @@ function AdvisorModal({
                 {t("insufficientTitle")}
               </h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                {t("insufficientBody", { cost: ADVISOR_CALL_COST, balance })}
+                {t("insufficientBody", { cost, balance })}
               </p>
             </div>
             <div className="flex gap-2">

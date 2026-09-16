@@ -50,6 +50,41 @@
       "when": 1788808658170,
       "tag": "0006_cooing_vector",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1788808659170,
+      "tag": "0007_organizations_nullable_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1788808803088,
+      "tag": "0008_backfill_organizations",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1788808910998,
+      "tag": "0009_wallet_org_key_add",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1788808928594,
+      "tag": "0010_backfill_wallet_organizations",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1788809006058,
+      "tag": "0011_organizations_not_null",
+      "breakpoints": true
     }
   ]
 }
