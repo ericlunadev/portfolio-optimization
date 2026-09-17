@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  useEfficientFrontierTickers,
   usePortfolioCumulativeReturnsTickers,
   useRollingVolatilityTickers,
+  useSavedSimulationFrontier,
 } from "@/hooks/useOptimization";
 import {
   OPTIMIZATION_STRATEGIES,
@@ -55,6 +55,8 @@ import {
 } from "lucide-react";
 
 interface MarkowitzResultsProps {
+  /** The saved simulation these results belong to; the frontier is read through it. */
+  simulationId: string;
   params: SimulationParams;
   result: OptimizationResultWithStrategy;
   /** Simulation name, used as the heading and filename of the PDF export. */
@@ -62,6 +64,7 @@ interface MarkowitzResultsProps {
 }
 
 export function MarkowitzResults({
+  simulationId,
   params,
   result,
   title,
@@ -164,16 +167,23 @@ export function MarkowitzResults({
     [params.assets, params.assetLimits]
   );
 
-  const { data: frontierData } = useEfficientFrontierTickers(
-    params.showFrontier ? selectedTickers : [],
-    startDate,
-    endDate,
-    params.enforceFullInvestment,
-    params.allowShortSelling,
-    params.useLeverage ? params.maxLeverage : 1.0,
-    params.assetConstraints ? params.wMax : 1.0,
-    weightBounds?.wMinPerAsset,
-    weightBounds?.wMaxPerAsset
+  // Through the saved simulation, not the tickers: the API derives the request
+  // from the stored row and charges it once, so opening these results again
+  // spends nothing (apps/api/src/modules/optimization/saved-frontier.ts).
+  const { data: frontierData } = useSavedSimulationFrontier(
+    simulationId,
+    {
+      tickers: selectedTickers,
+      startDate,
+      endDate,
+      enforceFullInvestment: params.enforceFullInvestment,
+      allowShortSelling: params.allowShortSelling,
+      maxLeverage: params.useLeverage ? params.maxLeverage : 1.0,
+      wMax: params.assetConstraints ? params.wMax : 1.0,
+      wMinPerAsset: weightBounds?.wMinPerAsset,
+      wMaxPerAsset: weightBounds?.wMaxPerAsset,
+    },
+    params.showFrontier
   );
 
   const { data: cumulativeData } = usePortfolioCumulativeReturnsTickers(

@@ -139,32 +139,16 @@ export const api = {
     return handleResponse<MaxSharpeResult>(res);
   },
 
-  async getEfficientFrontierTickers(
-    tickers: string[],
-    startDate?: string,
-    endDate?: string,
-    enforceFullInvestment: boolean = true,
-    allowShortSelling: boolean = false,
-    maxLeverage: number = 1.0,
-    wMax: number = 1.0,
-    wMinPerAsset?: (number | null)[],
-    wMaxPerAsset?: (number | null)[]
-  ) {
-    const res = await apiFetch(`${API_BASE}/optimization/efficient-frontier-tickers`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tickers,
-        start_date: startDate,
-        end_date: endDate,
-        enforce_full_investment: enforceFullInvestment,
-        allow_short_selling: allowShortSelling,
-        max_leverage: maxLeverage,
-        w_max: wMax,
-        w_min_per_asset: wMinPerAsset,
-        w_max_per_asset: wMaxPerAsset,
-      }),
-    });
+  /**
+   * The efficient frontier of a saved simulation. No body: the API reads the
+   * tickers, dates and constraints from the stored row, and charges once per
+   * simulation and set of parameters rather than once per view.
+   */
+  async getSavedSimulationFrontier(simulationId: string) {
+    const res = await apiFetch(
+      `${API_BASE}/optimization/simulations/${encodeURIComponent(simulationId)}/frontier`,
+      { method: "POST" }
+    );
     return handleResponse<EfficientFrontierResponse>(res);
   },
 

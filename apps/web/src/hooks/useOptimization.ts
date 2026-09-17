@@ -114,43 +114,45 @@ export function useMaxSharpeOptimization(
   });
 }
 
-export function useEfficientFrontierTickers(
-  tickers: string[],
-  startDate?: string,
-  endDate?: string,
-  enforceFullInvestment: boolean = true,
-  allowShortSelling: boolean = false,
-  maxLeverage: number = 1.0,
-  wMax: number = 1.0,
-  wMinPerAsset?: (number | null)[],
-  wMaxPerAsset?: (number | null)[]
+/**
+ * A saved simulation's efficient frontier.
+ *
+ * The API derives the request from the stored simulation, so `inputs` only
+ * keys the cache: when a re-run changes the stored parameters, the key changes
+ * and the new frontier is fetched (and charged, being new work). Reopening the
+ * same simulation is free on the API side, so a refetch costs nothing.
+ */
+export function useSavedSimulationFrontier(
+  simulationId: string,
+  inputs: {
+    tickers: string[];
+    startDate: string;
+    endDate: string;
+    enforceFullInvestment: boolean;
+    allowShortSelling: boolean;
+    maxLeverage: number;
+    wMax: number;
+    wMinPerAsset?: (number | null)[];
+    wMaxPerAsset?: (number | null)[];
+  },
+  enabled: boolean
 ) {
   return useQuery({
     queryKey: [
-      "efficient-frontier-tickers",
-      tickers,
-      startDate,
-      endDate,
-      enforceFullInvestment,
-      allowShortSelling,
-      maxLeverage,
-      wMax,
-      wMinPerAsset,
-      wMaxPerAsset,
+      "saved-simulation-frontier",
+      simulationId,
+      inputs.tickers,
+      inputs.startDate,
+      inputs.endDate,
+      inputs.enforceFullInvestment,
+      inputs.allowShortSelling,
+      inputs.maxLeverage,
+      inputs.wMax,
+      inputs.wMinPerAsset,
+      inputs.wMaxPerAsset,
     ],
-    queryFn: () =>
-      api.getEfficientFrontierTickers(
-        tickers,
-        startDate,
-        endDate,
-        enforceFullInvestment,
-        allowShortSelling,
-        maxLeverage,
-        wMax,
-        wMinPerAsset,
-        wMaxPerAsset
-      ),
-    enabled: tickers.length >= 2,
+    queryFn: () => api.getSavedSimulationFrontier(simulationId),
+    enabled: enabled && inputs.tickers.length >= 2,
   });
 }
 

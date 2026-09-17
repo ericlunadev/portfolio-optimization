@@ -32,8 +32,15 @@ import {
 } from "../../lib/benchmarks.js";
 import customBenchmarkRoutes from "./custom-benchmarks.js";
 import { db } from "../../db/index.js";
-import { customBenchmarks } from "../../db/schema.js";
-import { eq } from "drizzle-orm";
+import { customBenchmarks, simulations } from "../../db/schema.js";
+import { and, eq } from "drizzle-orm";
+import { readScope } from "../simulations/routes.js";
+import {
+  frontierRequestFromSimulationParams,
+  frontierRequestSchema,
+  spendForSavedFrontier,
+  type FrontierRequest,
+} from "./saved-frontier.js";
 
 const optimization = new Hono();
 
@@ -406,24 +413,37 @@ optimization.post(
   }
 );
 
+async function computeEfficientFrontier(request: FrontierRequest) {
+  const { tickers, start_date, end_date, w_max, w_min_per_asset, w_max_per_asset, enforce_full_investment, allow_short_selling, max_leverage } = request;
+
+  const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
+  const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
+
+  const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 25, w_max, {
+    wMinPerAsset: w_min_per_asset,
+    wMaxPerAsset: w_max_per_asset,
+    enforceFullInvestment: enforce_full_investment,
+    allowShortSelling: allow_short_selling,
+    maxLeverage: max_leverage,
+  });
+
+  return {
+    tickers,
+    points: frontier.returns.map((ret, i) => ({
+      ret: ret,
+      vol: frontier.volatilities[i],
+      weights: frontier.weights[i],
+    })),
+  };
+}
+
 // POST /api/optimization/efficient-frontier-tickers - Calculate efficient frontier using tickers
+//
+// Metered on every call: the tickers and dates are the caller's. The results
+// page of a saved simulation uses `/simulations/:id/frontier` below instead.
 optimization.post(
   "/efficient-frontier-tickers",
-  zValidator(
-    "json",
-    z.object({
-      tickers: z.array(z.string()),
-      start_date: z.string().optional(),
-      end_date: z.string().optional(),
-      w_max: z.number().min(0).max(1).default(1.0),
-      w_min_per_asset: perAssetBoundSchema,
-      w_max_per_asset: perAssetBoundSchema,
-      // Constraint toggles (for consistent frontier calculation)
-      enforce_full_investment: z.boolean().default(true),
-      allow_short_selling: z.boolean().default(false),
-      max_leverage: z.number().min(1).max(3).default(1.0),
-    })
-  ),
+  zValidator("json", frontierRequestSchema),
   async (c) => {
     // Validate the weight bounds before metering: an infeasible floor/cap
     // combination is a bad request, and the user should not be charged for it.
@@ -439,33 +459,68 @@ optimization.post(
     const spend = await meterRequest({ organizationId, user, cost: 1, idempotencyKey });
 
     try {
-    const { tickers, start_date, end_date, w_max, w_min_per_asset, w_max_per_asset, enforce_full_investment, allow_short_selling, max_leverage } = c.req.valid("json");
-
-    const { expectedReturns, volatilities, corrMatrix } = await getTickerAssumptions(tickers, start_date, end_date);
-    const covMatrix = buildCovarianceMatrix(volatilities, corrMatrix);
-
-    const frontier = calculateEfficientFrontier(expectedReturns, covMatrix, 25, w_max, {
-      wMinPerAsset: w_min_per_asset,
-      wMaxPerAsset: w_max_per_asset,
-      enforceFullInvestment: enforce_full_investment,
-      allowShortSelling: allow_short_selling,
-      maxLeverage: max_leverage,
-    });
-
-    return c.json({
-      tickers,
-      points: frontier.returns.map((ret, i) => ({
-        ret: ret,
-        vol: frontier.volatilities[i],
-        weights: frontier.weights[i],
-      })),
-    });
+      return c.json(await computeEfficientFrontier(c.req.valid("json")));
     } catch (err) {
       await reverseSpendOnError(spend, "frontier_failed");
       throw err;
     }
   }
 );
+
+// POST /api/optimization/simulations/:id/frontier - The frontier of a saved simulation
+//
+// Takes no body: tickers, dates and constraints come from the stored row, which
+// is read inside the caller's organization and read scope. The first frontier
+// for a simulation and its current parameters costs 1 credit; opening it again
+// replays that spend. See saved-frontier.ts for the rule and why it is safe.
+optimization.post("/simulations/:id/frontier", async (c) => {
+  const { id } = c.req.param();
+  const user = c.get("user");
+  const organizationId = c.get("organizationId");
+
+  const row = await db.query.simulations.findFirst({
+    where: and(eq(simulations.id, id), readScope(organizationId, user.id)),
+    columns: { id: true, params: true },
+  });
+  // The same answer for another tenant's id as for one that does not exist.
+  if (!row) {
+    return c.json({ error: "Simulation not found" }, 404);
+  }
+
+  let storedParams: unknown;
+  try {
+    storedParams = JSON.parse(row.params);
+  } catch {
+    storedParams = null;
+  }
+  const request = frontierRequestFromSimulationParams(storedParams);
+  if (!request) {
+    return c.json({ error: "simulation_has_no_frontier_parameters" }, 422);
+  }
+
+  // The same refusals as the metered route, before anything is charged.
+  const boundsError = validateAssetBounds(request);
+  if (boundsError) {
+    return c.json(boundsError, 400);
+  }
+  await assertTickersAllowed(organizationId, request.tickers);
+
+  const { spend, replayed } = await spendForSavedFrontier({
+    organizationId,
+    user,
+    simulationId: row.id,
+    request,
+  });
+
+  try {
+    return c.json(await computeEfficientFrontier(request));
+  } catch (err) {
+    // Only the request that paid refunds. A replay refunding would return the
+    // credit for the earlier view that succeeded.
+    if (!replayed) await reverseSpendOnError(spend, "saved_frontier_failed");
+    throw err;
+  }
+});
 
 // POST /api/optimization/cumulative-returns-tickers - Calculate cumulative returns for tickers
 optimization.post(
