@@ -29,10 +29,13 @@ export const TENANT_HOST_HEADER = "x-tenant-host";
 export type TenantTier = "cobranded" | "whitelabel";
 
 export interface TenantBrand {
-  /** First, gradient half of the wordmark. Empty when a tenant has no short name. */
+  /** The whole product name. The wordmark shows it once — see `lib/wordmark.ts`. */
+  productName: string;
+  /**
+   * The tenant's short name, which only decides where the wordmark's accent
+   * ends. Empty when a tenant has none.
+   */
   shortName: string;
-  /** Second half of the wordmark. */
-  fullName: string;
   tagline: string;
   /** `<title>`. */
   title: string;
@@ -66,8 +69,9 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   slug: null,
   tier: "cobranded",
   brand: {
+    // `wordmark()` renders these as "Optim. Portafolio", the pre-whitelabel wordmark.
+    productName: "Optimización de Portafolio",
     shortName: "Optim.",
-    fullName: "Portafolio",
     tagline: "Optimización de portafolio basada en la teoría de Markowitz",
     title: "Optimización de Portafolio",
     description: "Herramienta de optimización de portafolio Markowitz",
@@ -134,20 +138,20 @@ export function tenantConfigFromResponse(payload: unknown): TenantConfig {
   const productShortName = readString(branding, "productShortName");
   const tagline = readString(branding, "tagline");
 
-  // A tenant sets one product name, so it becomes the whole wordmark and the
-  // short half goes empty — our "Optim. Portafolio" split is ours, not a shape
-  // every brand has.
+  // A tenant's product name is the wordmark; their short name, if any, only
+  // places the accent inside it (lib/wordmark.ts). So the two travel together:
+  // ours is not carried over to their product name, and without a product name
+  // of their own a short name has nothing to mark, and the wordmark stays ours.
   const brand: TenantBrand = productName
     ? {
+        productName,
         shortName: productShortName ?? "",
-        fullName: productName,
         tagline: tagline ?? "",
         title: productName,
         description: tagline ?? productName,
       }
     : {
         ...fallback,
-        shortName: productShortName ?? fallback.shortName,
         tagline: tagline ?? fallback.tagline,
         description: tagline ?? fallback.description,
       };

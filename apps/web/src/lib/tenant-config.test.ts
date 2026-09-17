@@ -105,12 +105,12 @@ describe("fetchTenantConfig", () => {
     const borealis = await fetchTenantConfig("borealis.optim.app");
 
     expect(acme.organizationId).toBe("org-acme");
-    expect(acme.brand.fullName).toBe("Acme Wealth");
+    expect(acme.brand.productName).toBe("Acme Wealth");
     expect(acme.accentHex).toBe("#2f6fed");
     expect(acme.tier).toBe("whitelabel");
 
     expect(borealis.organizationId).toBe("org-borealis");
-    expect(borealis.brand.fullName).toBe("Borealis");
+    expect(borealis.brand.productName).toBe("Borealis");
     expect(borealis.accentHex).toBe("#8b5cf6");
     expect(borealis.tier).toBe("cobranded");
   });
@@ -206,22 +206,30 @@ describe("tenantConfigFromResponse", () => {
     expect(config.accentHex).toBe("#2f6fed");
   });
 
-  it("makes the product name the whole wordmark and the tab title", () => {
+  it("makes the product name the wordmark and the tab title, without our short name", () => {
     const config = tenantConfigFromResponse(
       tenantPayload({ branding: { productName: "Acme Wealth", tagline: "Gestión patrimonial" } })
     );
 
     expect(config.brand.shortName).toBe("");
-    expect(config.brand.fullName).toBe("Acme Wealth");
+    expect(config.brand.productName).toBe("Acme Wealth");
     expect(config.brand.title).toBe("Acme Wealth");
     expect(config.brand.description).toBe("Gestión patrimonial");
   });
 
-  it("keeps the two-part wordmark when a tenant sets both halves", () => {
+  it("carries the tenant's short name beside the product name, for the wordmark to place", () => {
     const config = tenantConfigFromResponse(tenantPayload());
 
     expect(config.brand.shortName).toBe("Acme");
-    expect(config.brand.fullName).toBe("Acme Wealth");
+    expect(config.brand.productName).toBe("Acme Wealth");
+  });
+
+  it("keeps our whole wordmark when a tenant sets a short name but no product name", () => {
+    const config = tenantConfigFromResponse(
+      tenantPayload({ branding: { productShortName: "Acme", accentHex: "#2f6fed" } })
+    );
+
+    expect(config.brand).toEqual(DEFAULT_TENANT_CONFIG.brand);
   });
 
   it("treats an unusable payload as no tenant at all", () => {

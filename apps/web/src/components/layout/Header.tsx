@@ -10,11 +10,13 @@ import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
 import { CreditsChip } from "@/components/billing/CreditsChip";
 import { useTenantBrand } from "@/components/tenant/TenantProvider";
+import { wordmark } from "@/lib/wordmark";
 
 export function Header() {
   const t = useTranslations("Header");
   // The wordmark is tenant data, not translated copy — see CLAUDE.md.
   const brand = useTenantBrand();
+  const mark = wordmark(brand.productName, brand.shortName);
   const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
 
@@ -41,17 +43,19 @@ export function Header() {
     <>
       <EmailVerificationBanner />
       <header className="relative z-30 border-b border-border bg-card/80 backdrop-blur-sm px-4 py-3 dark:border-border/50 dark:bg-card/20 md:px-8">
-        <div className="flex items-center justify-between gap-3 md:justify-end">
-          <h1 className="font-display text-lg tracking-tight md:hidden">
-            {/* A tenant sets one product name, so the gradient half is often empty. */}
-            {brand.shortName && (
-              <>
-                <span className="text-gradient-gold">{brand.shortName}</span>{" "}
-              </>
-            )}
-            <span className="text-foreground/80">{brand.fullName}</span>
+        <div className="flex items-center justify-between gap-2 md:justify-end md:gap-3">
+          {/* Phones get only the accented part of the wordmark (lib/wordmark.ts).
+              At 390px the controls beside it take ~290px of the 358 available,
+              which leaves room for a short mark, not a product name; it
+              truncates rather than wraps when even that does not fit. */}
+          <h1
+            className="min-w-0 font-display text-lg tracking-tight md:hidden"
+            aria-label={brand.productName}
+            title={brand.productName}
+          >
+            <span className="block truncate text-gradient-gold">{mark.accent}</span>
           </h1>
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
             <CreditsChip />
             <ThemeSwitcher />
             <LocaleSwitcher />
