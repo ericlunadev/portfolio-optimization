@@ -15,6 +15,7 @@ import {
 import { sendEmail } from "./email/send.js";
 import { emailMessages } from "./email/i18n.js";
 import { getLocaleFromRequest } from "./email/locale.js";
+import { resolveEmailTenant } from "./email/tenant.js";
 import { VerifyEmail } from "./email/templates/VerifyEmail.js";
 import { ResetPassword } from "./email/templates/ResetPassword.js";
 import { resolveTenantOrigin } from "./trusted-origins.js";
@@ -145,28 +146,44 @@ export const auth = betterAuth({
       },
     },
   },
+  // Both emails link to the tenant host the request came from, and carry that
+  // tenant's name (lib/email/tenant.ts). BetterAuth 1.6 hands both callbacks the
+  // incoming request when they run over HTTP — request-password-reset, sign-up,
+  // send-verification-email, change-email, and the change-email step of
+  // verify-email. Its OAuth callback passes one too, but that is the provider's
+  // redirect, whose Referer is no tenant. That, a direct `auth.api` call (no
+  // request at all) and the Expo app (its scheme is not a web origin) all get
+  // FRONTEND_URL, as before.
   emailAndPassword: {
     enabled: true,
+    // The body's `redirectTo` is not read: it is client-supplied, and BetterAuth
+    // vets it against `trustedOrigins` only when there is a request. The web
+    // client sends `${location.origin}/auth/reset-password`, which is what this
+    // builds from the validated origin anyway.
     sendResetPassword: async ({ user, token }, request) => {
       const locale = getLocaleFromRequest(request);
-      const url = `${env.FRONTEND_URL}/auth/reset-password?token=${encodeURIComponent(token)}`;
+      const tenant = await resolveEmailTenant(request);
+      const url = `${tenant.baseUrl}/auth/reset-password?token=${encodeURIComponent(token)}`;
       await sendEmail({
         to: user.email,
         subject: emailMessages[locale].resetSubject,
-        react: ResetPassword({ url, locale, userName: user.name }),
+        react: ResetPassword({ url, locale, userName: user.name, productName: tenant.productName }),
       });
     },
   },
   emailVerification: {
     sendOnSignUp: true,
+    // Signs the user in wherever the link lands, which is why the link has to
+    // land on their tenant's host and not on FRONTEND_URL.
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, token }, request) => {
       const locale = getLocaleFromRequest(request);
-      const url = `${env.FRONTEND_URL}/auth/verify-email?token=${encodeURIComponent(token)}`;
+      const tenant = await resolveEmailTenant(request);
+      const url = `${tenant.baseUrl}/auth/verify-email?token=${encodeURIComponent(token)}`;
       await sendEmail({
         to: user.email,
         subject: emailMessages[locale].verifySubject,
-        react: VerifyEmail({ url, locale, userName: user.name }),
+        react: VerifyEmail({ url, locale, userName: user.name, productName: tenant.productName }),
       });
     },
   },
