@@ -13,7 +13,9 @@ const app = new Hono();
 app.use("*", authMiddleware);
 
 // Reads reach the caller's own simulations plus anything shared with the org.
-function readScope(organizationId: string, userId: string): SQL | undefined {
+// Exported for the saved-simulation frontier (modules/optimization), which must
+// reach exactly the rows `GET /:id` does.
+export function readScope(organizationId: string, userId: string): SQL | undefined {
   return and(
     eq(simulations.organizationId, organizationId),
     or(eq(simulations.userId, userId), eq(simulations.sharedWithOrg, true))

@@ -18,9 +18,11 @@ export interface ResetPasswordProps {
   url: string;
   locale: EmailLocale;
   userName?: string | null;
+  /** The tenant's product name (lib/email/tenant.ts). Falls back to our own when absent. */
+  productName?: string | null;
 }
 
-export function ResetPassword({ url, locale, userName }: ResetPasswordProps) {
+export function ResetPassword({ url, locale, userName, productName }: ResetPasswordProps) {
   const m = emailMessages[locale];
   return (
     <Html>
@@ -28,7 +30,7 @@ export function ResetPassword({ url, locale, userName }: ResetPasswordProps) {
       <Preview>{m.resetSubject}</Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
-          <Text style={styles.brand}>{m.brand}</Text>
+          <Text style={styles.brand}>{productName || m.brand}</Text>
           <Section>
             <Heading style={styles.heading}>{m.resetHeading(userName)}</Heading>
             <Text style={styles.text}>{m.resetBody}</Text>

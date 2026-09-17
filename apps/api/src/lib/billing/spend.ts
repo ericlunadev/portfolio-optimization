@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, like, ne, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { randomUUID } from "node:crypto";
 import { env } from "../../config/env.js";
@@ -345,6 +345,32 @@ export async function grantCredits(opts: {
   } catch (err) {
     return await resolveRaceWinner(organizationId, idempotencyKey, "credit", err);
   }
+}
+
+// The spend written under `idempotencyKey` in this organization, if any, and
+// whether `reverseSpend` has since refunded it.
+//
+// For a caller that treats an earlier spend as "already paid": a refunded spend
+// paid for nothing, yet `spendCredit` still replays it under the same key, so
+// it has to be told apart. Lives here because the reversal key format does.
+export async function findSpend(
+  organizationId: string,
+  idempotencyKey: string
+): Promise<(SpendResult & { reversed: boolean }) | null> {
+  const spend = await findExistingLedgerRow(organizationId, idempotencyKey, "spend");
+  if (!spend) return null;
+
+  const reversal = await db.query.creditLedger.findFirst({
+    where: and(
+      eq(creditLedger.organizationId, organizationId),
+      eq(creditLedger.reason, "reversal"),
+      // `reverseSpend`'s key. A ledger id is a UUID, so it carries no LIKE wildcard.
+      like(creditLedger.idempotencyKey, `reverse:${spend.ledgerId}:%`)
+    ),
+    columns: { id: true },
+  });
+
+  return { ...spend, reversed: reversal !== undefined };
 }
 
 // Reverses an earlier spend (used when the optimization throws after the credit was deducted).

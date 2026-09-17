@@ -227,6 +227,7 @@ export default function SimulationDetailPage() {
       </div>
 
       <MarkowitzResults
+        simulationId={simulation.id}
         params={simulation.params}
         result={simulation.result}
         title={displayName}

@@ -100,6 +100,13 @@ the writes the API actually received, so a `POST /api/optimization/optimize 200`
 click submitted. `run.sh shot <session> <name>` saves to `$DEMO_DIR/shots/<name>.png` and prints
 the path.
 
+What that costs, measured on borealis with `sqlite3 "$DEMO_DIR/demo.db" "SELECT credits FROM
+wallet_balance"` between steps: creating the simulation spends 2 (`POST …/optimize`, then the
+first `POST /api/optimization/simulations/<id>/frontier`). Reloading the results page, or
+opening it again from the list, spends nothing — the frontier call still appears in
+`run.sh calls` but writes no ledger row. The re-run icon (refresh, then "Confirmar
+re-ejecución") spends 2 again: a new optimization, and the frontier for the moved end date.
+
 **Look at every screenshot.** A logged-out page, or a form where results were expected, means a
 step silently failed.
 
@@ -119,7 +126,7 @@ pnpm --filter api test
 pnpm --filter web test
 ```
 
-At the time of writing: 409 API tests across 27 files and 380 web tests across 19 files.
+At the time of writing: 453 API tests across 29 files and 407 web tests across 20 files.
 
 ## Gotchas
 
@@ -161,6 +168,14 @@ At the time of writing: 409 API tests across 27 files and 380 web tests across 1
   database explicitly.
 - **Signup still returns 200 without `RESEND_API_KEY`.** The verification email fails and
   `api.log` shows a Resend stack trace. That's expected here; `run.sh` marks analysts verified.
+- **Password-reset and verification links follow the tenant the request came from.** The API
+  builds them from the request's `Origin` (else `Referer`), and only when it is a registered
+  tenant hostname; anything else, and a request with neither, gets `FRONTEND_URL`. No mail is
+  sent here, so to finish a reset through the UI, submit "¿Olvidaste tu contraseña?" on the
+  tenant host, read the token with
+  `sqlite3 "$DEMO_DIR/demo.db" "SELECT identifier FROM verification WHERE identifier LIKE 'reset-password:%'"`,
+  and open `http://<tenant host>:3000/auth/reset-password?token=<token>`. The reset form then
+  takes the new password, and the sign-in modal accepts it.
 - **Next dev logs `Cross origin request detected from acme.localhost to /_next/* resource`.**
   It's only a warning on Next 14.2; pages still hydrate and work.
 - **Billing shows "Aún no hay paquetes disponibles".** No credit packages are seeded; top-ups in

@@ -1,6 +1,11 @@
 import type { EmailLocale } from "./locale.js";
 
 export interface EmailMessages {
+  /**
+   * Only the floor. A product name is tenant data, not translated copy (see
+   * CLAUDE.md), so the auth emails carry the tenant's own name from
+   * `lib/email/tenant.ts` and fall back to this when the database has none.
+   */
   brand: string;
   /**
    * Investing disclaimer for any email carrying simulation results (see

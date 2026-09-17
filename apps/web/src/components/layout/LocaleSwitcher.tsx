@@ -31,7 +31,8 @@ export function LocaleSwitcher() {
       aria-label={t("label")}
       className="flex items-center gap-1 rounded-lg border border-border bg-card dark:border-border/60 dark:bg-card/40 p-0.5"
     >
-      <Languages className="ml-1.5 h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+      {/* Decorative, and the phone header needs its width for the wordmark. */}
+      <Languages className="ml-1.5 hidden h-3.5 w-3.5 text-muted-foreground sm:block" aria-hidden />
       {locales.map((locale) => {
         const isActive = locale === currentLocale;
         return (

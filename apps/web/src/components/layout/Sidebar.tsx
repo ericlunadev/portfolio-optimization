@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { useTenantBrand } from "@/components/tenant/TenantProvider";
 import { useOrgSettings } from "@/hooks/useOrgSettings";
 import { isNavHrefVisible } from "@/lib/org-settings";
+import { wordmark } from "@/lib/wordmark";
 import { BarChart3, Home, GraduationCap, Wallet } from "lucide-react";
 
 // Kept identical to `MobileTabBar`'s list, per CLAUDE.md. Which of them a given
@@ -22,6 +23,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const tNav = useTranslations("Nav");
   const brand = useTenantBrand();
+  const mark = wordmark(brand.productName, brand.shortName);
   const { settings } = useOrgSettings();
   const visibleItems = navItems.filter((item) =>
     isNavHrefVisible(item.href, settings)
@@ -31,12 +33,13 @@ export function Sidebar() {
     <aside className="hidden md:flex w-64 shrink-0 border-r border-border bg-card/80 dark:border-border/50 dark:bg-card/40 backdrop-blur-sm flex-col">
       <div className="p-6 pb-8">
         <h1 className="font-display text-2xl tracking-tight">
-          {brand.shortName && (
+          <span className="text-gradient-gold">{mark.accent}</span>
+          {mark.rest && (
             <>
-              <span className="text-gradient-gold">{brand.shortName}</span>{" "}
+              {" "}
+              <span className="text-foreground/80">{mark.rest}</span>
             </>
           )}
-          <span className="text-foreground/80">{brand.fullName}</span>
         </h1>
       </div>
 
