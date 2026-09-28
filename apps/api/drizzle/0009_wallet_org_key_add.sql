@@ -1,0 +1,20 @@
+-- Whitelabel tenancy, migration (D-i) — Deploy 1. The wallet re-key, step 1 of 2.
+--
+-- The wallet moves from one row per user to one row per organization (D7). Doing
+-- that in a single generate is unrunnable: with `user_id` dropped and
+-- `organization_id` added on the same table, drizzle-kit renders the interactive
+-- "Is <col> created or renamed from another column?" prompt and, with no TTY,
+-- aborts on `Interactive prompts require a TTY terminal`. Answering "renamed"
+-- emits `RENAME COLUMN user_id TO organization_id`, which commits silently and
+-- leaves real user ids sitting in `organization_id`; answering "created" emits a
+-- rebuild that selects a column which does not exist yet.
+--
+-- So: nullable column here, backfilled in (D-ii), flipped to NOT NULL UNIQUE in
+-- (C) at Deploy 2. `user_id` is kept as a deprecated nullable column instead of
+-- being dropped, which is what lets Deploy 3 be skipped — the release still
+-- serving traffic during Deploy 2's build runs raw `WHERE user_id = ?`
+-- (spend.ts:46-50, :101-105) and would 5xx against a dropped column.
+--
+-- As in (A), this ADD COLUMN emits only `REFERENCES organization(id)`, so the
+-- live foreign key is NO ACTION until (C)'s rebuild installs the declared cascade.
+ALTER TABLE `wallet_balance` ADD `organization_id` text REFERENCES organization(id);

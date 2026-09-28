@@ -1,6 +1,11 @@
 import type { EmailLocale } from "./locale.js";
 
 export interface EmailMessages {
+  /**
+   * Only the floor. A product name is tenant data, not translated copy (see
+   * CLAUDE.md), so the auth emails carry the tenant's own name from
+   * `lib/email/tenant.ts` and fall back to this when the database has none.
+   */
   brand: string;
   /**
    * Investing disclaimer for any email carrying simulation results (see
@@ -42,6 +47,13 @@ export interface EmailMessages {
   scheduledBuyCredits: string;
   scheduledFooter: string;
   scheduledManage: string;
+  lowBalanceSubject: string;
+  lowBalanceHeading: (name?: string | null) => string;
+  lowBalanceBody: (organizationName: string) => string;
+  lowBalanceBalance: (credits: number) => string;
+  lowBalanceButton: string;
+  lowBalanceFallbackIntro: string;
+  lowBalanceFooter: string;
 }
 
 const es: EmailMessages = {
@@ -95,6 +107,16 @@ const es: EmailMessages = {
   scheduledBuyCredits: "Comprar créditos",
   scheduledFooter: "Recibes este correo porque programaste un envío de simulaciones.",
   scheduledManage: "Administrar o cancelar envíos",
+  lowBalanceSubject: "Saldo de créditos bajo",
+  lowBalanceHeading: (name) => (name ? `Hola, ${name}.` : "Hola,"),
+  lowBalanceBody: (organizationName) =>
+    `El saldo de créditos de ${organizationName} cayó por debajo del 20 % de su última recarga. Cuando se agote, tu equipo no podrá ejecutar optimizaciones.`,
+  lowBalanceBalance: (credits) => `Saldo actual: ${credits} créditos.`,
+  lowBalanceButton: "Recargar créditos",
+  lowBalanceFallbackIntro:
+    "Si el botón no funciona, copia y pega este enlace en tu navegador:",
+  lowBalanceFooter:
+    "Recibes este aviso porque eres la persona propietaria de la organización.",
 };
 
 const en: EmailMessages = {
@@ -149,6 +171,16 @@ const en: EmailMessages = {
   scheduledBuyCredits: "Buy credits",
   scheduledFooter: "You are receiving this email because you scheduled a simulation report.",
   scheduledManage: "Manage or cancel reports",
+  lowBalanceSubject: "Your credit balance is running low",
+  lowBalanceHeading: (name) => (name ? `Hi ${name},` : "Hello,"),
+  lowBalanceBody: (organizationName) =>
+    `${organizationName}'s credit balance has fallen below 20% of its last top-up. Once it runs out, your team will not be able to run optimizations.`,
+  lowBalanceBalance: (credits) => `Current balance: ${credits} credits.`,
+  lowBalanceButton: "Top up credits",
+  lowBalanceFallbackIntro:
+    "If the button doesn't work, copy and paste this link into your browser:",
+  lowBalanceFooter:
+    "You are receiving this notice because you are the organization's owner.",
 };
 
 export const emailMessages: Record<EmailLocale, EmailMessages> = { es, en };

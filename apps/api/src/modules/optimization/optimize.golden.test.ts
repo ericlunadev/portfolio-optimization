@@ -22,13 +22,21 @@ vi.mock("../../db/index.js", () => ({ db: {} }));
 vi.mock("../../middleware/auth.js", () => ({
   authMiddleware: async (c: { set: (k: string, v: unknown) => void }, next: () => Promise<void>) => {
     c.set("user", { id: "user-1" });
+    c.set("organizationId", "org-1");
     await next();
   },
+}));
+// The snapshots were recorded before tenants existed, so the tenant they run
+// under is the unrestricted one every D2C organization has: no fund allowlist.
+vi.mock("../../lib/tenant-settings.js", () => ({
+  getFundAllowlist: async () => null,
+  isTickerAllowed: () => true,
 }));
 vi.mock("../../lib/billing/metering.js", () => ({
   meterRequest,
   reverseSpendOnError,
   newIdempotencyKey: () => "key",
+  clientIdempotencyKey: () => "key",
 }));
 
 const { default: optimization } = await import("./routes.js");
@@ -80,6 +88,28 @@ beforeEach(() => {
   reverseSpendOnError.mockReset();
 });
 
+/**
+ * Rounds every number to 12 significant digits, which is far more precision
+ * than any figure here is shown with and far less than a double carries.
+ *
+ * The snapshots are recorded on one machine and asserted on another: libm's
+ * `exp`/`pow` are allowed to differ in the last bit or two between macOS and
+ * the Linux CI runner, and a weight came back as 0.0366459822925725 there
+ * against 0.036645982292572626 here. Pinning the raw doubles would make CI
+ * fail on a difference of 1e-16, which is not the kind of change these
+ * snapshots exist to catch.
+ */
+function roundDeep(value: unknown): unknown {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? Number(value.toPrecision(12)) : value;
+  }
+  if (Array.isArray(value)) return value.map(roundDeep);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, roundDeep(v)]));
+  }
+  return value;
+}
+
 const BASE = {
   risk_free_rate: 0.02,
   target_return: 0.1,
@@ -92,7 +122,7 @@ describe("POST /optimize golden output", () => {
   it.each(OPTIMIZATION_STRATEGIES)("matches the recorded response for %s", async (strategy) => {
     const { status, body } = await optimize({ ...BASE, strategy });
     expect(status).toBe(200);
-    expect(body).toMatchSnapshot();
+    expect(roundDeep(body)).toMatchSnapshot();
   });
 
   it.each(OPTIMIZATION_STRATEGIES)(
@@ -110,7 +140,7 @@ describe("POST /optimize golden output", () => {
         view_confidence: 0.3,
       });
       expect(status).toBe(200);
-      expect(body).toMatchSnapshot();
+      expect(roundDeep(body)).toMatchSnapshot();
     }
   );
 

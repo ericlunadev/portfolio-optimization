@@ -1,7 +1,10 @@
 "use client";
 
-import { ReactNode } from "react";
+import { ReactNode, useMemo } from "react";
 import { useResolvedTheme } from "@/components/theme/ThemeProvider";
+import { useOrganizationBranding } from "@/hooks/useOrganizationBranding";
+import { deriveTenantPalette, normalizeAccentHex } from "@/lib/tenant-palette";
+import type { ResolvedTheme } from "@/lib/theme";
 
 export interface ChartPaletteEntry {
   name: string;
@@ -44,11 +47,13 @@ export interface ChartColors {
 }
 
 /**
- * Series colours, one complete set per appearance.
+ * Series colours, one complete set per appearance — the house sets, used when
+ * no tenant accent is in play.
  *
  * These are deliberately plain hex strings rather than `var(--token)`: several
  * call sites build a translucent variant by concatenating a hex alpha pair
- * (`${color}55`), which only works on a real hex value.
+ * (`${color}55`), which only works on a real hex value. `deriveTenantPalette`
+ * keeps emitting hex for the same reason.
  */
 const DARK_COLORS: ChartColors = {
   palette: [
@@ -101,9 +106,39 @@ const LIGHT_COLORS: ChartColors = {
   cursor: "#a8a294",
 };
 
-/** Reactive series colours for the current appearance. */
+const HOUSE_COLORS: Record<ResolvedTheme, ChartColors> = {
+  dark: DARK_COLORS,
+  light: LIGHT_COLORS,
+};
+
+/**
+ * The series set for one appearance, given the tenant's accent.
+ *
+ * A tenant with an accent gets `deriveTenantPalette`'s set: the brand slot and
+ * the optimal portfolio take their colour, and every other series is pushed off
+ * that hue so the chart stays readable. Without an accent the sets above are
+ * returned untouched rather than re-derived from the house gold — the two are
+ * close but not identical, and the D2C product (tenant #1, per D5) should not
+ * shift colour because branding shipped.
+ */
+export function resolveChartColors(
+  accentHex: string | null | undefined,
+  theme: ResolvedTheme
+): ChartColors {
+  const accent = normalizeAccentHex(accentHex);
+  if (!accent) return HOUSE_COLORS[theme];
+  return deriveTenantPalette(accent).charts[theme];
+}
+
+/** Reactive series colours for the current appearance and tenant. */
 export function useChartColors(): ChartColors {
-  return useResolvedTheme() === "dark" ? DARK_COLORS : LIGHT_COLORS;
+  const theme = useResolvedTheme();
+  // A 401 or an absent branding row resolves to null here, which is the
+  // no-accent case — signed-out readers and the D2C product both land there.
+  const { data: branding } = useOrganizationBranding();
+  const accentHex = branding?.accentHex ?? null;
+
+  return useMemo(() => resolveChartColors(accentHex, theme), [accentHex, theme]);
 }
 
 /**

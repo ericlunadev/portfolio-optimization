@@ -45,14 +45,26 @@ const envSchema = z.object({
   COINBASE_COMMERCE_API_KEY: z.string().optional(),
   COINBASE_COMMERCE_WEBHOOK_SECRET: z.string().optional(),
 
-  // Financial advisor booking
+  // Shared secret for the internal, sessionless routes: the admin credit grant
+  // and the Vercel cron trigger that runs due schedules. Unset means those
+  // routes answer 503 rather than running unauthenticated — and in production
+  // the superRefine below refuses to boot at all.
+  INTERNAL_API_SECRET: z.string().min(32).optional(),
+
+  // Financial advisor booking.
+  //
+  // Neither of these decides what a request sees any more: the mode, the
+  // destination and the price come from `organization_settings` (PLAN Task 3.3),
+  // because pointing a tenant's clients at our advisor is a channel conflict and
+  // usually a licensing problem. What is left here is deployment-wide by
+  // definition — the *platform* advisor's own link, used only by organizations
+  // running in `advisor_mode = 'platform'` — plus the provisioning default for
+  // `advisor_cost_credits`, which is also the fallback when that nullable column
+  // holds NULL.
   ADVISOR_BOOKING_URL: z
     .string()
     .default("https://cal.com/REPLACE_ME/advisor-30min"),
   ADVISOR_CALL_COST_CREDITS: z.coerce.number().int().positive().default(100),
-
-  // Shared secret for machine-to-machine calls (the Vercel cron trigger).
-  INTERNAL_API_SECRET: z.string().min(32).optional(),
 });
 
 export const env = envSchema
@@ -68,5 +80,10 @@ export const env = envSchema
     }
   })
   .parse(process.env);
+
+// The API's one definition of "production": an https BACKEND_URL. It picks the
+// cookie attributes (lib/auth.ts) and decides whether a tenant origin may be
+// plain http (lib/trusted-origins.ts), so both have to agree on it.
+export const isProduction = env.BACKEND_URL.startsWith("https://");
 
 export type Env = z.infer<typeof envSchema>;

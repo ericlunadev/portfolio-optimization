@@ -3,14 +3,15 @@
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
-// Query-key roots whose successful runs charge a credit on the API. When any
+// Query-key roots whose successful runs can charge a credit on the API. When any
 // of these resolves with fresh data we invalidate ["billing"] so the wallet
-// chip and ledger stay in sync without waiting for window-focus.
+// chip and ledger stay in sync without waiting for window-focus. A saved
+// simulation's frontier charges only the first time, but the chip cannot tell.
 const METERED_QUERY_KEYS = new Set([
   "optimization",
   "optimization-tickers",
   "max-sharpe-tickers",
-  "efficient-frontier-tickers",
+  "saved-simulation-frontier",
 ]);
 
 export function Providers({ children }: { children: React.ReactNode }) {

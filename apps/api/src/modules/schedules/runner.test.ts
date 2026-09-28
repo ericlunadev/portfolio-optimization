@@ -29,9 +29,13 @@ const { eq } = await import("drizzle-orm");
 const { db } = await import("../../db/index.js");
 const schema = await import("../../db/schema.js");
 const { grantCredits } = await import("../../lib/billing/spend.js");
+const { seedOrg, seedUser } = await import("../../test/factories.js");
 const { runDueSchedules, PAUSE_AFTER_FAILURES } = await import("./runner.js");
 
 const USER_ID = "user-1";
+// Credits, simulations and wallets are all organization-scoped, so the owner
+// needs the membership row the runner resolves the payer from.
+const ORG_ID = "org-1";
 
 const WEB_PARAMS = {
   tickers: ["SPY", "TLT"],
@@ -85,7 +89,7 @@ const MONDAY_MORNING = new Date("2026-09-14T06:30:00Z");
 
 async function balance(): Promise<number> {
   const wallet = await db.query.walletBalance.findFirst({
-    where: eq(schema.walletBalance.userId, USER_ID),
+    where: eq(schema.walletBalance.organizationId, ORG_ID),
   });
   return wallet?.credits ?? 0;
 }
@@ -100,6 +104,7 @@ async function createSimulation(id: string, params: object) {
   await db.insert(schema.simulations).values({
     id,
     userId: USER_ID,
+    organizationId: ORG_ID,
     name: `Sim ${id}`,
     params: JSON.stringify(params),
     result: JSON.stringify(result(0.5)),
@@ -151,17 +156,20 @@ beforeEach(async () => {
     schema.creditLedger,
     schema.walletBalance,
     schema.simulations,
+    schema.organizationMember,
+    schema.organizationSettings,
     schema.user,
+    schema.organization,
   ]) {
     await db.delete(table);
   }
-  await db.insert(schema.user).values({
+  await seedOrg({ id: ORG_ID });
+  await seedUser({
     id: USER_ID,
+    organizationId: ORG_ID,
     name: "Ada",
     email: "ada@example.com",
-    emailVerified: true,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    role: "owner",
   });
   runOptimization.mockReset().mockResolvedValue(result(0.6));
   sendEmail.mockReset().mockResolvedValue(undefined);
@@ -169,7 +177,7 @@ beforeEach(async () => {
 
 describe("runDueSchedules", () => {
   it("runs a due schedule: one credit, one run row, updated simulation, one email", async () => {
-    await grantCredits({ userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
+    await grantCredits({ organizationId: ORG_ID, userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
     await createSimulation("sim-1", WEB_PARAMS);
     await createSchedule("sch-1", ["sim-1"]);
 
@@ -211,7 +219,7 @@ describe("runDueSchedules", () => {
   });
 
   it("charges exactly one credit when fired twice on the same day", async () => {
-    await grantCredits({ userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
+    await grantCredits({ organizationId: ORG_ID, userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
     await createSimulation("sim-1", WEB_PARAMS);
     await createSchedule("sch-1", ["sim-1"]);
 
@@ -233,7 +241,7 @@ describe("runDueSchedules", () => {
   });
 
   it("diffs a later run against the previous one", async () => {
-    await grantCredits({ userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
+    await grantCredits({ organizationId: ORG_ID, userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
     await createSimulation("sim-1", WEB_PARAMS);
     await createSchedule("sch-1", ["sim-1"]);
 
@@ -276,7 +284,7 @@ describe("runDueSchedules", () => {
   it("resets the failure streak once a run is paid for again", async () => {
     await createSimulation("sim-1", WEB_PARAMS);
     await createSchedule("sch-1", ["sim-1"], { consecutiveFailures: 2 });
-    await grantCredits({ userId: USER_ID, credits: 1, reason: "grant", idempotencyKey: "seed" });
+    await grantCredits({ organizationId: ORG_ID, userId: USER_ID, credits: 1, reason: "grant", idempotencyKey: "seed" });
 
     await runDueSchedules(MONDAY_MORNING);
 
@@ -284,7 +292,7 @@ describe("runDueSchedules", () => {
   });
 
   it("skips mobile-shaped params without charging or throwing, and runs the rest", async () => {
-    await grantCredits({ userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
+    await grantCredits({ organizationId: ORG_ID, userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
     await createSimulation("sim-mobile", MOBILE_PARAMS);
     await createSimulation("sim-web", WEB_PARAMS);
     await createSchedule("sch-1", ["sim-mobile", "sim-web"]);
@@ -302,7 +310,7 @@ describe("runDueSchedules", () => {
   });
 
   it("refunds the credit when the optimization throws", async () => {
-    await grantCredits({ userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
+    await grantCredits({ organizationId: ORG_ID, userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
     await createSimulation("sim-1", WEB_PARAMS);
     await createSchedule("sch-1", ["sim-1"]);
     runOptimization.mockRejectedValueOnce(new Error("yahoo down"));
@@ -318,7 +326,7 @@ describe("runDueSchedules", () => {
   });
 
   it("leaves schedules that are not due or are paused alone", async () => {
-    await grantCredits({ userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
+    await grantCredits({ organizationId: ORG_ID, userId: USER_ID, credits: 5, reason: "grant", idempotencyKey: "seed" });
     await createSimulation("sim-1", WEB_PARAMS);
     await createSchedule("sch-future", ["sim-1"], {
       nextRunAt: new Date(MONDAY_MORNING.getTime() + DAY),

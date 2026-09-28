@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  useEfficientFrontierTickers,
   usePortfolioCumulativeReturnsTickers,
   useRollingVolatilityTickers,
+  useSavedSimulationFrontier,
 } from "@/hooks/useOptimization";
 import {
   OPTIMIZATION_STRATEGIES,
@@ -27,6 +27,7 @@ import { ChartReveal } from "@/components/charts/ChartReveal";
 import { StatCard, StatCardGrid } from "@/components/charts/StatCards";
 import { AdvisorCallCta } from "@/components/advisor/AdvisorCallCta";
 import { Disclaimer } from "@/components/legal/Disclaimer";
+import { useOrganizationBranding } from "@/hooks/useOrganizationBranding";
 import { cn, formatNumber, formatPercent } from "@/lib/utils";
 import {
   useChartColors,
@@ -54,6 +55,8 @@ import {
 } from "lucide-react";
 
 interface MarkowitzResultsProps {
+  /** The saved simulation these results belong to; the frontier is read through it. */
+  simulationId: string;
   params: SimulationParams;
   result: OptimizationResultWithStrategy;
   /** Simulation name, used as the heading and filename of the PDF export. */
@@ -61,6 +64,7 @@ interface MarkowitzResultsProps {
 }
 
 export function MarkowitzResults({
+  simulationId,
   params,
   result,
   title,
@@ -77,6 +81,8 @@ export function MarkowitzResults({
   // The PDF legends must use the same palette as the offscreen chart nodes they
   // describe, so they follow the active theme rather than a fixed set.
   const chartColors = useChartColors();
+  // A tenant may reword the investing disclaimer below; they cannot remove it.
+  const { data: branding } = useOrganizationBranding();
   const [debugTangentSlope, setDebugTangentSlope] = useState(false);
   const [isReportConfigOpen, setIsReportConfigOpen] = useState(false);
   // Starts at the default so the server and the first client render agree; the
@@ -161,16 +167,23 @@ export function MarkowitzResults({
     [params.assets, params.assetLimits]
   );
 
-  const { data: frontierData } = useEfficientFrontierTickers(
-    params.showFrontier ? selectedTickers : [],
-    startDate,
-    endDate,
-    params.enforceFullInvestment,
-    params.allowShortSelling,
-    params.useLeverage ? params.maxLeverage : 1.0,
-    params.assetConstraints ? params.wMax : 1.0,
-    weightBounds?.wMinPerAsset,
-    weightBounds?.wMaxPerAsset
+  // Through the saved simulation, not the tickers: the API derives the request
+  // from the stored row and charges it once, so opening these results again
+  // spends nothing (apps/api/src/modules/optimization/saved-frontier.ts).
+  const { data: frontierData } = useSavedSimulationFrontier(
+    simulationId,
+    {
+      tickers: selectedTickers,
+      startDate,
+      endDate,
+      enforceFullInvestment: params.enforceFullInvestment,
+      allowShortSelling: params.allowShortSelling,
+      maxLeverage: params.useLeverage ? params.maxLeverage : 1.0,
+      wMax: params.assetConstraints ? params.wMax : 1.0,
+      wMinPerAsset: weightBounds?.wMinPerAsset,
+      wMaxPerAsset: weightBounds?.wMaxPerAsset,
+    },
+    params.showFrontier
   );
 
   const { data: cumulativeData } = usePortfolioCumulativeReturnsTickers(
@@ -992,7 +1005,12 @@ export function MarkowitzResults({
         </Tabs.Content>
       </Tabs.Root>
 
-      <Disclaimer variant="results" boxed className="mt-6" />
+      <Disclaimer
+        variant="results"
+        tenantText={branding?.disclaimerText}
+        boxed
+        className="mt-6"
+      />
 
       <AdvisorCallCta />
 

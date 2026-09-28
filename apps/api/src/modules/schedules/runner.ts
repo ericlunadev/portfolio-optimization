@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { createElement } from "react";
 import { db } from "../../db/index.js";
 import {
+  organizationMember,
   scheduleSimulations,
   simulationRuns,
   simulationSchedules,
@@ -112,6 +113,13 @@ async function runSchedule(schedule: SimulationSchedule, now: Date, summary: Run
   const owner = await db.query.user.findFirst({ where: eq(user.id, schedule.userId) });
   if (!owner) return;
 
+  // Credits belong to an organization, not to a person, so the wallet to charge
+  // is the owner's. Resolved per run rather than stored on the schedule: a
+  // membership can change between two runs, and a stale copy would charge the
+  // organization the owner has already left.
+  const organizationId = await ownerOrganizationId(owner.id);
+  if (!organizationId) return;
+
   const sims = await db
     .select({
       id: simulations.id,
@@ -129,7 +137,7 @@ async function runSchedule(schedule: SimulationSchedule, now: Date, summary: Run
   let outOfCredits = false;
 
   for (const sim of sims) {
-    const outcome = await runSimulation(schedule, sim, now);
+    const outcome = await runSimulation(schedule, organizationId, sim, now);
     if (outcome.kind === "no-credits") {
       // Nothing after this can be paid for either.
       outOfCredits = true;
@@ -208,8 +216,26 @@ async function runSchedule(schedule: SimulationSchedule, now: Date, summary: Run
   }
 }
 
+/**
+ * The organization whose wallet pays for this schedule. A missing membership is
+ * the data-integrity bug `authMiddleware` fails loudly on; here it can only skip
+ * the schedule, since there is no request to answer and nothing to charge.
+ */
+async function ownerOrganizationId(userId: string): Promise<string | null> {
+  const membership = await db.query.organizationMember.findFirst({
+    where: eq(organizationMember.userId, userId),
+    columns: { organizationId: true },
+  });
+  if (!membership) {
+    console.error(`[schedules] user ${userId} has no organization_member row — skipping`);
+    return null;
+  }
+  return membership.organizationId;
+}
+
 async function runSimulation(
   schedule: SimulationSchedule,
+  organizationId: string,
   sim: { id: string; name: string | null; params: string },
   now: Date
 ): Promise<SimulationOutcome> {
@@ -224,6 +250,7 @@ async function runSimulation(
   let spend;
   try {
     spend = await spendCredit({
+      organizationId,
       userId: schedule.userId,
       idempotencyKey: `schedule:${schedule.id}:${sim.id}:${runDate}`,
       cost: 1,

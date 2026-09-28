@@ -18,9 +18,11 @@ export interface VerifyEmailProps {
   url: string;
   locale: EmailLocale;
   userName?: string | null;
+  /** The tenant's product name (lib/email/tenant.ts). Falls back to our own when absent. */
+  productName?: string | null;
 }
 
-export function VerifyEmail({ url, locale, userName }: VerifyEmailProps) {
+export function VerifyEmail({ url, locale, userName, productName }: VerifyEmailProps) {
   const m = emailMessages[locale];
   return (
     <Html>
@@ -28,7 +30,7 @@ export function VerifyEmail({ url, locale, userName }: VerifyEmailProps) {
       <Preview>{m.verifySubject}</Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
-          <Text style={styles.brand}>{m.brand}</Text>
+          <Text style={styles.brand}>{productName || m.brand}</Text>
           <Section>
             <Heading style={styles.heading}>{m.verifyHeading(userName)}</Heading>
             <Text style={styles.text}>{m.verifyBody}</Text>
