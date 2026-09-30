@@ -71,6 +71,7 @@ describe("Academia toggle (PLAN Task 3.2)", () => {
   });
 
   it("narrows the mobile tab bar to the columns that are left", () => {
+    expect(navGridClass(5)).toBe("grid-cols-5");
     expect(navGridClass(4)).toBe("grid-cols-4");
     expect(navGridClass(3)).toBe("grid-cols-3");
   });

@@ -85,6 +85,13 @@
       "when": 1788809006058,
       "tag": "0011_organizations_not_null",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790612222808,
+      "tag": "0012_little_post",
+      "breakpoints": true
     }
   ]
 }

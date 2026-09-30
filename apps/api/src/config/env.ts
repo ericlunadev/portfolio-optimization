@@ -45,10 +45,11 @@ const envSchema = z.object({
   COINBASE_COMMERCE_API_KEY: z.string().optional(),
   COINBASE_COMMERCE_WEBHOOK_SECRET: z.string().optional(),
 
-  // Shared secret for the internal, sessionless routes (the admin credit grant,
-  // and the scheduled-run trigger CRON.md proposes). Unset means those routes
-  // answer 503 rather than running unauthenticated.
-  INTERNAL_API_SECRET: z.string().optional(),
+  // Shared secret for the internal, sessionless routes: the admin credit grant
+  // and the Vercel cron trigger that runs due schedules. Unset means those
+  // routes answer 503 rather than running unauthenticated — and in production
+  // the superRefine below refuses to boot at all.
+  INTERNAL_API_SECRET: z.string().min(32).optional(),
 
   // Financial advisor booking.
   //
@@ -66,7 +67,19 @@ const envSchema = z.object({
   ADVISOR_CALL_COST_CREDITS: z.coerce.number().int().positive().default(100),
 });
 
-export const env = envSchema.parse(process.env);
+export const env = envSchema
+  .superRefine((value, ctx) => {
+    // Refuse to boot rather than expose /api/internal with a guessable or
+    // missing secret.
+    if (process.env.NODE_ENV === "production" && !value.INTERNAL_API_SECRET) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["INTERNAL_API_SECRET"],
+        message: "INTERNAL_API_SECRET is required in production",
+      });
+    }
+  })
+  .parse(process.env);
 
 // The API's one definition of "production": an https BACKEND_URL. It picks the
 // cookie attributes (lib/auth.ts) and decides whether a tenant origin may be

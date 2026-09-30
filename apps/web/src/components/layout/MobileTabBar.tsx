@@ -6,13 +6,15 @@ import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { useOrgSettings } from "@/hooks/useOrgSettings";
 import { isNavHrefVisible, navGridClass } from "@/lib/org-settings";
-import { BarChart3, Home, GraduationCap, Wallet } from "lucide-react";
+import { BarChart3, CalendarClock, Home, GraduationCap, Wallet } from "lucide-react";
 
 // Kept identical to `Sidebar`'s list, per CLAUDE.md. Which of them a given
 // tenant actually sees is decided by `isNavHrefVisible`, shared by both.
 const navItems = [
   { href: "/", labelKey: "home", icon: Home },
   { href: "/efficient-frontier", labelKey: "efficientFrontier", icon: BarChart3 },
+  // The tab bar is five columns wide, so it takes the short label.
+  { href: "/schedules", labelKey: "schedulesShort", icon: CalendarClock },
   { href: "/academia", labelKey: "academia", icon: GraduationCap },
   { href: "/billing", labelKey: "billing", icon: Wallet },
 ] as const;

@@ -12,6 +12,8 @@ import tasks from "./modules/tasks/routes.js";
 import historical from "./modules/historical/routes.js";
 import market from "./modules/market/routes.js";
 import simulations from "./modules/simulations/routes.js";
+import schedules from "./modules/schedules/routes.js";
+import internal from "./modules/internal/routes.js";
 import onboarding from "./modules/onboarding/routes.js";
 import organizations from "./modules/organizations/routes.js";
 import organizationSettings from "./modules/organizations/settings.js";
@@ -56,6 +58,9 @@ app.route("/api/tasks", tasks);
 app.route("/api/historical", historical);
 app.route("/api/market", market);
 app.route("/api/simulations", simulations);
+app.route("/api/schedules", schedules);
+// Machine-to-machine; guarded by INTERNAL_API_SECRET, not a session.
+app.route("/api/internal", internal);
 app.route("/api/onboarding", onboarding);
 app.route("/api/organizations", organizations);
 // Same prefix, second file: the tenant product switches (PLAN Task 3.2/3.3) are

@@ -8,13 +8,14 @@ import { useTenantBrand } from "@/components/tenant/TenantProvider";
 import { useOrgSettings } from "@/hooks/useOrgSettings";
 import { isNavHrefVisible } from "@/lib/org-settings";
 import { wordmark } from "@/lib/wordmark";
-import { BarChart3, Home, GraduationCap, Wallet } from "lucide-react";
+import { BarChart3, CalendarClock, Home, GraduationCap, Wallet } from "lucide-react";
 
 // Kept identical to `MobileTabBar`'s list, per CLAUDE.md. Which of them a given
 // tenant actually sees is decided by `isNavHrefVisible`, shared by both.
 const navItems = [
   { href: "/", labelKey: "home", icon: Home },
   { href: "/efficient-frontier", labelKey: "efficientFrontier", icon: BarChart3 },
+  { href: "/schedules", labelKey: "schedules", icon: CalendarClock },
   { href: "/academia", labelKey: "academia", icon: GraduationCap },
   { href: "/billing", labelKey: "billing", icon: Wallet },
 ] as const;

@@ -55,7 +55,8 @@ export function isNavHrefVisible(href: string, settings: OrgSettings): boolean {
  * text and never sees an interpolated one.
  */
 export function navGridClass(itemCount: number): string {
-  return itemCount === 3 ? "grid-cols-3" : "grid-cols-4";
+  if (itemCount <= 3) return "grid-cols-3";
+  return itemCount === 4 ? "grid-cols-4" : "grid-cols-5";
 }
 
 export type AdvisorCtaView =
