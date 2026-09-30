@@ -26,7 +26,7 @@
 // No request (a direct `auth.api` call) and a non-web origin (the Expo app's
 // deep-link scheme) resolve nothing, and get `FRONTEND_URL` as before.
 
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { env } from "../../config/env.js";
 import { db } from "../../db/index.js";
 import { organization, organizationBranding, organizationDomain } from "../../db/schema.js";
@@ -81,4 +81,86 @@ export async function resolveEmailTenant(request?: Request): Promise<EmailTenant
   }
 
   return { baseUrl: env.FRONTEND_URL, productName: await defaultProductName() };
+}
+
+// ==================== By organization ====================
+//
+// The same question for an email no request triggered — a scheduled report —
+// where the tenant is known outright and none of the header rules above apply.
+
+/** What a tenant's own branding row puts in an email; NULL fields fall back to the template's. */
+export interface EmailBranding {
+  productName: string | null;
+  accentHex: string | null;
+  disclaimerText: string | null;
+}
+
+export interface OrganizationEmailTenant {
+  /** The origin every link in the email is built on. */
+  baseUrl: string;
+  branding: EmailBranding;
+}
+
+const brandingColumns = {
+  productName: organizationBranding.productName,
+  accentHex: organizationBranding.accentHex,
+  disclaimerText: organizationBranding.disclaimerText,
+};
+
+const NO_BRANDING: EmailBranding = { productName: null, accentHex: null, disclaimerText: null };
+
+/**
+ * A registered hostname as an origin: the tenant's name under `FRONTEND_URL`'s
+ * scheme and port. In production that is `https://<host>`, the only form
+ * `resolveTenantOrigin` trusts there; locally it keeps the dev server's port, so
+ * `acme.localhost` becomes `http://acme.localhost:3000`.
+ */
+function originForHostname(hostname: string): string {
+  const url = new URL(env.FRONTEND_URL);
+  url.hostname = hostname;
+  return url.origin;
+}
+
+/**
+ * Where an organization's emails link to, and whose branding they carry.
+ *
+ * The two are resolved together so they cannot disagree: the email looks like
+ * the site its buttons open. An organization with a hostname of its own gets that
+ * host and its own branding. One without — every personal organization, which
+ * reaches the app through the default tenant (see `lib/auth.ts`) — gets
+ * `FRONTEND_URL` and the default tenant's branding, which is what it sees there.
+ */
+export async function resolveOrganizationEmailTenant(
+  organizationId: string
+): Promise<OrganizationEmailTenant> {
+  const org = await db.query.organization.findFirst({
+    where: eq(organization.id, organizationId),
+    columns: { isDefault: true },
+  });
+
+  if (org && !org.isDefault) {
+    const [domain] = await db
+      .select({ hostname: organizationDomain.hostname })
+      .from(organizationDomain)
+      .where(eq(organizationDomain.organizationId, organizationId))
+      .orderBy(desc(organizationDomain.isPrimary))
+      .limit(1);
+
+    if (domain) {
+      const [branding] = await db
+        .select(brandingColumns)
+        .from(organizationBranding)
+        .where(eq(organizationBranding.organizationId, organizationId))
+        .limit(1);
+      return { baseUrl: originForHostname(domain.hostname), branding: branding ?? NO_BRANDING };
+    }
+  }
+
+  const [branding] = await db
+    .select(brandingColumns)
+    .from(organization)
+    .innerJoin(organizationBranding, eq(organizationBranding.organizationId, organization.id))
+    .where(eq(organization.isDefault, true))
+    .limit(1);
+  return { baseUrl: env.FRONTEND_URL, branding: branding ?? NO_BRANDING };
 }

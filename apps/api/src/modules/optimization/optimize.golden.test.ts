@@ -31,6 +31,7 @@ vi.mock("../../middleware/auth.js", () => ({
 vi.mock("../../lib/tenant-settings.js", () => ({
   getFundAllowlist: async () => null,
   isTickerAllowed: () => true,
+  refusedTickers: async () => [],
 }));
 vi.mock("../../lib/billing/metering.js", () => ({
   meterRequest,

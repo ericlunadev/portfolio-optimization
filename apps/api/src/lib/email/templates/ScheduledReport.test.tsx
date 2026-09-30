@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@react-email/render";
 import { emailMessages } from "../i18n.js";
-import { ScheduledNoCredits, ScheduledReport, formatDelta, type ReportEntry } from "./ScheduledReport.js";
+import {
+  ScheduledNoCredits,
+  ScheduledReport,
+  accentColors,
+  formatDelta,
+  type ReportEntry,
+} from "./ScheduledReport.js";
 
 const entry: ReportEntry = {
   simulationId: "sim-1",
@@ -48,6 +54,68 @@ describe("ScheduledReport", () => {
     );
     expect(html).toContain(emailMessages.en.scheduledNoCredits);
     expect(html).toContain("after 3 attempts");
+  });
+
+  it("carries the tenant's name, disclaimer and accent instead of ours", async () => {
+    const branding = {
+      productName: "Acme Wealth",
+      accentHex: "#0b3d91",
+      disclaimerText: "Acme is not an adviser.",
+    };
+    const report = await render(
+      <ScheduledReport
+        locale="en"
+        entries={[entry]}
+        failedCount={0}
+        manageUrl="https://acme.example/schedules"
+        branding={branding}
+      />
+    );
+    const notice = await render(
+      <ScheduledNoCredits
+        locale="en"
+        pauseAfterAttempts={3}
+        billingUrl="https://acme.example/billing"
+        manageUrl="https://acme.example/schedules"
+        branding={branding}
+      />
+    );
+
+    for (const html of [report, notice]) {
+      expect(html).toContain("Acme Wealth");
+      expect(html).not.toContain(emailMessages.en.brand);
+      expect(html).not.toContain("#c8a45c");
+      expect(html).toContain("#0b3d91");
+    }
+    expect(report).toContain("Acme is not an adviser.");
+    expect(report).not.toContain(emailMessages.en.investingDisclaimer);
+  });
+
+  it("falls back to our own brand field by field", async () => {
+    const html = await render(
+      <ScheduledReport
+        locale="en"
+        entries={[entry]}
+        failedCount={0}
+        manageUrl="https://app.example/schedules"
+        branding={{ productName: "Acme Wealth", accentHex: null, disclaimerText: null }}
+      />
+    );
+    expect(html).toContain("Acme Wealth");
+    expect(html).toContain("#c8a45c");
+    expect(html).toContain(emailMessages.en.investingDisclaimer);
+  });
+});
+
+describe("accentColors", () => {
+  it("puts dark text on a light accent and white text on a dark one", () => {
+    expect(accentColors("#c8a45c")).toEqual({ accent: "#c8a45c", onAccent: "#1c1917" });
+    expect(accentColors("#0b3d91")).toEqual({ accent: "#0b3d91", onAccent: "#ffffff" });
+  });
+
+  it("uses our accent when the tenant's is missing or not a hex colour", () => {
+    expect(accentColors(null).accent).toBe("#c8a45c");
+    expect(accentColors("navy").accent).toBe("#c8a45c");
   });
 });
 

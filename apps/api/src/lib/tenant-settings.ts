@@ -75,6 +75,17 @@ export function isTickerAllowed(allowlist: Set<string> | null, symbol: string): 
   return allowlist.has(symbol.trim().toUpperCase());
 }
 
+/**
+ * The tickers in `tickers` the tenant's allowlist refuses, in input order —
+ * empty when all are allowed. Shared by the optimize routes and the scheduled
+ * runner, so a request and its unattended replay answer to the same rule.
+ */
+export async function refusedTickers(organizationId: string, tickers: string[]): Promise<string[]> {
+  const allowlist = await getFundAllowlist(organizationId);
+  if (!allowlist) return [];
+  return tickers.filter((ticker) => !isTickerAllowed(allowlist, ticker));
+}
+
 function parseFundAllowlist(raw: string | null, organizationId: string): Set<string> | null {
   if (!raw || !raw.trim()) return null;
 

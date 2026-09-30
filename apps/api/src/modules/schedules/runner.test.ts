@@ -30,6 +30,8 @@ const { db } = await import("../../db/index.js");
 const schema = await import("../../db/schema.js");
 const { grantCredits } = await import("../../lib/billing/spend.js");
 const { seedOrg, seedUser } = await import("../../test/factories.js");
+const { invalidateTenantSettings } = await import("../../lib/tenant-settings.js");
+const { render } = await import("@react-email/render");
 const { runDueSchedules, PAUSE_AFTER_FAILURES } = await import("./runner.js");
 
 const USER_ID = "user-1";
@@ -119,6 +121,7 @@ async function createSchedule(
   await db.insert(schema.simulationSchedules).values({
     id,
     userId: USER_ID,
+    organizationId: ORG_ID,
     name: "Weekly",
     cadence: "weekly",
     dayOfWeek: 1,
@@ -158,11 +161,15 @@ beforeEach(async () => {
     schema.simulations,
     schema.organizationMember,
     schema.organizationSettings,
+    schema.organizationBranding,
+    schema.organizationDomain,
     schema.user,
     schema.organization,
   ]) {
     await db.delete(table);
   }
+  // Settings are cached per organization id, and every test reuses ORG_ID.
+  invalidateTenantSettings();
   await seedOrg({ id: ORG_ID });
   await seedUser({
     id: USER_ID,
@@ -337,5 +344,169 @@ describe("runDueSchedules", () => {
 
     expect(summary.due).toBe(0);
     expect(runOptimization).not.toHaveBeenCalled();
+  });
+});
+
+describe("runDueSchedules — tenancy", () => {
+  async function brandOrg(
+    organizationId: string,
+    branding: Omit<typeof schema.organizationBranding.$inferInsert, "organizationId">,
+    hostname?: string
+  ) {
+    await db.insert(schema.organizationBranding).values({ organizationId, ...branding });
+    if (hostname) {
+      await db.insert(schema.organizationDomain).values({
+        id: `domain-${organizationId}`,
+        organizationId,
+        hostname,
+      });
+    }
+  }
+
+  async function grant(organizationId: string, credits: number) {
+    await grantCredits({
+      organizationId,
+      userId: USER_ID,
+      credits,
+      reason: "grant",
+      idempotencyKey: `seed-${organizationId}`,
+    });
+  }
+
+  it("brands the digest as the schedule's tenant and links to its own host", async () => {
+    await brandOrg(
+      ORG_ID,
+      { productName: "Acme Wealth", accentHex: "#0b3d91", disclaimerText: "Acme is not an adviser." },
+      "acme.example"
+    );
+    await grant(ORG_ID, 5);
+    await createSimulation("sim-1", WEB_PARAMS);
+    await createSchedule("sch-1", ["sim-1"]);
+
+    await runDueSchedules(MONDAY_MORNING);
+
+    const { props } = sendEmail.mock.calls[0][0].react;
+    expect(props.branding).toEqual({
+      productName: "Acme Wealth",
+      accentHex: "#0b3d91",
+      disclaimerText: "Acme is not an adviser.",
+    });
+    expect(props.manageUrl).toBe("https://acme.example/schedules");
+    expect(props.entries[0].url).toBe("https://acme.example/efficient-frontier/sim-1");
+
+    const html = await render(sendEmail.mock.calls[0][0].react);
+    expect(html).toContain("Acme Wealth");
+    expect(html).toContain("Acme is not an adviser.");
+    expect(html).not.toContain("Portfolio Optimization");
+    expect(html).not.toContain("app.example");
+    // White on navy: the dark default label would be unreadable on this accent.
+    expect(html).toMatch(/background-color:#0b3d91;color:#ffffff/);
+  });
+
+  it("gives an organization without a host FRONTEND_URL and the default tenant's brand", async () => {
+    // A personal organization reaches the app through the default tenant, so its
+    // email looks like, and links to, the site it actually uses.
+    await seedOrg({ id: "org-default", isDefault: true });
+    await brandOrg("org-default", { productName: "Default Brand" }, "default.example");
+    await brandOrg(ORG_ID, { productName: "Personal snapshot" });
+    await grant(ORG_ID, 5);
+    await createSimulation("sim-1", WEB_PARAMS);
+    await createSchedule("sch-1", ["sim-1"]);
+
+    await runDueSchedules(MONDAY_MORNING);
+
+    const { props } = sendEmail.mock.calls[0][0].react;
+    expect(props.branding.productName).toBe("Default Brand");
+    expect(props.manageUrl).toBe("https://app.example/schedules");
+    expect(props.entries[0].url).toBe("https://app.example/efficient-frontier/sim-1");
+  });
+
+  it("sends the out-of-credits email to the tenant's own billing page", async () => {
+    await brandOrg(ORG_ID, { productName: "Acme Wealth" }, "acme.example");
+    await createSimulation("sim-1", WEB_PARAMS);
+    await createSchedule("sch-1", ["sim-1"]);
+
+    await runDueSchedules(MONDAY_MORNING);
+
+    const { props } = sendEmail.mock.calls[0][0].react;
+    expect(props.billingUrl).toBe("https://acme.example/billing");
+    expect(props.manageUrl).toBe("https://acme.example/schedules");
+    expect(props.branding.productName).toBe("Acme Wealth");
+  });
+
+  it("pauses, without charging anyone, a schedule whose owner moved organization", async () => {
+    await seedOrg({ id: "org-new" });
+    await grant(ORG_ID, 5);
+    await grant("org-new", 5);
+    await createSimulation("sim-1", WEB_PARAMS);
+    await createSchedule("sch-1", ["sim-1"]);
+    await db
+      .update(schema.organizationMember)
+      .set({ organizationId: "org-new" })
+      .where(eq(schema.organizationMember.userId, USER_ID));
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const summary = await runDueSchedules(MONDAY_MORNING);
+
+    expect(summary).toMatchObject({ claimed: 1, ownerLeft: 1, simulationsRun: 0 });
+    expect((await schedule("sch-1")).active).toBe(false);
+    expect(runOptimization).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+    const spends = await db
+      .select()
+      .from(schema.creditLedger)
+      .where(eq(schema.creditLedger.reason, "spend"));
+    expect(spends).toHaveLength(0);
+  });
+
+  it("refuses, before charging, a simulation the tenant's allowlist no longer covers", async () => {
+    await db
+      .update(schema.organizationSettings)
+      .set({ fundAllowlist: JSON.stringify(["SPY", "TLT"]) })
+      .where(eq(schema.organizationSettings.organizationId, ORG_ID));
+    await grant(ORG_ID, 5);
+    await createSimulation("sim-allowed", WEB_PARAMS);
+    await createSimulation("sim-refused", {
+      ...WEB_PARAMS,
+      tickers: ["SPY", "QQQ"],
+      assets: [
+        { ticker: "SPY", allocation: null },
+        { ticker: "QQQ", allocation: null },
+      ],
+    });
+    await createSchedule("sch-1", ["sim-allowed", "sim-refused"]);
+
+    const summary = await runDueSchedules(MONDAY_MORNING);
+
+    expect(summary).toMatchObject({ simulationsRun: 1, simulationsFailed: 1 });
+    expect(runOptimization).toHaveBeenCalledTimes(1);
+    expect(await balance()).toBe(4);
+    const refused = await db
+      .select()
+      .from(schema.simulationRuns)
+      .where(eq(schema.simulationRuns.simulationId, "sim-refused"));
+    expect(refused).toMatchObject([{ status: "failed", errorMessage: "instrument_not_allowed" }]);
+    expect(sendEmail.mock.calls[0][0].react.props.failedCount).toBe(1);
+  });
+
+  it("runs only the simulations stamped to the schedule's organization", async () => {
+    await seedOrg({ id: "org-other" });
+    await grant(ORG_ID, 5);
+    await createSimulation("sim-1", WEB_PARAMS);
+    await db.insert(schema.simulations).values({
+      id: "sim-elsewhere",
+      userId: USER_ID,
+      organizationId: "org-other",
+      name: "Elsewhere",
+      params: JSON.stringify(WEB_PARAMS),
+      result: JSON.stringify(result(0.5)),
+    });
+    await createSchedule("sch-1", ["sim-1", "sim-elsewhere"]);
+
+    const summary = await runDueSchedules(MONDAY_MORNING);
+
+    expect(summary.simulationsRun).toBe(1);
+    const runs = await db.select().from(schema.simulationRuns);
+    expect(runs.map((r) => r.simulationId)).toEqual(["sim-1"]);
   });
 });
