@@ -12,11 +12,12 @@ import {
   user,
   type SimulationSchedule,
 } from "../../db/schema.js";
-import { env } from "../../config/env.js";
 import { reverseSpend, spendCredit } from "../../lib/billing/spend.js";
 import { sendEmail } from "../../lib/email/send.js";
 import { emailMessages } from "../../lib/email/i18n.js";
 import type { EmailLocale } from "../../lib/email/locale.js";
+import { resolveOrganizationEmailTenant } from "../../lib/email/tenant.js";
+import { refusedTickers } from "../../lib/tenant-settings.js";
 import {
   ScheduledNoCredits,
   ScheduledReport,
@@ -52,6 +53,8 @@ export interface RunSummary {
   emailsSent: number;
   outOfCredits: number;
   paused: number;
+  /** Paused because the owner no longer belongs to the schedule's organization. */
+  ownerLeft: number;
 }
 
 export async function runDueSchedules(now: Date = new Date()): Promise<RunSummary> {
@@ -63,6 +66,7 @@ export async function runDueSchedules(now: Date = new Date()): Promise<RunSummar
     emailsSent: 0,
     outOfCredits: 0,
     paused: 0,
+    ownerLeft: 0,
   };
 
   const due = await db
@@ -113,12 +117,24 @@ async function runSchedule(schedule: SimulationSchedule, now: Date, summary: Run
   const owner = await db.query.user.findFirst({ where: eq(user.id, schedule.userId) });
   if (!owner) return;
 
-  // Credits belong to an organization, not to a person, so the wallet to charge
-  // is the owner's. Resolved per run rather than stored on the schedule: a
-  // membership can change between two runs, and a stale copy would charge the
-  // organization the owner has already left.
-  const organizationId = await ownerOrganizationId(owner.id);
-  if (!organizationId) return;
+  // The schedule runs in the tenant it was created in: that wallet pays, that
+  // allowlist applies, that brand signs the email. An owner who has since moved
+  // to another organization left it behind — charging their new one for work set
+  // up under the old would bill a tenant that never agreed to it — so it pauses
+  // instead. Paused, not deleted: it stays visible to nobody (every route scopes
+  // by the caller's organization) but recoverable if the move is undone.
+  if (!(await isMember(owner.id, schedule.organizationId))) {
+    console.warn(
+      `[schedules] owner of schedule ${schedule.id} left organization ${schedule.organizationId} — pausing`
+    );
+    await db
+      .update(simulationSchedules)
+      .set({ active: false, updatedAt: now })
+      .where(eq(simulationSchedules.id, schedule.id));
+    summary.ownerLeft += 1;
+    return;
+  }
+  const organizationId = schedule.organizationId;
 
   const sims = await db
     .select({
@@ -128,16 +144,24 @@ async function runSchedule(schedule: SimulationSchedule, now: Date, summary: Run
     })
     .from(scheduleSimulations)
     .innerJoin(simulations, eq(scheduleSimulations.simulationId, simulations.id))
-    // A simulation can outlive its owner's claim on it (user_id set null).
-    .where(and(eq(scheduleSimulations.scheduleId, schedule.id), eq(simulations.userId, owner.id)))
+    .where(
+      and(
+        eq(scheduleSimulations.scheduleId, schedule.id),
+        // A simulation can outlive its owner's claim on it (user_id set null).
+        eq(simulations.userId, owner.id),
+        eq(simulations.organizationId, organizationId)
+      )
+    )
     .orderBy(asc(simulations.createdAt));
+
+  const tenant = await resolveOrganizationEmailTenant(organizationId);
 
   const entries: ReportEntry[] = [];
   let failedCount = 0;
   let outOfCredits = false;
 
   for (const sim of sims) {
-    const outcome = await runSimulation(schedule, organizationId, sim, now);
+    const outcome = await runSimulation(schedule, organizationId, sim, now, tenant.baseUrl);
     if (outcome.kind === "no-credits") {
       // Nothing after this can be paid for either.
       outOfCredits = true;
@@ -166,7 +190,8 @@ async function runSchedule(schedule: SimulationSchedule, now: Date, summary: Run
           scheduleName: schedule.name,
           entries,
           failedCount,
-          manageUrl: `${env.FRONTEND_URL}/schedules`,
+          manageUrl: `${tenant.baseUrl}/schedules`,
+          branding: tenant.branding,
         }),
       })
     );
@@ -207,8 +232,9 @@ async function runSchedule(schedule: SimulationSchedule, now: Date, summary: Run
           locale,
           userName: owner.name,
           pauseAfterAttempts: PAUSE_AFTER_FAILURES,
-          billingUrl: `${env.FRONTEND_URL}/billing`,
-          manageUrl: `${env.FRONTEND_URL}/schedules`,
+          billingUrl: `${tenant.baseUrl}/billing`,
+          manageUrl: `${tenant.baseUrl}/schedules`,
+          branding: tenant.branding,
         }),
       })
     );
@@ -217,32 +243,39 @@ async function runSchedule(schedule: SimulationSchedule, now: Date, summary: Run
 }
 
 /**
- * The organization whose wallet pays for this schedule. A missing membership is
- * the data-integrity bug `authMiddleware` fails loudly on; here it can only skip
- * the schedule, since there is no request to answer and nothing to charge.
+ * Whether the user still belongs to the organization. No membership at all —
+ * the data-integrity bug `authMiddleware` fails loudly on — answers false too.
  */
-async function ownerOrganizationId(userId: string): Promise<string | null> {
+async function isMember(userId: string, organizationId: string): Promise<boolean> {
   const membership = await db.query.organizationMember.findFirst({
-    where: eq(organizationMember.userId, userId),
-    columns: { organizationId: true },
+    where: and(
+      eq(organizationMember.userId, userId),
+      eq(organizationMember.organizationId, organizationId)
+    ),
+    columns: { id: true },
   });
-  if (!membership) {
-    console.error(`[schedules] user ${userId} has no organization_member row — skipping`);
-    return null;
-  }
-  return membership.organizationId;
+  return membership !== undefined;
 }
 
 async function runSimulation(
   schedule: SimulationSchedule,
   organizationId: string,
   sim: { id: string; name: string | null; params: string },
-  now: Date
+  now: Date,
+  baseUrl: string
 ): Promise<SimulationOutcome> {
   const plan = planReplay(sim.params, now, schedule.timezone);
   if (!plan.ok) {
     // Checked at creation, but the simulation may have changed since.
     await recordFailure(schedule, sim, sim.params, plan.reason, now);
+    return { kind: "failed" };
+  }
+
+  // The optimize routes refuse these before metering; an unattended replay
+  // answers to the same rule, so a tenant that restricts its instruments after a
+  // schedule was set up is not still running — and paying for — the old ones.
+  if ((await refusedTickers(organizationId, plan.optimizeParams.tickers)).length > 0) {
+    await recordFailure(schedule, sim, sim.params, "instrument_not_allowed", now);
     return { kind: "failed" };
   }
 
@@ -292,7 +325,7 @@ async function runSimulation(
       .where(eq(simulations.id, sim.id)),
   ]);
 
-  return { kind: "success", entry: buildEntry(sim, plan.params, result, previous) };
+  return { kind: "success", entry: buildEntry(sim, plan.params, result, previous, baseUrl) };
 }
 
 async function recordFailure(
@@ -341,7 +374,9 @@ export function buildEntry(
   sim: { id: string; name: string | null },
   params: ReplayableParams,
   result: OptimizeResponse,
-  previous: OptimizeResponse | null
+  previous: OptimizeResponse | null,
+  /** The tenant's origin, so the button opens the simulation on its own site. */
+  baseUrl: string
 ): ReportEntry {
   const { dateRange } = params;
   const lastDay = new Date(Date.UTC(dateRange.endYear, dateRange.endMonth, 0)).getUTCDate();
@@ -368,7 +403,7 @@ export function buildEntry(
     current: metrics(result),
     previous: previous ? metrics(previous) : null,
     weights,
-    url: `${env.FRONTEND_URL}/efficient-frontier/${sim.id}`,
+    url: `${baseUrl}/efficient-frontier/${sim.id}`,
   };
 }
 

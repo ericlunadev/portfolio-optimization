@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import {
   scheduleSimulations,
@@ -20,11 +20,23 @@ import {
   type ScheduleTiming,
 } from "./next-run.js";
 import { planReplay } from "./replay.js";
+import { writeScope } from "../simulations/routes.js";
 
 const app = new Hono();
 
-// All schedule routes require authentication and are scoped per user
+// All schedule routes require authentication and are scoped per organization
 app.use("*", authMiddleware);
+
+// A schedule is personal — it spends on its owner's behalf and emails only them,
+// so there is no org-shared variant — and it belongs to the tenant it was
+// created in. Both predicates, always: the owner one alone would still reach a
+// schedule its owner left behind in another organization.
+function scheduleScope(organizationId: string, userId: string): SQL | undefined {
+  return and(
+    eq(simulationSchedules.organizationId, organizationId),
+    eq(simulationSchedules.userId, userId)
+  );
+}
 
 const timingFields = {
   cadence: z.enum(CADENCES),
@@ -94,19 +106,20 @@ async function serializeSchedules(rows: SimulationSchedule[]) {
   }));
 }
 
-async function findOwned(id: string, userId: string) {
+async function findOwned(id: string, organizationId: string, userId: string) {
   return db.query.simulationSchedules.findFirst({
-    where: and(eq(simulationSchedules.id, id), eq(simulationSchedules.userId, userId)),
+    where: and(eq(simulationSchedules.id, id), scheduleScope(organizationId, userId)),
   });
 }
 
 // GET /api/schedules - List the current user's schedules and their simulations
 app.get("/", async (c) => {
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
   const rows = await db
     .select()
     .from(simulationSchedules)
-    .where(eq(simulationSchedules.userId, user.id))
+    .where(scheduleScope(organizationId, user.id))
     .orderBy(desc(simulationSchedules.createdAt));
   return c.json(await serializeSchedules(rows));
 });
@@ -122,16 +135,20 @@ const createSchema = z.object({
 
 app.post("/", zValidator("json", createSchema), async (c) => {
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
   const body = c.req.valid("json");
 
   const timing = normalizeTiming(body);
   if ("error" in timing) return c.json({ error: timing.error }, 400);
 
+  // Every run overwrites the simulation, so only what the caller could edit by
+  // hand qualifies: their own, in this tenant. A simulation shared with the org
+  // is readable but not schedulable.
   const simulationIds = [...new Set(body.simulationIds)];
   const owned = await db
     .select({ id: simulations.id, params: simulations.params })
     .from(simulations)
-    .where(and(inArray(simulations.id, simulationIds), eq(simulations.userId, user.id)));
+    .where(and(inArray(simulations.id, simulationIds), writeScope(organizationId, user.id)));
 
   if (owned.length !== simulationIds.length) {
     return c.json({ error: "simulation_not_found" }, 404);
@@ -152,6 +169,7 @@ app.post("/", zValidator("json", createSchema), async (c) => {
   await db.insert(simulationSchedules).values({
     id,
     userId: user.id,
+    organizationId,
     name: body.name?.trim() || null,
     ...timing,
     // No request reaches the runner, so the language is fixed here.
@@ -164,7 +182,7 @@ app.post("/", zValidator("json", createSchema), async (c) => {
     .insert(scheduleSimulations)
     .values(simulationIds.map((simulationId) => ({ scheduleId: id, simulationId })));
 
-  const row = await findOwned(id, user.id);
+  const row = await findOwned(id, organizationId, user.id);
   const [serialized] = await serializeSchedules([row!]);
   return c.json(serialized, 201);
 });
@@ -186,9 +204,10 @@ const patchSchema = z
 app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
   const body = c.req.valid("json");
 
-  const existing = await findOwned(id, user.id);
+  const existing = await findOwned(id, organizationId, user.id);
   if (!existing) return c.json({ error: "Schedule not found" }, 404);
 
   const now = new Date();
@@ -233,9 +252,9 @@ app.patch("/:id", zValidator("json", patchSchema), async (c) => {
   await db
     .update(simulationSchedules)
     .set(updates)
-    .where(and(eq(simulationSchedules.id, id), eq(simulationSchedules.userId, user.id)));
+    .where(and(eq(simulationSchedules.id, id), scheduleScope(organizationId, user.id)));
 
-  const row = await findOwned(id, user.id);
+  const row = await findOwned(id, organizationId, user.id);
   const [serialized] = await serializeSchedules([row!]);
   return c.json(serialized);
 });
@@ -244,10 +263,11 @@ app.patch("/:id", zValidator("json", patchSchema), async (c) => {
 app.delete("/:id", async (c) => {
   const { id } = c.req.param();
   const user = c.get("user");
+  const organizationId = c.get("organizationId");
 
   const deleted = await db
     .delete(simulationSchedules)
-    .where(and(eq(simulationSchedules.id, id), eq(simulationSchedules.userId, user.id)))
+    .where(and(eq(simulationSchedules.id, id), scheduleScope(organizationId, user.id)))
     .returning({ id: simulationSchedules.id });
 
   if (deleted.length === 0) return c.json({ error: "Schedule not found" }, 404);

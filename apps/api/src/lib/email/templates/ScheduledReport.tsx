@@ -15,6 +15,7 @@ import {
 } from "@react-email/components";
 import { emailMessages } from "../i18n.js";
 import type { EmailLocale } from "../locale.js";
+import type { EmailBranding } from "../tenant.js";
 
 export interface ReportMetrics {
   expectedReturn: number;
@@ -44,6 +45,45 @@ export interface ScheduledReportProps {
   entries: ReportEntry[];
   failedCount: number;
   manageUrl: string;
+  /** The schedule's tenant; a field it leaves empty falls back to our own brand. */
+  branding?: EmailBranding;
+}
+
+/** Our own accent, for a tenant that has not set one. */
+const DEFAULT_ACCENT = "#c8a45c";
+const DARK_TEXT = "#1c1917";
+const LIGHT_TEXT = "#ffffff";
+
+function channel(value: number): number {
+  const c = value / 255;
+  return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+}
+
+/** WCAG relative luminance of a `#rrggbb` colour. */
+function luminance(hex: string): number {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return 0.2126 * channel((n >> 16) & 255) + 0.7152 * channel((n >> 8) & 255) + 0.0722 * channel(n & 255);
+}
+
+/**
+ * The accent and the text that reads on it. A tenant can pick any colour, so the
+ * button label is whichever of dark or white has the higher WCAG contrast
+ * against it — dark on our gold, white on a navy.
+ */
+export function accentColors(accentHex?: string | null): { accent: string; onAccent: string } {
+  const accent = accentHex && /^#[0-9a-f]{6}$/i.test(accentHex) ? accentHex : DEFAULT_ACCENT;
+  const l = luminance(accent);
+  const againstDark = (l + 0.05) / (luminance(DARK_TEXT) + 0.05);
+  const againstLight = 1.05 / (l + 0.05);
+  return { accent, onAccent: againstDark >= againstLight ? DARK_TEXT : LIGHT_TEXT };
+}
+
+function accentStyles(branding?: EmailBranding) {
+  const { accent, onAccent } = accentColors(branding?.accentHex);
+  return {
+    button: { ...styles.button, backgroundColor: accent, color: onAccent },
+    link: { ...styles.link, color: accent },
+  };
 }
 
 const percent = (value: number) => `${(value * 100).toFixed(2)}%`;
@@ -64,8 +104,10 @@ export function ScheduledReport({
   entries,
   failedCount,
   manageUrl,
+  branding,
 }: ScheduledReportProps) {
   const m = emailMessages[locale];
+  const accent = accentStyles(branding);
 
   return (
     <Html>
@@ -73,7 +115,7 @@ export function ScheduledReport({
       <Preview>{m.scheduledSubject(scheduleName)}</Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
-          <Text style={styles.brand}>{m.brand}</Text>
+          <Text style={styles.brand}>{branding?.productName || m.brand}</Text>
           <Heading style={styles.heading}>{m.scheduledHeading(userName)}</Heading>
           <Text style={styles.text}>{m.scheduledIntro(entries.length)}</Text>
           <Text style={styles.note}>{m.scheduledWindowNote}</Text>
@@ -82,7 +124,7 @@ export function ScheduledReport({
             <Section key={entry.simulationId} style={styles.card}>
               <Text style={styles.cardTitle}>{entry.name}</Text>
               <Text style={styles.period}>
-                {m.scheduledPeriod}: {entry.periodStart} – {entry.periodEnd}
+                {`${m.scheduledPeriod}: ${entry.periodStart} – ${entry.periodEnd}`}
               </Text>
 
               <Row>
@@ -132,7 +174,7 @@ export function ScheduledReport({
               )}
 
               <Section style={styles.buttonWrap}>
-                <Button href={entry.url} style={styles.button}>
+                <Button href={entry.url} style={accent.button}>
                   {m.scheduledOpenSimulation}
                 </Button>
               </Section>
@@ -142,10 +184,10 @@ export function ScheduledReport({
           {failedCount > 0 && <Text style={styles.note}>{m.scheduledRunFailed(failedCount)}</Text>}
 
           <Hr style={styles.hr} />
-          <Text style={styles.footer}>{m.investingDisclaimer}</Text>
+          <Text style={styles.footer}>{branding?.disclaimerText || m.investingDisclaimer}</Text>
           <Text style={styles.footer}>
             {m.scheduledFooter}{" "}
-            <Link href={manageUrl} style={styles.link}>
+            <Link href={manageUrl} style={accent.link}>
               {m.scheduledManage}
             </Link>
           </Text>
@@ -161,6 +203,7 @@ export interface ScheduledNoCreditsProps {
   pauseAfterAttempts: number;
   billingUrl: string;
   manageUrl: string;
+  branding?: EmailBranding;
 }
 
 export function ScheduledNoCredits({
@@ -169,8 +212,10 @@ export function ScheduledNoCredits({
   pauseAfterAttempts,
   billingUrl,
   manageUrl,
+  branding,
 }: ScheduledNoCreditsProps) {
   const m = emailMessages[locale];
+  const accent = accentStyles(branding);
 
   return (
     <Html>
@@ -178,19 +223,19 @@ export function ScheduledNoCredits({
       <Preview>{m.scheduledNoCreditsSubject}</Preview>
       <Body style={styles.body}>
         <Container style={styles.container}>
-          <Text style={styles.brand}>{m.brand}</Text>
+          <Text style={styles.brand}>{branding?.productName || m.brand}</Text>
           <Heading style={styles.heading}>{m.scheduledHeading(userName)}</Heading>
           <Text style={styles.text}>{m.scheduledNoCredits}</Text>
           <Text style={styles.text}>{m.scheduledPauseWarning(pauseAfterAttempts)}</Text>
           <Section style={styles.buttonWrap}>
-            <Button href={billingUrl} style={styles.button}>
+            <Button href={billingUrl} style={accent.button}>
               {m.scheduledBuyCredits}
             </Button>
           </Section>
           <Hr style={styles.hr} />
           <Text style={styles.footer}>
             {m.scheduledFooter}{" "}
-            <Link href={manageUrl} style={styles.link}>
+            <Link href={manageUrl} style={accent.link}>
               {m.scheduledManage}
             </Link>
           </Text>

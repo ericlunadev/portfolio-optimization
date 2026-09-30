@@ -375,6 +375,15 @@ export const simulationSchedules = sqliteTable(
     userId: text("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * The tenant the schedule was created in: the wallet it charges, the fund
+     * allowlist it runs under and the branding its emails carry. Stamped once and
+     * never followed — an owner who moves organization leaves it behind, and the
+     * runner pauses it rather than bill their new one.
+     */
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name"),
     cadence: text("cadence").notNull(), // daily | weekly | monthly
     /** 0 (Sunday) – 6 (Saturday); weekly only. */
@@ -396,6 +405,7 @@ export const simulationSchedules = sqliteTable(
   (t) => [
     index("simulation_schedules_due_idx").on(t.active, t.nextRunAt),
     index("simulation_schedules_user_idx").on(t.userId),
+    index("simulation_schedules_org_idx").on(t.organizationId),
   ]
 );
 

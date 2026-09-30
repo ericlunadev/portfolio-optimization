@@ -23,7 +23,9 @@ export function readScope(organizationId: string, userId: string): SQL | undefin
 }
 
 // Writes reach the caller's own simulations only: sharing grants read, never write.
-function writeScope(organizationId: string, userId: string): SQL | undefined {
+// Exported for schedules (modules/schedules), whose every run overwrites the
+// simulation's params and result.
+export function writeScope(organizationId: string, userId: string): SQL | undefined {
   return and(
     eq(simulations.organizationId, organizationId),
     eq(simulations.userId, userId)

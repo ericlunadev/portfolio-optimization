@@ -12,7 +12,7 @@ import { normalCDF, rollingStdDev } from "../../lib/math/stats.js";
 import { authMiddleware } from "../../middleware/auth.js";
 import { meterRequest, clientIdempotencyKey, reverseSpendOnError } from "../../lib/billing/metering.js";
 import { HTTPException } from "hono/http-exception";
-import { getFundAllowlist, isTickerAllowed } from "../../lib/tenant-settings.js";
+import { refusedTickers } from "../../lib/tenant-settings.js";
 import { defaultLookbackPeriod } from "../../lib/dates.js";
 import { fetchTickerPrices } from "../../lib/yahoo.js";
 import {
@@ -57,10 +57,7 @@ async function assertTickersAllowed(
   organizationId: string,
   tickers: string[]
 ): Promise<void> {
-  const allowlist = await getFundAllowlist(organizationId);
-  if (!allowlist) return;
-
-  const refused = tickers.filter((ticker) => !isTickerAllowed(allowlist, ticker));
+  const refused = await refusedTickers(organizationId, tickers);
   if (refused.length > 0) {
     throw new HTTPException(400, {
       message: `INSTRUMENT_NOT_ALLOWED: ${refused.join(", ")}`,
