@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
-import { Instrument_Sans, Manrope } from "next/font/google";
+import { Manrope, Space_Grotesk } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -16,7 +16,7 @@ import { deriveTenantPalette } from "@/lib/tenant-palette";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
 
-const instrumentSans = Instrument_Sans({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
@@ -52,8 +52,13 @@ export async function generateMetadata(): Promise<Metadata> {
     title: tenant.brand.title,
     description: tenant.brand.description,
     // There is no `app/favicon.ico` convention in this repo, so the per-tenant
-    // icon has to come through here.
-    icons: tenant.faviconUrl ? { icon: tenant.faviconUrl } : undefined,
+    // icon has to come through here. Our own tenant falls back to the
+    // Prontofolio mark; another tenant without an icon gets none rather than ours.
+    icons: tenant.faviconUrl
+      ? { icon: tenant.faviconUrl }
+      : tenant.isDefault
+        ? { icon: "/prontofolio-icon.svg" }
+        : undefined,
   };
 }
 
@@ -80,11 +85,10 @@ export default async function RootLayout({
   const resolvedTheme = theme === "light" ? "light" : "dark";
 
   // Same move THEME_INIT_SCRIPT makes for dark mode: decide on the server, emit
-  // it in <head>, and there is no flash of our gold to correct afterwards.
+  // it in <head>, and there is no flash of our accent to correct afterwards.
   //
-  // Only a tenant who actually set an accent gets an override. Re-deriving the
-  // house gold would land near the `globals.css` literals but not exactly on
-  // them, and D2C is tenant #1 — its appearance must not drift as a side effect.
+  // Only a tenant who actually set an accent gets an override. `globals.css`
+  // already ships what the house accent derives to.
   const palette = tenant.accentHex ? deriveTenantPalette(tenant.accentHex) : null;
   const paletteCss = palette
     ? tenantPaletteCss(palette.variables.light, palette.variables.dark)
@@ -102,7 +106,7 @@ export default async function RootLayout({
         {paletteCss && <style dangerouslySetInnerHTML={{ __html: paletteCss }} />}
       </head>
       <body
-        className={`${instrumentSans.variable} ${manrope.variable} font-sans`}
+        className={`${spaceGrotesk.variable} ${manrope.variable} font-sans`}
       >
         <NextIntlClientProvider locale={locale} messages={messages}>
           <TenantProvider config={tenant}>

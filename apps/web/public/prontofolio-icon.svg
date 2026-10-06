@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Static copy of components/brand/ProntofolioMark.tsx for the favicon, which
+       cannot read CSS variables. Sits on an Azul Noche tile so it holds up on
+       both light and dark browser chrome. -->
+  <defs>
+    <linearGradient id="bars" x1="4" y1="28" x2="28" y2="5" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2563ff"/>
+      <stop offset="100%" stop-color="#00c2ff"/>
+    </linearGradient>
+    <mask id="cut" maskUnits="userSpaceOnUse" x="0" y="0" width="32" height="32">
+      <rect width="32" height="32" fill="white"/>
+      <g fill="none" stroke="black" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2.5 21.5 L11 14 L16 17.5 L26.5 7.5"/>
+        <path d="M20.5 6.5 H27.5 V13.5"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="#0b132b"/>
+  <g transform="translate(3.2 3.2) scale(0.8)">
+    <g fill="url(#bars)" mask="url(#cut)">
+      <rect x="3" y="19" width="6.5" height="10" rx="1.6"/>
+      <rect x="12.75" y="13" width="6.5" height="16" rx="1.6"/>
+      <rect x="22.5" y="6" width="6.5" height="23" rx="1.6"/>
+    </g>
+    <g fill="none" stroke="#17c964" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2.5 21.5 L11 14 L16 17.5 L26.5 7.5"/>
+      <path d="M20.5 6.5 H27.5 V13.5"/>
+    </g>
+  </g>
+</svg>

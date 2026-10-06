@@ -34,7 +34,7 @@ export function ZoomIntro() {
         </div>
         <h1 className="font-display text-4xl md:text-7xl leading-[1.05] tracking-tight">
           {titleStart && <>{titleStart}{" "}</>}
-          <span className="text-gradient-gold">{t("titleHighlight")}</span>
+          <span className="text-primary">{t("titleHighlight")}</span>
         </h1>
         <p className="mx-auto max-w-xl text-sm md:text-lg text-muted-foreground leading-relaxed">
           {t("description")}

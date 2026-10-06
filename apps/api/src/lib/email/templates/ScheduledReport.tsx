@@ -50,8 +50,8 @@ export interface ScheduledReportProps {
 }
 
 /** Our own accent, for a tenant that has not set one. */
-const DEFAULT_ACCENT = "#c8a45c";
-const DARK_TEXT = "#1c1917";
+const DEFAULT_ACCENT = "#2563ff";
+const DARK_TEXT = "#0b132b";
 const LIGHT_TEXT = "#ffffff";
 
 function channel(value: number): number {
@@ -68,7 +68,7 @@ function luminance(hex: string): number {
 /**
  * The accent and the text that reads on it. A tenant can pick any colour, so the
  * button label is whichever of dark or white has the higher WCAG contrast
- * against it — dark on our gold, white on a navy.
+ * against it — white on our blue, dark on a pale accent.
  */
 export function accentColors(accentHex?: string | null): { accent: string; onAccent: string } {
   const accent = accentHex && /^#[0-9a-f]{6}$/i.test(accentHex) ? accentHex : DEFAULT_ACCENT;
@@ -247,7 +247,7 @@ export function ScheduledNoCredits({
 
 const styles = {
   body: {
-    backgroundColor: "#f5f5f4",
+    backgroundColor: "#f1f5fb",
     fontFamily:
       "'Helvetica Neue', Helvetica, -apple-system, BlinkMacSystemFont, sans-serif",
     margin: 0,
@@ -259,36 +259,36 @@ const styles = {
     maxWidth: "560px",
     backgroundColor: "#ffffff",
     borderRadius: "12px",
-    border: "1px solid #e7e5e4",
+    border: "1px solid #d9e1ec",
   },
   brand: {
     fontSize: "12px",
     textTransform: "uppercase" as const,
     letterSpacing: "0.08em",
-    color: "#a8a29e",
+    color: "#64748b",
     margin: "0 0 24px 0",
   },
   heading: {
     fontSize: "20px",
     fontWeight: 600,
-    color: "#1c1917",
+    color: "#0b132b",
     margin: "0 0 16px 0",
     lineHeight: 1.3,
   },
   text: {
     fontSize: "15px",
     lineHeight: 1.6,
-    color: "#44403c",
+    color: "#1e293b",
     margin: "0 0 16px 0",
   },
   note: {
     fontSize: "13px",
     lineHeight: 1.5,
-    color: "#78716c",
+    color: "#52607a",
     margin: "0 0 24px 0",
   },
   card: {
-    border: "1px solid #e7e5e4",
+    border: "1px solid #d9e1ec",
     borderRadius: "10px",
     padding: "16px 18px",
     margin: "0 0 16px 0",
@@ -296,12 +296,12 @@ const styles = {
   cardTitle: {
     fontSize: "16px",
     fontWeight: 600,
-    color: "#1c1917",
+    color: "#0b132b",
     margin: "0 0 2px 0",
   },
   period: {
     fontSize: "12px",
-    color: "#78716c",
+    color: "#52607a",
     margin: "0 0 12px 0",
   },
   metric: {
@@ -310,39 +310,39 @@ const styles = {
   },
   metricLabel: {
     fontSize: "11px",
-    color: "#78716c",
+    color: "#52607a",
     margin: 0,
   },
   metricValue: {
     fontSize: "18px",
     fontWeight: 600,
-    color: "#1c1917",
+    color: "#0b132b",
     margin: "2px 0 0 0",
   },
   metricDelta: {
     fontSize: "12px",
-    color: "#57534e",
+    color: "#334155",
     margin: "2px 0 0 0",
   },
   caption: {
     fontSize: "11px",
-    color: "#a8a29e",
+    color: "#64748b",
     margin: "8px 0 12px 0",
   },
   subheading: {
     fontSize: "12px",
     fontWeight: 600,
-    color: "#44403c",
+    color: "#1e293b",
     margin: "0 0 4px 0",
   },
   weightTicker: {
     fontSize: "13px",
-    color: "#44403c",
+    color: "#1e293b",
     padding: "2px 0",
   },
   weightValue: {
     fontSize: "13px",
-    color: "#44403c",
+    color: "#1e293b",
     textAlign: "right" as const,
     padding: "2px 0",
   },
@@ -351,8 +351,8 @@ const styles = {
     margin: "16px 0 0 0",
   },
   button: {
-    backgroundColor: "#c8a45c",
-    color: "#1c1917",
+    backgroundColor: "#2563ff",
+    color: "#ffffff",
     padding: "10px 20px",
     borderRadius: "8px",
     fontSize: "14px",
@@ -361,15 +361,15 @@ const styles = {
     display: "inline-block",
   },
   link: {
-    color: "#c8a45c",
+    color: "#2563ff",
   },
   hr: {
-    borderColor: "#e7e5e4",
+    borderColor: "#d9e1ec",
     margin: "32px 0 16px 0",
   },
   footer: {
     fontSize: "12px",
-    color: "#a8a29e",
+    color: "#64748b",
     margin: "0 0 8px 0",
   },
 };

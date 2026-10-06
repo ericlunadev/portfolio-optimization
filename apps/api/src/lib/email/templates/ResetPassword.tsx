@@ -54,7 +54,7 @@ export function ResetPassword({ url, locale, userName, productName }: ResetPassw
 
 const styles = {
   body: {
-    backgroundColor: "#f5f5f4",
+    backgroundColor: "#f1f5fb",
     fontFamily:
       "'Helvetica Neue', Helvetica, -apple-system, BlinkMacSystemFont, sans-serif",
     margin: 0,
@@ -66,26 +66,26 @@ const styles = {
     maxWidth: "560px",
     backgroundColor: "#ffffff",
     borderRadius: "12px",
-    border: "1px solid #e7e5e4",
+    border: "1px solid #d9e1ec",
   },
   brand: {
     fontSize: "12px",
     textTransform: "uppercase" as const,
     letterSpacing: "0.08em",
-    color: "#a8a29e",
+    color: "#64748b",
     margin: "0 0 24px 0",
   },
   heading: {
     fontSize: "20px",
     fontWeight: 600,
-    color: "#1c1917",
+    color: "#0b132b",
     margin: "0 0 16px 0",
     lineHeight: 1.3,
   },
   text: {
     fontSize: "15px",
     lineHeight: 1.6,
-    color: "#44403c",
+    color: "#1e293b",
     margin: "0 0 24px 0",
   },
   buttonWrap: {
@@ -93,8 +93,8 @@ const styles = {
     margin: "8px 0 24px 0",
   },
   button: {
-    backgroundColor: "#c8a45c",
-    color: "#1c1917",
+    backgroundColor: "#2563ff",
+    color: "#ffffff",
     padding: "12px 24px",
     borderRadius: "8px",
     fontSize: "15px",
@@ -104,21 +104,21 @@ const styles = {
   },
   fallback: {
     fontSize: "13px",
-    color: "#78716c",
+    color: "#52607a",
     margin: "16px 0 6px 0",
   },
   link: {
     fontSize: "13px",
-    color: "#c8a45c",
+    color: "#2563ff",
     wordBreak: "break-all" as const,
   },
   hr: {
-    borderColor: "#e7e5e4",
+    borderColor: "#d9e1ec",
     margin: "32px 0 16px 0",
   },
   footer: {
     fontSize: "12px",
-    color: "#a8a29e",
+    color: "#64748b",
     margin: 0,
   },
 };

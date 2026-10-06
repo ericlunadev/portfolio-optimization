@@ -745,7 +745,7 @@ export function MarkowitzResults({
             <StatCard
               label={t("expectedReturn")}
               value={formatPercent(result.expected_return)}
-              accent="gold"
+              accent="brand"
               icon={<TrendingUp className="h-4 w-4" />}
               hint={
                 <>
@@ -1088,7 +1088,7 @@ function ComparisonPanel({ optimal, user }: ComparisonPanelProps) {
                 </span>
                 <div className="relative h-2 flex-1 overflow-hidden rounded-full bg-accent/70 dark:bg-accent/40">
                   <div
-                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#8a6224] to-[#c99a49] transition-all duration-700 dark:from-[#c89853] dark:to-[#fcd9a8]"
+                    className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-primary-emphasis to-primary transition-all duration-700 dark:from-primary dark:to-primary-emphasis"
                     style={{ width: `${optPct}%` }}
                   />
                 </div>

@@ -96,7 +96,7 @@ function ResetPasswordForm() {
               <button
                 type="submit"
                 disabled={status === "submitting"}
-                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 glow-gold"
+                className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 glow-primary"
               >
                 {status === "submitting"
                   ? t("loading")

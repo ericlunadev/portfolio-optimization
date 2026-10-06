@@ -362,7 +362,7 @@ function AccentField({
           </dl>
 
           <div className="flex flex-wrap gap-4 border-t border-border pt-3 dark:border-border/60">
-            <Swatch label={t("swatchReport")} colors={[preview.reportGold]} />
+            <Swatch label={t("swatchReport")} colors={[preview.reportAccent]} />
             <Swatch
               label={t("swatchChart")}
               colors={[preview.series.light, preview.series.dark]}

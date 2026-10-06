@@ -8,7 +8,7 @@ import { assertWalletLedgerInvariant } from "./lib/billing/reconcile.js";
 
 // Start server
 const port = env.PORT;
-console.log(`Starting Portfolio Optimization API on port ${port}`);
+console.log(`Starting Prontofolio API on port ${port}`);
 console.log(`Frontend URL: ${env.FRONTEND_URL}`);
 console.log(`API Docs: http://localhost:${port}/api/health`);
 

@@ -982,7 +982,7 @@ function NewOptimizationForm() {
           className={cn(
             "rounded-lg px-6 py-3 text-sm font-semibold transition-all",
             canProceed
-              ? "bg-primary text-primary-foreground hover:brightness-110 glow-gold"
+              ? "bg-primary text-primary-foreground hover:brightness-110 glow-primary"
               : "cursor-not-allowed bg-muted text-muted-foreground"
           )}
         >

@@ -4,7 +4,7 @@ import type { ResolvedTheme } from "@/lib/theme";
 /**
  * The single source of tenant colour.
  *
- * A tenant supplies exactly one accent hex (decision D9). Every gold surface in
+ * A tenant supplies exactly one accent hex (decision D9). Every accent surface in
  * the product — the CSS tokens in `globals.css`, the chart series in
  * `chart-theme.tsx`, the PDF constants in `simulation-pdf.ts` — is derived from
  * it here, so there is one place that knows how a brand colour becomes a theme
@@ -34,8 +34,8 @@ import type { ResolvedTheme } from "@/lib/theme";
  * Pure: same input, same output, no DOM, no I/O, no caching (Task 1.8 owns that).
  */
 
-/** The house gold, and the accent every tenant row is seeded with. */
-export const DEFAULT_ACCENT_HEX = "#d7a042";
+/** Prontofolio's Azul Eléctrico, and the accent every tenant row is seeded with. */
+export const DEFAULT_ACCENT_HEX = "#2563ff";
 
 /** WCAG AA for body text. What a derived `--primary` must clear. */
 export const MIN_CONTRAST = 4.5;
@@ -48,8 +48,8 @@ export const MIN_LARGE_TEXT_CONTRAST = 3;
  * is measured against these, so they have to be updated together.
  */
 const BACKGROUND: Record<ResolvedTheme, Hsl> = {
-  light: { h: 40, s: 30, l: 97 },
-  dark: { h: 230, s: 15, l: 5 },
+  light: { h: 214, s: 100, l: 99 }, // Blanco Hielo, #f8fbff
+  dark: { h: 225, s: 59, l: 11 }, // Azul Noche, #0b132b
 };
 
 /** The page colour each theme is fitted against, as hex. */
@@ -85,8 +85,6 @@ export type TenantCssVariable =
   | "--primary"
   | "--primary-emphasis"
   | "--ring"
-  | "--gradient-gold-from"
-  | "--gradient-gold-to"
   | "--glow-strong"
   | "--glow-soft";
 
@@ -99,7 +97,7 @@ export type TenantCssVariables = Record<TenantCssVariable, string>;
 
 /**
  * The PDF palette. Mirrors the dark appearance because the report is painted on
- * a dark page and the charts are rasterized for one. Only the gold pair is
+ * a dark page and the charts are rasterized for one. Only the accent pair is
  * tenant-derived — the chrome and the user-allocation amber are fixed.
  */
 export interface TenantPdfColors {
@@ -108,15 +106,15 @@ export interface TenantPdfColors {
   border: string;
   text: string;
   muted: string;
-  gold: string;
-  goldSoft: string;
+  accent: string;
+  accentSoft: string;
   user: string;
 }
 
 export interface TenantPalette {
   /** The accent actually used, normalised to `#rrggbb`. */
   accent: string;
-  /** True when the input was missing or unparseable and the house gold is in use. */
+  /** True when the input was missing or unparseable and the house accent is in use. */
   isFallback: boolean;
   variables: Record<ResolvedTheme, TenantCssVariables>;
   charts: Record<ResolvedTheme, ChartColors>;
@@ -161,7 +159,7 @@ export function deriveTenantPalette(accentHex?: string | null): TenantPalette {
   const accentHsl = roundHsl(hexToHsl(accent));
 
   // The chart accent is the only one that dodges the semantic bands: the CSS
-  // tokens and the PDF gold below deliberately keep the tenant's real hue.
+  // tokens and the PDF accent below deliberately keep the tenant's real hue.
   const seriesHsl = { ...accentHsl, h: avoidSemanticHues(accentHsl.h) };
 
   return {
@@ -184,18 +182,16 @@ export function deriveTenantPalette(accentHex?: string | null): TenantPalette {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Deltas taken from the shipped gold in `globals.css`, so feeding the house
- * accent back in reproduces the design that exists today. `emphasis` steps
- * further from the page, the gradient pair opens up the brand gradient, and the
- * glows are the ring at the alpha each theme uses.
+ * How each token steps off `--primary`. `globals.css` ships exactly what these
+ * derive from the house accent, so the stock tokens and a tenant's are produced
+ * by one rule. `emphasis` steps further from the page and the glows are the
+ * ring at the alpha each theme uses.
  */
 const TOKEN_DELTAS: Record<
   ResolvedTheme,
   {
     emphasis: HslDelta;
     ring: HslDelta;
-    gradientFrom: HslDelta;
-    gradientTo: HslDelta;
     glowStrong: number;
     glowSoft: number;
   }
@@ -203,16 +199,12 @@ const TOKEN_DELTAS: Record<
   light: {
     emphasis: { s: 10, l: -9 },
     ring: { s: 0, l: 4 },
-    gradientFrom: { s: 3, l: -2 },
-    gradientTo: { s: 18, l: 10 },
     glowStrong: 0.22,
     glowSoft: 0.08,
   },
   dark: {
     emphasis: { s: 0, l: 10 },
     ring: { s: 0, l: 0 },
-    gradientFrom: { s: -5, l: -5 },
-    gradientTo: { s: 20, l: 10 },
     glowStrong: 0.15,
     glowSoft: 0.05,
   },
@@ -227,20 +219,10 @@ function deriveVariables(
 
   // Emphasis moves further away from the page, so it can only gain contrast.
   const emphasis = shift(primary, deltas.emphasis);
-  // These three move *toward* the page in at least one theme, and the gradient
-  // pair paints display headings — large text, so the 3:1 floor is the right one.
+  // The ring moves *toward* the page on light. It is a non-text indicator, so
+  // the 3:1 floor is the right one.
   const ring = fitContrast(
     shift(primary, deltas.ring),
-    theme,
-    MIN_LARGE_TEXT_CONTRAST
-  );
-  const gradientFrom = fitContrast(
-    shift(primary, deltas.gradientFrom),
-    theme,
-    MIN_LARGE_TEXT_CONTRAST
-  );
-  const gradientTo = fitContrast(
-    shift(primary, deltas.gradientTo),
     theme,
     MIN_LARGE_TEXT_CONTRAST
   );
@@ -249,8 +231,6 @@ function deriveVariables(
     "--primary": toChannels(primary),
     "--primary-emphasis": toChannels(emphasis),
     "--ring": toChannels(ring),
-    "--gradient-gold-from": toChannels(gradientFrom),
-    "--gradient-gold-to": toChannels(gradientTo),
     "--glow-strong": `${toChannels(ring)} / ${deltas.glowStrong}`,
     "--glow-soft": `${toChannels(ring)} / ${deltas.glowSoft}`,
   };
@@ -261,80 +241,82 @@ function deriveVariables(
 /* -------------------------------------------------------------------------- */
 
 /**
- * The house series sets, copied from `chart-theme.tsx` because that module does
- * not export them. Everything a tenant does not own is passed through untouched.
- * These are duplicated, not forked: when `chart-theme.tsx` starts taking a
- * tenant palette it should import them from here and delete its own copies.
+ * The series a tenant does not own. Only the first entry (the brand slot) and
+ * the optimal portfolio are replaced by the accent; everything else here ships
+ * to every tenant as is. The house set is this one with the house accent
+ * applied, which is what `chart-theme.tsx` renders when there is no tenant.
+ *
+ * Verde Data and Cian Digital from the Prontofolio palette sit in the green and
+ * cyan slots, darkened on light so a 2px line still reads on a white card.
  */
 const BASE_CHART_COLORS: Record<ResolvedTheme, ChartColors> = {
   dark: {
     palette: [
-      { name: "gold", stroke: "#e0a861", solid: "#c89853", soft: "#fcd9a8" },
-      { name: "emerald", stroke: "#34d399", solid: "#10b981", soft: "#a7f3d0" },
+      { name: "brand", stroke: "#4278ff", solid: "#2b62ee", soft: "#a3bdff" },
+      { name: "green", stroke: "#17c964", solid: "#10a552", soft: "#a3efc4" },
       { name: "violet", stroke: "#a78bfa", solid: "#8b5cf6", soft: "#c4b5fd" },
       { name: "amber", stroke: "#fbbf24", solid: "#f59e0b", soft: "#fde68a" },
-      { name: "blue", stroke: "#60a5fa", solid: "#3b82f6", soft: "#bfdbfe" },
-      { name: "teal", stroke: "#2dd4bf", solid: "#14b8a6", soft: "#99f6e4" },
+      { name: "cyan", stroke: "#33cfff", solid: "#00c2ff", soft: "#a6ecff" },
+      { name: "fuchsia", stroke: "#e879f9", solid: "#d946ef", soft: "#f5d0fe" },
       { name: "rose", stroke: "#fb7185", solid: "#f43f5e", soft: "#fda4af" },
       { name: "lime", stroke: "#a3e635", solid: "#84cc16", soft: "#d9f99d" },
     ],
-    optimal: "#e0a861",
+    optimal: "#4278ff",
     user: "#fbbf24",
     frontier: "#a78bfa",
     asset: "#94a3b8",
     benchmarks: [
-      "#60a5fa",
+      "#e879f9",
       "#2dd4bf",
-      "#fb7185",
       "#a3e635",
-      "#f0abfc",
-      "#38bdf8",
+      "#fb7185",
+      "#fdba74",
+      "#33cfff",
     ],
     danger: "#f87171",
     frontierFrom: "#7c3aed",
-    frontierTo: "#22d3ee",
-    optimalBar: ["#c89853", "#fcd9a8"],
+    frontierTo: "#00c2ff",
+    optimalBar: ["#2b62ee", "#a3bdff"],
     userBar: ["#f59e0b", "#fde68a"],
-    markerOutline: "#0d0e13",
-    cursor: "#3f4457",
+    markerOutline: "#0c142d",
+    cursor: "#2b3a5e",
   },
   light: {
     palette: [
-      { name: "gold", stroke: "#a97b2f", solid: "#8a6224", soft: "#d9b57a" },
-      { name: "emerald", stroke: "#059669", solid: "#047857", soft: "#6ee7b7" },
+      { name: "brand", stroke: "#2462ff", solid: "#0045f5", soft: "#9fbafe" },
+      { name: "green", stroke: "#0f9a4c", solid: "#0b7f3e", soft: "#86e3ae" },
       { name: "violet", stroke: "#7c3aed", solid: "#6d28d9", soft: "#a78bfa" },
       { name: "amber", stroke: "#d97706", solid: "#b45309", soft: "#fcd34d" },
-      { name: "blue", stroke: "#2563eb", solid: "#1d4ed8", soft: "#93c5fd" },
-      { name: "teal", stroke: "#0d9488", solid: "#0f766e", soft: "#5eead4" },
+      { name: "cyan", stroke: "#0090c2", solid: "#0077a3", soft: "#7fd8f7" },
+      { name: "fuchsia", stroke: "#c026d3", solid: "#a21caf", soft: "#f0abfc" },
       { name: "rose", stroke: "#e11d48", solid: "#be123c", soft: "#fda4af" },
       { name: "lime", stroke: "#65a30d", solid: "#4d7c0f", soft: "#bef264" },
     ],
-    optimal: "#8a6224",
+    optimal: "#2462ff",
     user: "#b45309",
     frontier: "#6d28d9",
     asset: "#475569",
     benchmarks: [
-      "#2563eb",
-      "#0d9488",
-      "#e11d48",
-      "#65a30d",
       "#c026d3",
-      "#0284c7",
+      "#0d9488",
+      "#65a30d",
+      "#e11d48",
+      "#ea580c",
+      "#0090c2",
     ],
     danger: "#dc2626",
     frontierFrom: "#6d28d9",
-    frontierTo: "#0e7490",
-    optimalBar: ["#8a6224", "#c99a49"],
+    frontierTo: "#0090c2",
+    optimalBar: ["#0045f5", "#9fbafe"],
     userBar: ["#b45309", "#e8a33d"],
     markerOutline: "#ffffff",
-    cursor: "#a8a294",
+    cursor: "#9aa8bf",
   },
 };
 
 /**
- * How the shipped gold entry spaces its stroke, solid and soft, read back off
- * `chart-theme.tsx`. Light pulls saturation down as it lightens (a pale tan);
- * dark pushes it up (a lit gold), which is why the two are not one delta.
+ * How the original house entry spaced its stroke, solid and soft. Light pulls saturation down as it lightens (a pale tan);
+ * dark pushes it up (a lit accent), which is why the two are not one delta.
  */
 const TRIO_DELTAS: Record<ResolvedTheme, { solid: HslDelta; soft: HslDelta }> = {
   light: { solid: { s: 2, l: -9 }, soft: { s: -2, l: 24 } },
@@ -377,14 +359,13 @@ function deriveChartColors(
     optimalBar: [trio.solid, trio.soft],
     benchmarks: deprioritizeAccentLookalikes(base.benchmarks, accent),
     // Untouched on purpose: `danger` is semantic (D10); `user`/`userBar` are the
-    // amber the design already pairs with gold five degrees away, told apart by
-    // lightness rather than hue; `asset`, `markerOutline` and `cursor` are chrome.
+    // amber that stays clear of any accent the brand slot takes; `asset`, `markerOutline` and `cursor` are chrome.
   };
 }
 
 /**
  * Benchmarks are "handed out in selection order" and already "deliberately skip
- * the gold, amber and violet already spoken for" (`chart-theme.tsx`), so extend
+ * the accent, amber and violet already spoken for" (`chart-theme.tsx`), so extend
  * that intent to the tenant's accent: a benchmark colour too close to it goes to
  * the back of the queue rather than being recoloured. Reordering a fixed list
  * cannot invent the collision that rotating a hue can.
@@ -412,10 +393,10 @@ function deprioritizeAccentLookalikes(
 
 function derivePdfColors(accent: Hsl): TenantPdfColors {
   // The report page (#0b0c0f) is within a point of the dark `--background`, so
-  // the dark fit is the right one. No semantic dodge: this gold paints headings
+  // the dark fit is the right one. No semantic dodge: this accent paints headings
   // and rules, not a series.
-  const gold = fitContrast(accent, "dark", MIN_CONTRAST);
-  const trio = accentTrio(gold, "dark");
+  const fitted = fitContrast(accent, "dark", MIN_CONTRAST);
+  const trio = accentTrio(fitted, "dark");
 
   return {
     background: "#0b0c0f",
@@ -423,8 +404,8 @@ function derivePdfColors(accent: Hsl): TenantPdfColors {
     border: "#2a2d38",
     text: "#e7e6e4",
     muted: "#8b8fa0",
-    gold: trio.stroke,
-    goldSoft: trio.soft,
+    accent: trio.stroke,
+    accentSoft: trio.soft,
     user: "#fbbf24",
   };
 }

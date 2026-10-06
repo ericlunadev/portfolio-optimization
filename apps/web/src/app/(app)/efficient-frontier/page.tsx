@@ -116,7 +116,7 @@ export default function EfficientFrontierPage() {
           </h1>
           <Link
             href="/efficient-frontier/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
+            className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-primary"
           >
             <Plus className="h-4 w-4" />
             {t("newButton")}
@@ -146,7 +146,7 @@ export default function EfficientFrontierPage() {
         </h1>
         <Link
           href="/efficient-frontier/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-primary"
         >
           <Plus className="h-4 w-4" />
           {t("newButton")}
