@@ -8,6 +8,7 @@ import { useTenantBrand } from "@/components/tenant/TenantProvider";
 import { useOrgSettings } from "@/hooks/useOrgSettings";
 import { isNavHrefVisible } from "@/lib/org-settings";
 import { wordmark } from "@/lib/wordmark";
+import { PrototypeLogo } from "@/components/layout/PrototypeProntofolioLogos";
 import { BarChart3, CalendarClock, Home, GraduationCap, Wallet } from "lucide-react";
 
 // Kept identical to `MobileTabBar`'s list, per CLAUDE.md. Which of them a given
@@ -33,6 +34,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex w-64 shrink-0 border-r border-border bg-card/80 dark:border-border/50 dark:bg-card/40 backdrop-blur-sm flex-col">
       <div className="p-6 pb-8">
+        <PrototypeLogo size="full">
         <h1 className="font-display text-2xl tracking-tight">
           <span className="text-gradient-gold">{mark.accent}</span>
           {mark.rest && (
@@ -42,6 +44,7 @@ export function Sidebar() {
             </>
           )}
         </h1>
+        </PrototypeLogo>
       </div>
 
       <nav className="flex-1 px-3 space-y-1">

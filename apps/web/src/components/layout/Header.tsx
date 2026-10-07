@@ -11,6 +11,7 @@ import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
 import { CreditsChip } from "@/components/billing/CreditsChip";
 import { useTenantBrand } from "@/components/tenant/TenantProvider";
 import { wordmark } from "@/lib/wordmark";
+import { PrototypeLogo } from "@/components/layout/PrototypeProntofolioLogos";
 
 export function Header() {
   const t = useTranslations("Header");
@@ -48,6 +49,8 @@ export function Header() {
               At 390px the controls beside it take ~290px of the 358 available,
               which leaves room for a short mark, not a product name; it
               truncates rather than wraps when even that does not fit. */}
+          <div className="min-w-0 md:hidden">
+          <PrototypeLogo size="compact">
           <h1
             className="min-w-0 font-display text-lg tracking-tight md:hidden"
             aria-label={brand.productName}
@@ -55,6 +58,8 @@ export function Header() {
           >
             <span className="block truncate text-gradient-gold">{mark.accent}</span>
           </h1>
+          </PrototypeLogo>
+          </div>
           <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
             <CreditsChip />
             <ThemeSwitcher />

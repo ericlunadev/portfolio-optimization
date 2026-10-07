@@ -3,6 +3,8 @@ import { Header } from "@/components/layout/Header";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { OnboardingGate } from "@/components/onboarding/OnboardingGate";
 import { LegalFooter } from "@/components/legal/LegalFooter";
+// PROTOTYPE — remove with PrototypeProntofolioLogos.tsx
+import { ProntofolioLogoSwitcher } from "@/components/layout/PrototypeProntofolioLogos";
 
 export default function AppLayout({
   children,
@@ -21,6 +23,7 @@ export default function AppLayout({
           </main>
         </div>
         <MobileTabBar />
+        <ProntofolioLogoSwitcher />
       </div>
     </OnboardingGate>
   );
