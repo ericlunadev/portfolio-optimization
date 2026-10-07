@@ -169,7 +169,7 @@ describe("previewAccent", () => {
     const preview = previewAccent("  #2F6F4F  ");
 
     expect(preview?.accent).toBe("#2f6f4f");
-    expect(preview?.reportGold).toBe(palette.pdf.gold);
+    expect(preview?.reportAccent).toBe(palette.pdf.accent);
     expect(preview?.series.dark).toBe(palette.charts.dark.optimal);
     expect(preview?.series.light).toBe(palette.charts.light.optimal);
   });

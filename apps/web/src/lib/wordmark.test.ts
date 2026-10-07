@@ -54,11 +54,6 @@ describe("a short name that abbreviates the product name", () => {
     expect(wordmark("Optimización de Portafolio", "Optim.")).toEqual({ accent: "Optim.", rest: "Portafolio" });
   });
 
-  it("is what the default brand renders when the API is unreachable", () => {
-    const { productName, shortName } = DEFAULT_TENANT_CONFIG.brand;
-
-    expect(reads(wordmark(productName, shortName))).toBe("Optim. Portafolio");
-  });
 
   it("drops the particles joining the abbreviated word to a capitalised rest", () => {
     expect(wordmark("Portfolio of the Future", "Port.")).toEqual({ accent: "Port.", rest: "Future" });
@@ -151,5 +146,13 @@ describe("the name appears once", () => {
     ["Prontofolio", "Pronto", "Prontofolio"],
   ])("%j with short name %j shows %j once", (productName, shortName, word) => {
     expect(occurrences(reads(wordmark(productName, shortName)), word)).toBe(1);
+  });
+});
+
+describe("the default brand", () => {
+  it("renders as the pronto|folio compound when the API is unreachable", () => {
+    const { productName, shortName } = DEFAULT_TENANT_CONFIG.brand;
+
+    expect(wordmark(productName, shortName)).toEqual({ accent: "Pronto", rest: "folio", joined: true });
   });
 });

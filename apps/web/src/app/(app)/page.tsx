@@ -31,14 +31,14 @@ export default async function Home() {
       <div className="space-y-5 pt-2 animate-fade-in-up md:space-y-6 md:pt-4">
         <h1 className="font-display text-4xl md:text-6xl tracking-tight leading-[1.1]">
           {t("heroTitleStart")}{" "}
-          <span className="text-gradient-gold">{t("heroTitleHighlight")}</span>
+          <span className="text-primary">{t("heroTitleHighlight")}</span>
         </h1>
         <p className="text-base md:text-lg text-muted-foreground max-w-2xl leading-relaxed">
           {t("heroDescription")}
         </p>
         <Link
           href="/efficient-frontier/new"
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-gold"
+          className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 glow-primary"
         >
           <Zap className="h-4 w-4" />
           {t("ctaStart")}

@@ -256,7 +256,7 @@ export function Station2Allocation({ id }: { id: string }) {
                     isActive
                       ? // The gold glow reads as "selected" on dark; on light it is
                         // barely visible, so the ring + solid border carry the state.
-                        "border-primary bg-primary/10 ring-1 ring-primary/40 glow-gold"
+                        "border-primary bg-primary/10 ring-1 ring-primary/40 glow-primary"
                       : "border-border/50 bg-card/40 hover:border-border",
                   )}
                 >

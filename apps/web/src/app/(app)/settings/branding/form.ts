@@ -177,7 +177,7 @@ export interface AccentPreview {
   light: ThemeContrast;
   dark: ThemeContrast;
   /** The gold the exported report will actually be painted in. */
-  reportGold: string;
+  reportAccent: string;
   /** The "optimal portfolio" series colour, per appearance. */
   series: Record<ResolvedTheme, string>;
 }
@@ -216,7 +216,7 @@ export function previewAccent(value: string): AccentPreview | null {
     accent,
     light: measure("light"),
     dark: measure("dark"),
-    reportGold: palette.pdf.gold,
+    reportAccent: palette.pdf.accent,
     series: {
       light: palette.charts.light.optimal,
       dark: palette.charts.dark.optimal,

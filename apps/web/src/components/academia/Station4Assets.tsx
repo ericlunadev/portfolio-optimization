@@ -169,7 +169,7 @@ export function Station4Assets({ id }: { id: string }) {
                 active === c.ticker
                   ? // The glow only reads on dark; the ring + solid border keep the
                     // selected candidate distinguishable on light.
-                    "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 glow-gold"
+                    "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 glow-primary"
                   : "border-border/50 bg-card/40 text-muted-foreground hover:border-border hover:text-foreground",
               )}
             >
@@ -316,7 +316,7 @@ export function Station4Assets({ id }: { id: string }) {
             passesBoth
               ? // The glow only reads on dark; the ring keeps the "passes both"
                 // verdict distinguishable on light.
-                "border-primary ring-1 ring-primary/40 glow-gold"
+                "border-primary ring-1 ring-primary/40 glow-primary"
               : "border-border/50",
           )}
         >

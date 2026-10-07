@@ -7,7 +7,7 @@ export interface StatCardProps {
   label: string;
   value: ReactNode;
   hint?: ReactNode;
-  accent?: "gold" | "emerald" | "violet" | "rose" | "neutral";
+  accent?: "brand" | "emerald" | "violet" | "rose" | "neutral";
   icon?: ReactNode;
   trend?: {
     value: ReactNode;
@@ -24,10 +24,10 @@ const ACCENT_STYLES: Record<
   NonNullable<StatCardProps["accent"]>,
   { glow: string; valueClass: string; ring: string }
 > = {
-  gold: {
-    glow: "from-[#a97b2f]/25 to-transparent dark:from-[#e0a861]/30",
+  brand: {
+    glow: "from-primary/20 to-transparent dark:from-primary/30",
     valueClass: "text-primary-emphasis",
-    ring: "ring-[#a97b2f]/25 dark:ring-[#e0a861]/20",
+    ring: "ring-primary/25 dark:ring-primary/20",
   },
   emerald: {
     glow: "from-emerald-500/20 to-transparent dark:from-emerald-400/25",

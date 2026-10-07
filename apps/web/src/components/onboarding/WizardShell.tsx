@@ -153,7 +153,7 @@ export function WizardShell({ initialProfile }: Props) {
           type="button"
           onClick={handleNext}
           disabled={!isCurrentValid || isBusy}
-          className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 glow-gold"
+          className="rounded-lg bg-primary px-5 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 glow-primary"
         >
           {isBusy ? t("saving") : step === TOTAL_STEPS ? t("finish") : t("next")}
         </button>

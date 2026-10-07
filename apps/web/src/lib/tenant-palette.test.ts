@@ -103,7 +103,7 @@ const THEMES: ResolvedTheme[] = ["light", "dark"];
  * shipped series, and the achromatic three have no hue to work with at all.
  */
 const ACCENTS: [label: string, hex: string][] = [
-  ["the house gold", DEFAULT_ACCENT_HEX],
+  ["the house blue", DEFAULT_ACCENT_HEX],
   ["pale yellow", "#fff9b0"],
   ["pure red", "#ff0000"],
   ["crimson", "#dc143c"],
@@ -119,32 +119,26 @@ const CSS_VARIABLES: TenantCssVariable[] = [
   "--primary",
   "--primary-emphasis",
   "--ring",
-  "--gradient-gold-from",
-  "--gradient-gold-to",
   "--glow-strong",
   "--glow-soft",
 ];
 
 /** `globals.css`, `.dark` block. The house accent has to reproduce it exactly. */
 const GLOBALS_DARK: Record<TenantCssVariable, string> = {
-  "--primary": "38 65% 55%",
-  "--primary-emphasis": "38 65% 65%",
-  "--ring": "38 65% 55%",
-  "--gradient-gold-from": "38 60% 50%",
-  "--gradient-gold-to": "38 85% 65%",
-  "--glow-strong": "38 65% 55% / 0.15",
-  "--glow-soft": "38 65% 55% / 0.05",
+  "--primary": "223 100% 62%",
+  "--primary-emphasis": "223 100% 72%",
+  "--ring": "223 100% 62%",
+  "--glow-strong": "223 100% 62% / 0.15",
+  "--glow-soft": "223 100% 62% / 0.05",
 };
 
 /** `globals.css`, `:root` block. */
 const GLOBALS_LIGHT: Record<TenantCssVariable, string> = {
-  "--primary": "38 62% 36%",
-  "--primary-emphasis": "38 72% 27%",
-  "--ring": "38 62% 40%",
-  "--gradient-gold-from": "38 65% 34%",
-  "--gradient-gold-to": "38 80% 46%",
-  "--glow-strong": "38 62% 40% / 0.22",
-  "--glow-soft": "38 62% 40% / 0.08",
+  "--primary": "223 100% 57%",
+  "--primary-emphasis": "223 100% 48%",
+  "--ring": "223 100% 61%",
+  "--glow-strong": "223 100% 61% / 0.22",
+  "--glow-soft": "223 100% 61% / 0.08",
 };
 
 describe("normalizeAccentHex", () => {
@@ -186,13 +180,13 @@ describe("contrastRatio", () => {
   });
 
   it("reads the page colours straight off globals.css", () => {
-    expect(THEME_BACKGROUND_HEX.light).toBe("#faf8f5"); // 40 30% 97%
-    expect(THEME_BACKGROUND_HEX.dark).toBe("#0b0b0f"); // 230 15% 5%
+    expect(THEME_BACKGROUND_HEX.light).toBe("#f8fbff"); // Blanco Hielo
+    expect(THEME_BACKGROUND_HEX.dark).toBe("#0b132b"); // Azul Noche
   });
 });
 
 describe("deriveTenantPalette", () => {
-  it("falls back to the house gold instead of throwing on bad input", () => {
+  it("falls back to the house accent instead of throwing on bad input", () => {
     for (const value of [null, undefined, "", "not a colour", "#12345"]) {
       const palette = deriveTenantPalette(value as string | null | undefined);
       expect(palette.accent).toBe(DEFAULT_ACCENT_HEX);
@@ -246,33 +240,9 @@ describe("CSS variables", () => {
     );
   });
 
-  it("lands within a couple of points of the shipped light tokens", () => {
-    const light = deriveTenantPalette(DEFAULT_ACCENT_HEX).variables.light;
-    for (const name of [
-      "--primary",
-      "--primary-emphasis",
-      "--ring",
-      "--gradient-gold-from",
-    ] as const) {
-      const mine = parseChannels(light[name]);
-      const shipped = parseChannels(GLOBALS_LIGHT[name]);
-      expect(mine.h).toBe(shipped.h);
-      expect(Math.abs(mine.s - shipped.s)).toBeLessThanOrEqual(3);
-      expect(Math.abs(mine.l - shipped.l)).toBeLessThanOrEqual(3);
-    }
-  });
-
-  it("darkens the light gradient's end past what globals.css ships, on purpose", () => {
-    // The shipped stop misses even the large-text floor, and it paints display
-    // headings. The derived one is pulled down until it clears 3:1.
-    const shipped = channelsToHex(GLOBALS_LIGHT["--gradient-gold-to"]);
-    expect(contrastWithPage(shipped, "light")).toBeLessThan(
-      MIN_LARGE_TEXT_CONTRAST
-    );
-
-    const derived = deriveTenantPalette(DEFAULT_ACCENT_HEX).variables.light;
-    expect(parseChannels(derived["--gradient-gold-to"]).l).toBeLessThan(
-      parseChannels(GLOBALS_LIGHT["--gradient-gold-to"]).l
+  it("reproduces the shipped light tokens exactly for the house accent", () => {
+    expect(deriveTenantPalette(DEFAULT_ACCENT_HEX).variables.light).toEqual(
+      GLOBALS_LIGHT
     );
   });
 
@@ -309,19 +279,13 @@ describe("rule 1 — contrast is fitted, never rejected", () => {
     }
   });
 
-  it.each(ACCENTS)("clears the large-text floor on the ring and gradient for %s", (_label, hex) => {
+  it.each(ACCENTS)("clears the non-text floor on the ring for %s", (_label, hex) => {
     const { variables } = deriveTenantPalette(hex);
     for (const theme of THEMES) {
-      for (const name of [
-        "--ring",
-        "--gradient-gold-from",
-        "--gradient-gold-to",
-      ] as const) {
-        const color = channelsToHex(variables[theme][name]);
-        expect(contrastWithPage(color, theme)).toBeGreaterThanOrEqual(
-          MIN_LARGE_TEXT_CONTRAST
-        );
-      }
+      const color = channelsToHex(variables[theme]["--ring"]);
+      expect(contrastWithPage(color, theme)).toBeGreaterThanOrEqual(
+        MIN_LARGE_TEXT_CONTRAST
+      );
     }
   });
 
@@ -398,7 +362,7 @@ describe("rule 2 — semantic colours survive the tenant (D10)", () => {
     for (const theme of THEMES) {
       const hue = toHsl(charts[theme].optimal).h;
       expect(hueGap(hue, 0)).toBeGreaterThanOrEqual(20 - HUE_ROUNDING);
-      // Nudged towards orange, not magenta: gold's side of the wheel.
+      // Nudged towards orange, not magenta: the warm side of the wheel.
       expect(hue).toBeGreaterThan(0);
       expect(hue).toBeLessThan(60);
       // And far enough from `danger` to be a different line on the chart.
@@ -410,7 +374,7 @@ describe("rule 2 — semantic colours survive the tenant (D10)", () => {
     // The dodge is chart-only: the app chrome and the report keep the real brand.
     expect(parseChannels(variables.light["--primary"]).h).toBe(0);
     expect(parseChannels(variables.dark["--primary"]).h).toBe(0);
-    expect(pdf.gold).toBe("#ff0000");
+    expect(pdf.accent).toBe("#ff0000");
   });
 
   it("pushes a crimson accent out the near side of the loss hue", () => {
@@ -495,29 +459,29 @@ describe("chart series", () => {
   it("hands out the shipped benchmark order when nothing clashes", () => {
     const house = deriveTenantPalette(DEFAULT_ACCENT_HEX).charts;
     expect(house.dark.benchmarks).toEqual([
-      "#60a5fa",
+      "#e879f9",
       "#2dd4bf",
-      "#fb7185",
       "#a3e635",
-      "#f0abfc",
-      "#38bdf8",
+      "#fb7185",
+      "#fdba74",
+      "#33cfff",
     ]);
   });
 
   it("sends benchmarks that look like the accent to the back of the queue", () => {
     const house = deriveTenantPalette(DEFAULT_ACCENT_HEX).charts.dark.benchmarks;
-    const blue = deriveTenantPalette("#1f6feb").charts.dark.benchmarks;
+    const magenta = deriveTenantPalette("#a21caf").charts.dark.benchmarks;
 
     // Same six colours — reordered, never recoloured, so no two can collide.
-    expect([...blue].sort()).toEqual([...house].sort());
-    expect(blue).not.toEqual(house);
+    expect([...magenta].sort()).toEqual([...house].sort());
+    expect(magenta).not.toEqual(house);
 
-    const accentHue = toHsl("#1f6feb").h;
-    expect(hueGap(toHsl(blue[0]).h, accentHue)).toBeGreaterThanOrEqual(
+    const accentHue = toHsl("#a21caf").h;
+    expect(hueGap(toHsl(magenta[0]).h, accentHue)).toBeGreaterThanOrEqual(
       24 - HUE_ROUNDING
     );
-    // The blues that were bumped are still there, just picked last.
-    expect(blue.slice(-2)).toEqual(expect.arrayContaining(["#60a5fa", "#38bdf8"]));
+    // The fuchsia that was bumped is still there, just picked last.
+    expect(magenta[magenta.length - 1]).toBe("#e879f9");
   });
 
   it("keeps every achromatic accent from silently tinting the palette", () => {
@@ -540,16 +504,17 @@ describe("PDF colours", () => {
     expect(pdf.user).toBe("#fbbf24");
   });
 
-  it("hands the house accent back the gold the report already uses", () => {
-    // COLOR_GOLD in simulation-pdf.ts is #d6a042; the seeded accent is #d7a042.
-    expect(deriveTenantPalette(DEFAULT_ACCENT_HEX).pdf.gold).toBe("#d7a042");
+  it("paints the report in the house blue when there is no tenant accent", () => {
+    // Fitted brighter for the dark page, but still Azul Eléctrico's hue.
+    const { pdf } = deriveTenantPalette(DEFAULT_ACCENT_HEX);
+    expect(Math.round(toHsl(pdf.accent).h)).toBe(223);
   });
 
-  it.each(ACCENTS)("keeps the report gold readable on its dark page for %s", (_label, hex) => {
+  it.each(ACCENTS)("keeps the report accent readable on its dark page for %s", (_label, hex) => {
     const { pdf } = deriveTenantPalette(hex);
-    expect(contrastRatio(pdf.gold, pdf.background)).toBeGreaterThanOrEqual(
+    expect(contrastRatio(pdf.accent, pdf.background)).toBeGreaterThanOrEqual(
       MIN_CONTRAST
     );
-    expect(toHsl(pdf.goldSoft).l).toBeGreaterThanOrEqual(toHsl(pdf.gold).l);
+    expect(toHsl(pdf.accentSoft).l).toBeGreaterThanOrEqual(toHsl(pdf.accent).l);
   });
 });

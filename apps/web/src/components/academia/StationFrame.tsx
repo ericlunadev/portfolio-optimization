@@ -36,7 +36,7 @@ export function StationFrame({ station, children, id, className }: StationFrameP
       <motion.div style={{ opacity }} className="w-full">
         <div className="mx-auto max-w-6xl px-4 md:px-6">
           <div className="mb-8 flex items-baseline gap-3 md:mb-10 md:gap-4">
-            <span className="font-display text-4xl md:text-6xl text-gradient-gold leading-none">
+            <span className="font-display text-4xl md:text-6xl text-primary leading-none">
               {String(station.index).padStart(2, "0")}
             </span>
             <div className="min-w-0">

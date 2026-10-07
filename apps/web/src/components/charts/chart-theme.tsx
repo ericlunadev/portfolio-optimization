@@ -18,7 +18,7 @@ export interface ChartPaletteEntry {
 
 export interface ChartColors {
   palette: ChartPaletteEntry[];
-  /** The optimised portfolio — gold. */
+  /** The optimised portfolio — the brand accent. */
   optimal: string;
   /** The user's own allocation — amber. */
   user: string;
@@ -28,7 +28,7 @@ export interface ChartColors {
   asset: string;
   /**
    * Reference portfolios, handed out in selection order. Deliberately skips the
-   * gold, amber and violet already spoken for by the optimal portfolio, the
+   * accent, amber and violet already spoken for by the optimal portfolio, the
    * user's allocation and the frontier.
    */
   benchmarks: string[];
@@ -47,87 +47,22 @@ export interface ChartColors {
 }
 
 /**
- * Series colours, one complete set per appearance — the house sets, used when
- * no tenant accent is in play.
- *
- * These are deliberately plain hex strings rather than `var(--token)`: several
- * call sites build a translucent variant by concatenating a hex alpha pair
- * (`${color}55`), which only works on a real hex value. `deriveTenantPalette`
- * keeps emitting hex for the same reason.
- */
-const DARK_COLORS: ChartColors = {
-  palette: [
-    { name: "gold", stroke: "#e0a861", solid: "#c89853", soft: "#fcd9a8" },
-    { name: "emerald", stroke: "#34d399", solid: "#10b981", soft: "#a7f3d0" },
-    { name: "violet", stroke: "#a78bfa", solid: "#8b5cf6", soft: "#c4b5fd" },
-    { name: "amber", stroke: "#fbbf24", solid: "#f59e0b", soft: "#fde68a" },
-    { name: "blue", stroke: "#60a5fa", solid: "#3b82f6", soft: "#bfdbfe" },
-    { name: "teal", stroke: "#2dd4bf", solid: "#14b8a6", soft: "#99f6e4" },
-    { name: "rose", stroke: "#fb7185", solid: "#f43f5e", soft: "#fda4af" },
-    { name: "lime", stroke: "#a3e635", solid: "#84cc16", soft: "#d9f99d" },
-  ],
-  optimal: "#e0a861",
-  user: "#fbbf24",
-  frontier: "#a78bfa",
-  asset: "#94a3b8",
-  benchmarks: ["#60a5fa", "#2dd4bf", "#fb7185", "#a3e635", "#f0abfc", "#38bdf8"],
-  danger: "#f87171",
-  frontierFrom: "#7c3aed",
-  frontierTo: "#22d3ee",
-  optimalBar: ["#c89853", "#fcd9a8"],
-  userBar: ["#f59e0b", "#fde68a"],
-  markerOutline: "#0d0e13",
-  cursor: "#3f4457",
-};
-
-/** Same hues as the dark set, pushed dark enough to hold up on a white card. */
-const LIGHT_COLORS: ChartColors = {
-  palette: [
-    { name: "gold", stroke: "#a97b2f", solid: "#8a6224", soft: "#d9b57a" },
-    { name: "emerald", stroke: "#059669", solid: "#047857", soft: "#6ee7b7" },
-    { name: "violet", stroke: "#7c3aed", solid: "#6d28d9", soft: "#a78bfa" },
-    { name: "amber", stroke: "#d97706", solid: "#b45309", soft: "#fcd34d" },
-    { name: "blue", stroke: "#2563eb", solid: "#1d4ed8", soft: "#93c5fd" },
-    { name: "teal", stroke: "#0d9488", solid: "#0f766e", soft: "#5eead4" },
-    { name: "rose", stroke: "#e11d48", solid: "#be123c", soft: "#fda4af" },
-    { name: "lime", stroke: "#65a30d", solid: "#4d7c0f", soft: "#bef264" },
-  ],
-  optimal: "#8a6224",
-  user: "#b45309",
-  frontier: "#6d28d9",
-  asset: "#475569",
-  benchmarks: ["#2563eb", "#0d9488", "#e11d48", "#65a30d", "#c026d3", "#0284c7"],
-  danger: "#dc2626",
-  frontierFrom: "#6d28d9",
-  frontierTo: "#0e7490",
-  optimalBar: ["#8a6224", "#c99a49"],
-  userBar: ["#b45309", "#e8a33d"],
-  markerOutline: "#ffffff",
-  cursor: "#a8a294",
-};
-
-const HOUSE_COLORS: Record<ResolvedTheme, ChartColors> = {
-  dark: DARK_COLORS,
-  light: LIGHT_COLORS,
-};
-
-/**
  * The series set for one appearance, given the tenant's accent.
  *
- * A tenant with an accent gets `deriveTenantPalette`'s set: the brand slot and
- * the optimal portfolio take their colour, and every other series is pushed off
- * that hue so the chart stays readable. Without an accent the sets above are
- * returned untouched rather than re-derived from the house gold — the two are
- * close but not identical, and the D2C product (tenant #1, per D5) should not
- * shift colour because branding shipped.
+ * Every set comes out of `deriveTenantPalette`: a tenant's accent takes the
+ * brand slot and the optimal portfolio, and no accent (or an unusable one)
+ * means the house accent, Azul Eléctrico. The house set is therefore derived by
+ * the same rule as a tenant's, so the two cannot drift apart.
+ *
+ * The values are plain hex strings rather than `var(--token)`: several call
+ * sites build a translucent variant by concatenating a hex alpha pair
+ * (`${color}55`), which only works on a real hex value.
  */
 export function resolveChartColors(
   accentHex: string | null | undefined,
   theme: ResolvedTheme
 ): ChartColors {
-  const accent = normalizeAccentHex(accentHex);
-  if (!accent) return HOUSE_COLORS[theme];
-  return deriveTenantPalette(accent).charts[theme];
+  return deriveTenantPalette(normalizeAccentHex(accentHex)).charts[theme];
 }
 
 /** Reactive series colours for the current appearance and tenant. */

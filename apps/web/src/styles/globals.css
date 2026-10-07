@@ -15,120 +15,137 @@
  * alpha where needed.
  */
 @layer base {
+  /*
+   * Prontofolio palette. Named brand colours and where they land:
+   *   Azul Noche     #0b132b  ink on light, the page on dark
+   *   Azul Eléctrico #2563ff  --primary (the house accent)
+   *   Cian Digital   #00c2ff  --brand-cyan, the far end of the logo gradient
+   *   Verde Data     #17c964  --brand-green, the logo's arrow
+   *   Blanco Hielo   #f8fbff  the page on light, ink on dark
+   *   Gris Titanio   #d9e1ec  --border on light
+   *   Grafito        #1e293b  raised surfaces on dark
+   *
+   * The accent tokens (--primary, --primary-emphasis, --ring, the glows) are
+   * exactly what `deriveTenantPalette` produces for the house accent; a tenant
+   * with its own accent overrides them through the same function, so change
+   * them there, not here.
+   */
   :root {
-    --background: 40 30% 97%;
-    --foreground: 230 25% 12%;
+    --background: 214.29 100% 98.63%;
+    --foreground: 225 59.26% 10.59%;
     --card: 0 0% 100%;
-    --card-foreground: 230 25% 12%;
+    --card-foreground: 225 59.26% 10.59%;
     --popover: 0 0% 100%;
-    --popover-foreground: 230 25% 12%;
-    --primary: 38 62% 36%;
-    --primary-foreground: 40 40% 98%;
-    --secondary: 40 20% 93%;
-    --secondary-foreground: 230 20% 25%;
-    --muted: 40 18% 93%;
-    --muted-foreground: 230 10% 40%;
-    --accent: 40 22% 90%;
-    --accent-foreground: 230 25% 15%;
-    --destructive: 0 70% 44%;
+    --popover-foreground: 225 59.26% 10.59%;
+    --primary: 223 100% 57%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 52% 95%;
+    --secondary-foreground: 217.24 32.58% 17.45%;
+    --muted: 214 45% 95%;
+    --muted-foreground: 216 22% 36%;
+    --accent: 214 60% 93%;
+    --accent-foreground: 225 59.26% 10.59%;
+    --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 40 14% 86%;
-    --input: 40 14% 80%;
-    --ring: 38 62% 40%;
+    --border: 214.74 33.33% 88.82%;
+    --input: 215 28% 81%;
+    --ring: 223 100% 61%;
     --radius: 0.75rem;
 
-    /* A gold one step further from the background than --primary, for
-       "this one is the winner" emphasis. It moves *away* from the page in each
-       theme: darker on light, brighter on dark. */
-    --primary-emphasis: 38 72% 27%;
+    /* One step further from the page than --primary, for "this one is the
+       winner" emphasis: darker on light, brighter on dark. */
+    --primary-emphasis: 223 100% 48%;
+
+    /* The logo mark's own colours. Only the Prontofolio mark reads these; a
+       tenant never sees them, so they are not part of the derived palette. */
+    --brand-blue: 223 100% 57%;
+    --brand-cyan: 194 100% 50%;
+    --brand-green: 146 80% 44%;
 
     /* Backdrop for the cinematic 3D scenes (the globe). These are lit as a
        dark void and stay dark in both themes; the surrounding page frames them
        like a video player rather than recolouring them. */
-    --scene-bg: 230 20% 7%;
-    --scene-foreground: 40 6% 90%;
+    --scene-bg: 226 62% 7%;
+    --scene-foreground: 214 100% 97%;
 
-    /* Page backdrop — a soft warm wash rather than a flat fill. */
-    --surface-gradient-from: 40 45% 99%;
-    --surface-gradient-to: 40 25% 95%;
+    /* Page backdrop: Blanco Hielo with a faint cool wash. */
+    --surface-gradient-from: 214.29 100% 98.63%;
+    --surface-gradient-to: 214 60% 96%;
 
     /* Frosted panels. */
-    --glass-bg: 0 0% 100% / 0.7;
+    --glass-bg: 0 0% 100% / 0.75;
 
-    /* Brand gradient used for display headings. */
-    --gradient-gold-from: 38 65% 34%;
-    --gradient-gold-to: 38 80% 46%;
-
-    /* Gold halo behind primary actions. */
-    --glow-strong: 38 62% 40% / 0.22;
-    --glow-soft: 38 62% 40% / 0.08;
+    /* Halo behind primary actions. */
+    --glow-strong: 223 100% 61% / 0.22;
+    --glow-soft: 223 100% 61% / 0.08;
 
     /* Chrome that is not a Tailwind token. */
-    --scrollbar-thumb: 40 10% 76%;
-    --scrollbar-thumb-hover: 40 10% 62%;
-    --range-track: 40 12% 84%;
+    --scrollbar-thumb: 215 25% 78%;
+    --scrollbar-thumb-hover: 215 22% 62%;
+    --range-track: 215 33% 86%;
 
-    /* Chart chrome. Series colours live in `chart-theme.tsx`; these are the
+    /* Chart chrome. Series colours live in `tenant-palette.ts`; these are the
        axes/grid/labels that must flip with the theme. */
-    --chart-grid: 40 14% 88%;
-    --chart-axis: 230 10% 45%;
-    --chart-tick: 230 10% 40%;
-    --chart-legend: 230 15% 30%;
-    --chart-tooltip-shadow: 230 25% 40% / 0.18;
+    --chart-grid: 215 33% 91%;
+    --chart-axis: 216 20% 46%;
+    --chart-tick: 216 22% 40%;
+    --chart-legend: 217 33% 24%;
+    --chart-tooltip-shadow: 225 59% 30% / 0.16;
 
     /* Skeleton shimmer. */
-    --shimmer-base: 40 18% 92%;
-    --shimmer-highlight: 40 25% 97%;
+    --shimmer-base: 214 45% 93%;
+    --shimmer-highlight: 214 70% 98%;
 
     color-scheme: light;
   }
 
   .dark {
-    --background: 230 15% 5%;
-    --foreground: 40 6% 90%;
-    --card: 230 15% 8%;
-    --card-foreground: 40 6% 90%;
-    --popover: 230 15% 10%;
-    --popover-foreground: 40 6% 90%;
-    --primary: 38 65% 55%;
-    --primary-foreground: 230 20% 8%;
-    --secondary: 230 15% 12%;
-    --secondary-foreground: 40 6% 75%;
-    --muted: 230 12% 14%;
-    --muted-foreground: 230 8% 50%;
-    --accent: 230 15% 16%;
-    --accent-foreground: 40 6% 90%;
-    --destructive: 0 72% 60%;
+    --background: 225 59.26% 10.59%;
+    --foreground: 214 60% 95%;
+    --card: 224 48% 15%;
+    --card-foreground: 214 60% 95%;
+    --popover: 217.24 32.58% 17.45%;
+    --popover-foreground: 214 60% 95%;
+    --primary: 223 100% 62%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 223 42% 17%;
+    --secondary-foreground: 214 35% 80%;
+    --muted: 223 40% 17%;
+    --muted-foreground: 216 22% 66%;
+    --accent: 222 40% 21%;
+    --accent-foreground: 214 60% 95%;
+    --destructive: 0 80% 64%;
     --destructive-foreground: 0 0% 100%;
-    --border: 230 12% 17%;
-    --input: 230 12% 19%;
-    --ring: 38 65% 55%;
+    --border: 221 36% 22%;
+    --input: 221 33% 26%;
+    --ring: 223 100% 62%;
 
-    --primary-emphasis: 38 65% 65%;
+    --primary-emphasis: 223 100% 72%;
 
-    --surface-gradient-from: 230 18% 9%;
-    --surface-gradient-to: 230 15% 5%;
+    --brand-blue: 223 100% 62%;
+    --brand-cyan: 194 100% 55%;
+    --brand-green: 146 72% 48%;
 
-    --glass-bg: 230 15% 8% / 0.6;
+    --surface-gradient-from: 224 52% 15%;
+    --surface-gradient-to: 225 60% 9%;
 
-    --gradient-gold-from: 38 60% 50%;
-    --gradient-gold-to: 38 85% 65%;
+    --glass-bg: 224 48% 15% / 0.6;
 
-    --glow-strong: 38 65% 55% / 0.15;
-    --glow-soft: 38 65% 55% / 0.05;
+    --glow-strong: 223 100% 62% / 0.15;
+    --glow-soft: 223 100% 62% / 0.05;
 
-    --scrollbar-thumb: 230 12% 22%;
-    --scrollbar-thumb-hover: 230 12% 30%;
-    --range-track: 230 12% 30%;
+    --scrollbar-thumb: 221 30% 28%;
+    --scrollbar-thumb-hover: 221 30% 36%;
+    --range-track: 221 30% 28%;
 
-    --chart-grid: 230 12% 17%;
-    --chart-axis: 230 8% 38%;
-    --chart-tick: 230 8% 55%;
-    --chart-legend: 40 6% 70%;
-    --chart-tooltip-shadow: 0 0% 0% / 0.5;
+    --chart-grid: 221 36% 20%;
+    --chart-axis: 216 20% 46%;
+    --chart-tick: 216 22% 62%;
+    --chart-legend: 214 35% 78%;
+    --chart-tooltip-shadow: 226 70% 3% / 0.6;
 
-    --shimmer-base: 230 15% 12%;
-    --shimmer-highlight: 230 15% 16%;
+    --shimmer-base: 223 42% 17%;
+    --shimmer-highlight: 223 42% 22%;
 
     color-scheme: dark;
   }
@@ -255,19 +272,8 @@
     backdrop-filter: blur(12px);
   }
 
-  .glow-gold {
+  .glow-primary {
     box-shadow: 0 0 20px hsl(var(--glow-strong)), 0 0 60px hsl(var(--glow-soft));
-  }
-
-  .text-gradient-gold {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--gradient-gold-from)),
-      hsl(var(--gradient-gold-to))
-    );
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
   }
 }
 

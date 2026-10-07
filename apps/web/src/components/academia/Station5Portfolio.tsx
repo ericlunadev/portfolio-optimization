@@ -268,7 +268,7 @@ export function Station5Portfolio({ id }: { id: string }) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="glass-card p-8 border-primary/40 glow-gold text-center space-y-4"
+          className="glass-card p-8 border-primary/40 glow-primary text-center space-y-4"
         >
           <h3 className="font-display text-2xl md:text-3xl">
             {t("ctaTitle")}

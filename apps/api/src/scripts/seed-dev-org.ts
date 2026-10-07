@@ -32,7 +32,7 @@ import {
 // changing it there gives a migrated database two default tenants.
 const ORG_ID = "org-d2c";
 const ORG_SLUG = "d2c";
-const ORG_NAME = "Optimización de Portafolio";
+const ORG_NAME = "Prontofolio";
 const DOMAIN_ID = "dom-d2c-localhost";
 // The dev Host header is `localhost:3000`, so Task 1.1's lookup has to strip the
 // port before matching this row.
@@ -109,10 +109,10 @@ async function seedBranding(organizationId: string): Promise<void> {
   await db.insert(organizationBranding).values({
     organizationId,
     productName: ORG_NAME,
-    productShortName: "Optim.",
+    productShortName: "Pronto",
     tagline: "Optimización de portafolio basada en la teoría de Markowitz",
-    accentHex: "#d7a042",
-    fontKey: "instrument-sans",
+    accentHex: "#2563ff",
+    fontKey: "space-grotesk",
   });
   console.log("✓ organization_branding: seeded");
 }

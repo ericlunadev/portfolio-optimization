@@ -78,7 +78,7 @@ export function Station1Macro({ id }: { id: string }) {
                   className={cn(
                     "rounded-lg border px-3 py-2 text-sm transition-all",
                     climate === c
-                      ? "border-primary bg-primary/10 text-primary glow-gold dark:border-primary/50"
+                      ? "border-primary bg-primary/10 text-primary glow-primary dark:border-primary/50"
                       : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground dark:border-border/50 dark:bg-card/40 dark:hover:border-border",
                   )}
                 >

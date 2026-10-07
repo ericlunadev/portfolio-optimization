@@ -318,34 +318,34 @@ describe("buildSimulationPdf with a report config", () => {
 });
 
 describe("buildSimulationPdf with tenant branding", () => {
-  /** A green brand, deliberately nothing like the house gold. */
+  /** A green brand, deliberately nothing like the house blue. */
   const TENANT_ACCENT = "#2f6f4f";
 
-  it("paints the report in the tenant's derived gold, not ours", async () => {
+  it("paints the report in the tenant's derived accent, not ours", async () => {
     const doc = await buildSimulationPdf(
       makeInput({ branding: { accentHex: TENANT_ACCENT } })
     );
 
     const tenant = deriveTenantPalette(TENANT_ACCENT).pdf;
-    expect(usesColor(doc, tenant.gold)).toBe(true);
-    expect(usesColor(doc, tenant.goldSoft)).toBe(true);
-    // The point of the change: the house gold is gone from a tenant's report.
-    expect(usesColor(doc, PDF_COLORS.gold)).toBe(false);
+    expect(usesColor(doc, tenant.accent)).toBe(true);
+    expect(usesColor(doc, tenant.accentSoft)).toBe(true);
+    // The point of the change: the house accent is gone from a tenant's report.
+    expect(usesColor(doc, PDF_COLORS.accent)).toBe(false);
   });
 
   it("keeps our own palette when no branding is given", async () => {
     const doc = await buildSimulationPdf(makeInput());
 
-    expect(usesColor(doc, PDF_COLORS.gold)).toBe(true);
+    expect(usesColor(doc, PDF_COLORS.accent)).toBe(true);
     expect(usesColor(doc, PDF_COLORS.background)).toBe(true);
   });
 
-  it("falls back to our gold when the accent is unusable", async () => {
+  it("falls back to our accent when the accent is unusable", async () => {
     const doc = await buildSimulationPdf(
       makeInput({ branding: { accentHex: "not-a-colour" } })
     );
 
-    expect(usesColor(doc, PDF_COLORS.gold)).toBe(true);
+    expect(usesColor(doc, PDF_COLORS.accent)).toBe(true);
   });
 
   it("draws the tenant logo when one arrives as a data URI", async () => {
@@ -449,7 +449,7 @@ function usesColor(
   const target = [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 
   const operators = extractText(doc).matchAll(
-    /(\d*\.?\d+) (\d*\.?\d+) (\d*\.?\d+) (?:rg|RG)\b/g
+    /(\d+\.?\d*|\.\d+) (\d+\.?\d*|\.\d+) (\d+\.?\d*|\.\d+) (?:rg|RG)\b/g
   );
   return [...operators].some((match) =>
     target.every(

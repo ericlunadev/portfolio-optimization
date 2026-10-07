@@ -136,7 +136,7 @@ export function AuthModal({ open, onClose, initialMode = "signin" }: AuthModalPr
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 glow-gold"
+            className="w-full rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 glow-primary"
           >
             {loading ? t("loading") : isSignUp ? t("createAccount") : t("signIn")}
           </button>

@@ -4,10 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { useTenantBrand } from "@/components/tenant/TenantProvider";
+import { BrandLockup } from "@/components/brand/BrandLockup";
 import { useOrgSettings } from "@/hooks/useOrgSettings";
 import { isNavHrefVisible } from "@/lib/org-settings";
-import { wordmark } from "@/lib/wordmark";
 import { BarChart3, CalendarClock, Home, GraduationCap, Wallet } from "lucide-react";
 
 // Kept identical to `MobileTabBar`'s list, per CLAUDE.md. Which of them a given
@@ -23,8 +22,6 @@ const navItems = [
 export function Sidebar() {
   const pathname = usePathname();
   const tNav = useTranslations("Nav");
-  const brand = useTenantBrand();
-  const mark = wordmark(brand.productName, brand.shortName);
   const { settings } = useOrgSettings();
   const visibleItems = navItems.filter((item) =>
     isNavHrefVisible(item.href, settings)
@@ -33,27 +30,7 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex w-64 shrink-0 border-r border-border bg-card/80 dark:border-border/50 dark:bg-card/40 backdrop-blur-sm flex-col">
       <div className="p-6 pb-8">
-        {mark.joined ? (
-          // A compound name ("pronto" + "folio"): light lead, bold accented tail.
-          <h1
-            className="font-display text-[1.7rem] lowercase leading-none tracking-tight"
-            aria-label={brand.productName}
-            title={brand.productName}
-          >
-            <span className="font-light text-foreground/70">{mark.accent}</span>
-            <span className="font-bold text-gradient-gold">{mark.rest}</span>
-          </h1>
-        ) : (
-          <h1 className="font-display text-2xl tracking-tight">
-            <span className="text-gradient-gold">{mark.accent}</span>
-            {mark.rest && (
-              <>
-                {" "}
-                <span className="text-foreground/80">{mark.rest}</span>
-              </>
-            )}
-          </h1>
-        )}
+        <BrandLockup />
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
