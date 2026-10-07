@@ -125,11 +125,11 @@ const CSS_VARIABLES: TenantCssVariable[] = [
 
 /** `globals.css`, `.dark` block. The house accent has to reproduce it exactly. */
 const GLOBALS_DARK: Record<TenantCssVariable, string> = {
-  "--primary": "223 100% 63%",
-  "--primary-emphasis": "223 100% 73%",
-  "--ring": "223 100% 63%",
-  "--glow-strong": "223 100% 63% / 0.15",
-  "--glow-soft": "223 100% 63% / 0.05",
+  "--primary": "223 100% 62%",
+  "--primary-emphasis": "223 100% 72%",
+  "--ring": "223 100% 62%",
+  "--glow-strong": "223 100% 62% / 0.15",
+  "--glow-soft": "223 100% 62% / 0.05",
 };
 
 /** `globals.css`, `:root` block. */
@@ -180,8 +180,8 @@ describe("contrastRatio", () => {
   });
 
   it("reads the page colours straight off globals.css", () => {
-    expect(THEME_BACKGROUND_HEX.light).toBe("#fafcff"); // 214 100% 99%, Blanco Hielo
-    expect(THEME_BACKGROUND_HEX.dark).toBe("#0c142d"); // 225 59% 11%, Azul Noche
+    expect(THEME_BACKGROUND_HEX.light).toBe("#f8fbff"); // Blanco Hielo
+    expect(THEME_BACKGROUND_HEX.dark).toBe("#0b132b"); // Azul Noche
   });
 });
 

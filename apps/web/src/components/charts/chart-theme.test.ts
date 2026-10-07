@@ -16,7 +16,7 @@ describe("resolveChartColors", () => {
       // The brand slot is the one a tenant would take over, so it is the one
       // worth asserting carries Azul Eléctrico for the D2C product.
       expect(house.palette[0].name).toBe("brand");
-      expect(house.optimal).toBe(theme === "dark" ? "#4278ff" : "#2462ff");
+      expect(house.optimal).toBe(theme === "dark" ? "#3d74ff" : "#2462ff");
       expect(house.palette[3]).toEqual(
         theme === "dark"
           ? { name: "amber", stroke: "#fbbf24", solid: "#f59e0b", soft: "#fde68a" }

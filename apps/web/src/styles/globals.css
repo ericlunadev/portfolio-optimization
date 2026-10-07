@@ -31,23 +31,23 @@
    * them there, not here.
    */
   :root {
-    --background: 214 100% 99%;
-    --foreground: 225 59% 11%;
+    --background: 214.29 100% 98.63%;
+    --foreground: 225 59.26% 10.59%;
     --card: 0 0% 100%;
-    --card-foreground: 225 59% 11%;
+    --card-foreground: 225 59.26% 10.59%;
     --popover: 0 0% 100%;
-    --popover-foreground: 225 59% 11%;
+    --popover-foreground: 225 59.26% 10.59%;
     --primary: 223 100% 57%;
     --primary-foreground: 0 0% 100%;
     --secondary: 214 52% 95%;
-    --secondary-foreground: 217 33% 17%;
+    --secondary-foreground: 217.24 32.58% 17.45%;
     --muted: 214 45% 95%;
     --muted-foreground: 216 22% 36%;
     --accent: 214 60% 93%;
-    --accent-foreground: 225 59% 11%;
+    --accent-foreground: 225 59.26% 10.59%;
     --destructive: 0 72% 45%;
     --destructive-foreground: 0 0% 100%;
-    --border: 215 33% 89%;
+    --border: 214.74 33.33% 88.82%;
     --input: 215 28% 81%;
     --ring: 223 100% 61%;
     --radius: 0.75rem;
@@ -69,7 +69,7 @@
     --scene-foreground: 214 100% 97%;
 
     /* Page backdrop: Blanco Hielo with a faint cool wash. */
-    --surface-gradient-from: 214 100% 99%;
+    --surface-gradient-from: 214.29 100% 98.63%;
     --surface-gradient-to: 214 60% 96%;
 
     /* Frosted panels. */
@@ -100,13 +100,13 @@
   }
 
   .dark {
-    --background: 225 59% 11%;
+    --background: 225 59.26% 10.59%;
     --foreground: 214 60% 95%;
     --card: 224 48% 15%;
     --card-foreground: 214 60% 95%;
-    --popover: 217 33% 17%;
+    --popover: 217.24 32.58% 17.45%;
     --popover-foreground: 214 60% 95%;
-    --primary: 223 100% 63%;
+    --primary: 223 100% 62%;
     --primary-foreground: 0 0% 100%;
     --secondary: 223 42% 17%;
     --secondary-foreground: 214 35% 80%;
@@ -118,11 +118,11 @@
     --destructive-foreground: 0 0% 100%;
     --border: 221 36% 22%;
     --input: 221 33% 26%;
-    --ring: 223 100% 63%;
+    --ring: 223 100% 62%;
 
-    --primary-emphasis: 223 100% 73%;
+    --primary-emphasis: 223 100% 72%;
 
-    --brand-blue: 223 100% 63%;
+    --brand-blue: 223 100% 62%;
     --brand-cyan: 194 100% 55%;
     --brand-green: 146 72% 48%;
 
@@ -131,8 +131,8 @@
 
     --glass-bg: 224 48% 15% / 0.6;
 
-    --glow-strong: 223 100% 63% / 0.15;
-    --glow-soft: 223 100% 63% / 0.05;
+    --glow-strong: 223 100% 62% / 0.15;
+    --glow-soft: 223 100% 62% / 0.05;
 
     --scrollbar-thumb: 221 30% 28%;
     --scrollbar-thumb-hover: 221 30% 36%;

@@ -44,18 +44,13 @@ export const MIN_CONTRAST = 4.5;
 export const MIN_LARGE_TEXT_CONTRAST = 3;
 
 /**
- * `--background` in each appearance, mirroring `globals.css`. The contrast fit
- * is measured against these, so they have to be updated together.
+ * `--background` in each appearance, as the exact brand hex `globals.css`
+ * encodes in decimal HSL. The contrast fit is measured against these, so they
+ * have to be updated together.
  */
-const BACKGROUND: Record<ResolvedTheme, Hsl> = {
-  light: { h: 214, s: 100, l: 99 }, // Blanco Hielo, #f8fbff
-  dark: { h: 225, s: 59, l: 11 }, // Azul Noche, #0b132b
-};
-
-/** The page colour each theme is fitted against, as hex. */
 export const THEME_BACKGROUND_HEX: Record<ResolvedTheme, string> = {
-  light: hslToHex(BACKGROUND.light),
-  dark: hslToHex(BACKGROUND.dark),
+  light: "#f8fbff", // Blanco Hielo
+  dark: "#0b132b", // Azul Noche
 };
 
 /**
@@ -252,7 +247,7 @@ function deriveVariables(
 const BASE_CHART_COLORS: Record<ResolvedTheme, ChartColors> = {
   dark: {
     palette: [
-      { name: "brand", stroke: "#4278ff", solid: "#2b62ee", soft: "#a3bdff" },
+      { name: "brand", stroke: "#3d74ff", solid: "#265eed", soft: "#9ebaff" },
       { name: "green", stroke: "#17c964", solid: "#10a552", soft: "#a3efc4" },
       { name: "violet", stroke: "#a78bfa", solid: "#8b5cf6", soft: "#c4b5fd" },
       { name: "amber", stroke: "#fbbf24", solid: "#f59e0b", soft: "#fde68a" },
@@ -261,7 +256,7 @@ const BASE_CHART_COLORS: Record<ResolvedTheme, ChartColors> = {
       { name: "rose", stroke: "#fb7185", solid: "#f43f5e", soft: "#fda4af" },
       { name: "lime", stroke: "#a3e635", solid: "#84cc16", soft: "#d9f99d" },
     ],
-    optimal: "#4278ff",
+    optimal: "#3d74ff",
     user: "#fbbf24",
     frontier: "#a78bfa",
     asset: "#94a3b8",
@@ -276,9 +271,9 @@ const BASE_CHART_COLORS: Record<ResolvedTheme, ChartColors> = {
     danger: "#f87171",
     frontierFrom: "#7c3aed",
     frontierTo: "#00c2ff",
-    optimalBar: ["#2b62ee", "#a3bdff"],
+    optimalBar: ["#265eed", "#9ebaff"],
     userBar: ["#f59e0b", "#fde68a"],
-    markerOutline: "#0c142d",
+    markerOutline: "#0b132b",
     cursor: "#2b3a5e",
   },
   light: {
