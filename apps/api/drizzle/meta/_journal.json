@@ -99,6 +99,13 @@
       "when": 1790772568094,
       "tag": "0013_schedule_organizations",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1791312475816,
+      "tag": "0014_prontofolio_brand",
+      "breakpoints": true
     }
   ]
 }

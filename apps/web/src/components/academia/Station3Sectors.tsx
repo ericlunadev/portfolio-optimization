@@ -190,7 +190,7 @@ export function Station3Sectors({ id }: { id: string }) {
                     phase === p
                       ? // The glow only reads on dark; the ring + solid border keep
                         // the selected phase distinguishable on light.
-                        "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 glow-gold"
+                        "border-primary bg-primary/10 text-primary ring-1 ring-primary/40 glow-primary"
                       : "border-border/50 bg-card/40 text-muted-foreground hover:border-border hover:text-foreground",
                   )}
                 >

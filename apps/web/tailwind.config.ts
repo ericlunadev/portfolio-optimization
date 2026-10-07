@@ -7,6 +7,8 @@ const config: Config = {
     "./src/pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
+    // Helpers that return class names, e.g. `navGridClass` in lib/org-settings.ts.
+    "./src/lib/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -20,7 +22,7 @@ const config: Config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
-          // Gold pushed further from the page: darker on light, brighter on dark.
+          // The accent pushed further from the page: darker on light, brighter on dark.
           emphasis: "hsl(var(--primary-emphasis))",
         },
         // The cinematic 3D stage, which stays dark in both themes.

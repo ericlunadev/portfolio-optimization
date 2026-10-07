@@ -19,7 +19,7 @@ import { deriveTenantPalette, type TenantPdfColors } from "@/lib/tenant-palette"
  * dark background and would be unreadable on white.
  *
  * This is the artifact that leaves the building — the file a tenant's analyst
- * emails to their own client — so its gold comes from `deriveTenantPalette`
+ * emails to their own client — so its accent comes from `deriveTenantPalette`
  * rather than from constants of its own. `buildSimulationPdf` runs in the
  * browser (`await import("jspdf")` below), so the tenant's brand arrives on
  * `input.branding` as client props: nothing here can fetch it, and a logo has to
@@ -260,7 +260,7 @@ function drawSectionHeading(ctx: DrawContext, text: string): void {
   const { doc } = ctx;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  setText(doc, ctx.colors.gold);
+  setText(doc, ctx.colors.accent);
   doc.text(text.toUpperCase(), MARGIN, ctx.y, { baseline: "top" });
   ctx.y += lineHeight(10) + 1.5;
 
@@ -322,7 +322,7 @@ function drawTable(
       const isRight = column.align === "right";
       const isHighlighted =
         options.highlightLastColumn && index === columns.length - 1;
-      setText(doc, isHighlighted ? ctx.colors.goldSoft : ctx.colors.text);
+      setText(doc, isHighlighted ? ctx.colors.accentSoft : ctx.colors.text);
       doc.setFont("helvetica", isHighlighted ? "bold" : "normal");
       const cell = truncateToWidth(doc, row[index] ?? "", column.width - 6);
       doc.text(cell, isRight ? x + column.width - 6 : x, ctx.y + 2.1, {
@@ -367,7 +367,7 @@ function drawHeader(ctx: DrawContext, input: SimulationPdfInput): void {
     doc.addImage(logo.dataUrl, MARGIN, ctx.y, width, height);
     ctx.y += height + 4;
   } else {
-    setFill(doc, ctx.colors.gold);
+    setFill(doc, ctx.colors.accent);
     doc.rect(MARGIN, ctx.y, 22, 1, "F");
     ctx.y += 5;
   }
@@ -476,7 +476,7 @@ function drawMetrics(
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    setText(doc, ctx.colors.goldSoft);
+    setText(doc, ctx.colors.accentSoft);
     doc.text(card.value, x + 3, ctx.y + 10, { baseline: "top" });
 
     if (card.hint) {

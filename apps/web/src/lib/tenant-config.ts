@@ -48,6 +48,12 @@ export interface TenantConfig {
   organizationId: string | null;
   slug: string | null;
   tier: TenantTier;
+  /**
+   * True for our own (D2C) tenant, and for the fallback when the lookup fails.
+   * Decides whether the Prontofolio mark is drawn: it is our logo, so a
+   * tenant's product never carries it.
+   */
+  isDefault: boolean;
   brand: TenantBrand;
   /** The single colour input a tenant gets (D9). `null` keeps the stock palette. */
   accentHex: string | null;
@@ -68,12 +74,14 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   organizationId: null,
   slug: null,
   tier: "cobranded",
+  isDefault: true,
   brand: {
-    // `wordmark()` renders these as "Optim. Portafolio", the pre-whitelabel wordmark.
-    productName: "Optimización de Portafolio",
-    shortName: "Optim.",
+    // One word, so there is no short name to place an accent inside it: the
+    // Prontofolio mark carries the colour and the name is set in ink.
+    productName: "Prontofolio",
+    shortName: "",
     tagline: "Optimización de portafolio basada en la teoría de Markowitz",
-    title: "Optimización de Portafolio",
+    title: "Prontofolio",
     description: "Herramienta de optimización de portafolio Markowitz",
   },
   accentHex: null,
@@ -160,6 +168,7 @@ export function tenantConfigFromResponse(payload: unknown): TenantConfig {
     organizationId,
     slug: readString(body, "slug"),
     tier: body.tier === "whitelabel" ? "whitelabel" : "cobranded",
+    isDefault: body.isDefault === true,
     brand,
     accentHex: readString(branding, "accentHex"),
     fontKey: readString(branding, "fontKey"),

@@ -84,7 +84,7 @@ describe("ScheduledReport", () => {
     for (const html of [report, notice]) {
       expect(html).toContain("Acme Wealth");
       expect(html).not.toContain(emailMessages.en.brand);
-      expect(html).not.toContain("#c8a45c");
+      expect(html).not.toContain("#2563ff");
       expect(html).toContain("#0b3d91");
     }
     expect(report).toContain("Acme is not an adviser.");
@@ -102,20 +102,20 @@ describe("ScheduledReport", () => {
       />
     );
     expect(html).toContain("Acme Wealth");
-    expect(html).toContain("#c8a45c");
+    expect(html).toContain("#2563ff");
     expect(html).toContain(emailMessages.en.investingDisclaimer);
   });
 });
 
 describe("accentColors", () => {
   it("puts dark text on a light accent and white text on a dark one", () => {
-    expect(accentColors("#c8a45c")).toEqual({ accent: "#c8a45c", onAccent: "#1c1917" });
+    expect(accentColors("#c8a45c")).toEqual({ accent: "#c8a45c", onAccent: "#0b132b" });
     expect(accentColors("#0b3d91")).toEqual({ accent: "#0b3d91", onAccent: "#ffffff" });
   });
 
   it("uses our accent when the tenant's is missing or not a hex colour", () => {
-    expect(accentColors(null).accent).toBe("#c8a45c");
-    expect(accentColors("navy").accent).toBe("#c8a45c");
+    expect(accentColors(null).accent).toBe("#2563ff");
+    expect(accentColors("navy").accent).toBe("#2563ff");
   });
 });
 

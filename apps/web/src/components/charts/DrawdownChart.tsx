@@ -29,9 +29,9 @@ interface DrawdownChartProps {
 export function DrawdownChart({ data, fundName }: DrawdownChartProps) {
   const t = useTranslations("DrawdownChart");
   const colors = useChartColors();
-  // Blue for the return line so red stays exclusively "loss".
+  // Cyan for the return line so red stays exclusively "loss".
   const returnColor =
-    colors.palette.find((c) => c.name === "blue")?.stroke ??
+    colors.palette.find((c) => c.name === "cyan")?.stroke ??
     colors.palette[0].stroke;
   return (
     <div className="h-[260px] sm:h-[340px] md:h-[400px]">

@@ -9,14 +9,10 @@ import { EmailVerificationBanner } from "@/components/auth/EmailVerificationBann
 import { LocaleSwitcher } from "@/components/layout/LocaleSwitcher";
 import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
 import { CreditsChip } from "@/components/billing/CreditsChip";
-import { useTenantBrand } from "@/components/tenant/TenantProvider";
-import { wordmark } from "@/lib/wordmark";
+import { BrandLockup } from "@/components/brand/BrandLockup";
 
 export function Header() {
   const t = useTranslations("Header");
-  // The wordmark is tenant data, not translated copy — see CLAUDE.md.
-  const brand = useTenantBrand();
-  const mark = wordmark(brand.productName, brand.shortName);
   const { data: session, isPending } = authClient.useSession();
   const user = session?.user;
 
@@ -44,17 +40,8 @@ export function Header() {
       <EmailVerificationBanner />
       <header className="relative z-30 border-b border-border bg-card/80 backdrop-blur-sm px-4 py-3 dark:border-border/50 dark:bg-card/20 md:px-8">
         <div className="flex items-center justify-between gap-2 md:justify-end md:gap-3">
-          {/* Phones get only the accented part of the wordmark (lib/wordmark.ts).
-              At 390px the controls beside it take ~290px of the 358 available,
-              which leaves room for a short mark, not a product name; it
-              truncates rather than wraps when even that does not fit. */}
-          <h1
-            className="min-w-0 font-display text-lg tracking-tight md:hidden"
-            aria-label={brand.productName}
-            title={brand.productName}
-          >
-            <span className="block truncate text-gradient-gold">{mark.accent}</span>
-          </h1>
+          {/* The wordmark is tenant data, not translated copy (CLAUDE.md). */}
+          <BrandLockup compact className="md:hidden" />
           <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
             <CreditsChip />
             <ThemeSwitcher />
@@ -117,7 +104,7 @@ export function Header() {
           ) : (
             <button
               onClick={() => setShowAuthModal(true)}
-              className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 glow-gold md:px-4"
+              className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-all hover:brightness-110 glow-primary md:px-4"
             >
               <LogIn className="h-4 w-4" />
               <span className="hidden sm:inline">{t("signIn")}</span>

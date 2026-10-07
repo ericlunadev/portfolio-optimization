@@ -91,18 +91,17 @@ export async function provisionOrganizationForUser(newUser: {
     })
     .onConflictDoNothing();
 
-  // Today's brand values, matching migration 0008 step (6). supportEmail,
+  // Today's brand values, matching migration 0014. supportEmail,
   // privacyPolicyUrl and termsUrl stay NULL: no value for any of them exists in
   // the repo yet (PLAN.md §0.2 item 3).
   await db
     .insert(organizationBranding)
     .values({
       organizationId: org.id,
-      productName: "Optimización de Portafolio",
-      productShortName: "Optim.",
+      productName: "Prontofolio",
       tagline: "Optimización de portafolio basada en la teoría de Markowitz",
-      accentHex: "#d7a042",
-      fontKey: "instrument-sans",
+      accentHex: "#2563ff",
+      fontKey: "space-grotesk",
     })
     .onConflictDoNothing();
 
