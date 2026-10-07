@@ -13,8 +13,10 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
-        sans: ["var(--font-body)", "system-ui", "sans-serif"],
+        // The var() fallback keeps an unset variable from invalidating the whole
+        // declaration, which would drop text to the browser's default serif.
+        display: ["var(--font-display, system-ui)", "system-ui", "sans-serif"],
+        sans: ["var(--font-body, system-ui)", "system-ui", "sans-serif"],
       },
       colors: {
         background: "hsl(var(--background))",
