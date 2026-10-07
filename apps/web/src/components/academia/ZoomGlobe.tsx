@@ -21,8 +21,8 @@ import countries110m from "world-atlas/countries-110m.json";
 type Climate = "expansion" | "contraction" | "stagflation";
 
 const CLIMATE_COLOR: Record<Climate, string> = {
-  expansion: "#e5b661",
-  contraction: "#8b8ea3",
+  expansion: "#00c2ff", // Cian Digital
+  contraction: "#8494b4",
   stagflation: "#c47a52",
 };
 
@@ -136,7 +136,7 @@ function Earth({ climate }: EarthProps) {
       {/* Solid inner globe (oceans) */}
       <Sphere args={[1, 64, 64]}>
         <meshStandardMaterial
-          color="#0f1220"
+          color="#0b132b" // Azul Noche
           emissive={color}
           emissiveIntensity={0.04}
           roughness={0.95}
@@ -208,7 +208,7 @@ export default function ZoomGlobe({ climate }: ZoomGlobeProps) {
     <Canvas camera={{ position: [0, 0, 3.2], fov: 50 }} dpr={[1, 2]}>
       <ambientLight intensity={0.4} />
       <pointLight position={[5, 5, 5]} intensity={1.2} color={color} />
-      <pointLight position={[-5, -3, -2]} intensity={0.35} color="#4a5070" />
+      <pointLight position={[-5, -3, -2]} intensity={0.35} color="#3b4f80" />
       <Earth climate={climate} />
       <FloatingParticles color={color} />
       <OrbitControls
