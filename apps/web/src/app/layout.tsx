@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { cookies, headers } from "next/headers";
-import { Manrope, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -16,14 +16,21 @@ import { deriveTenantPalette } from "@/lib/tenant-palette";
 import "@/styles/globals.css";
 import { Providers } from "./providers";
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
+// Self-hosted rather than `next/font/google`: on Vercel the server and client
+// compilations each fetched the Google CSS and sometimes hashed it differently,
+// so <body> carried a class the stylesheet never defined, `--font-body` was
+// unset, and text fell back to the browser's serif. Local files hash the same
+// in both compilations. Latin subset, variable weight, from Fontsource (OFL).
+const spaceGrotesk = localFont({
+  src: "../fonts/space-grotesk-latin-wght-normal.woff2",
+  weight: "300 700",
   variable: "--font-display",
   display: "swap",
 });
 
-const manrope = Manrope({
-  subsets: ["latin"],
+const manrope = localFont({
+  src: "../fonts/manrope-latin-wght-normal.woff2",
+  weight: "200 800",
   variable: "--font-body",
   display: "swap",
 });
