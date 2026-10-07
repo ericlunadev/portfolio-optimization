@@ -11,7 +11,6 @@ import { ThemeSwitcher } from "@/components/layout/ThemeSwitcher";
 import { CreditsChip } from "@/components/billing/CreditsChip";
 import { useTenantBrand } from "@/components/tenant/TenantProvider";
 import { wordmark } from "@/lib/wordmark";
-import { PrototypeLogo } from "@/components/layout/PrototypeProntofolioLogos";
 
 export function Header() {
   const t = useTranslations("Header");
@@ -49,17 +48,22 @@ export function Header() {
               At 390px the controls beside it take ~290px of the 358 available,
               which leaves room for a short mark, not a product name; it
               truncates rather than wraps when even that does not fit. */}
-          <div className="min-w-0 md:hidden">
-          <PrototypeLogo size="compact">
           <h1
             className="min-w-0 font-display text-lg tracking-tight md:hidden"
             aria-label={brand.productName}
             title={brand.productName}
           >
-            <span className="block truncate text-gradient-gold">{mark.accent}</span>
+            {mark.joined ? (
+              // A compound is one word, so the phone shows all of it; it is
+              // as short as an accent and fits beside the controls at 390px.
+              <span className="block truncate lowercase">
+                <span className="font-light text-foreground/70">{mark.accent}</span>
+                <span className="font-bold text-gradient-gold">{mark.rest}</span>
+              </span>
+            ) : (
+              <span className="block truncate text-gradient-gold">{mark.accent}</span>
+            )}
           </h1>
-          </PrototypeLogo>
-          </div>
           <div className="flex shrink-0 items-center gap-1.5 md:gap-3">
             <CreditsChip />
             <ThemeSwitcher />

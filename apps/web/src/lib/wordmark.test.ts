@@ -6,8 +6,8 @@ import { DEFAULT_TENANT_CONFIG } from "./tenant-config";
 import { wordmark } from "./wordmark";
 
 /** What a reader sees: the two halves joined the way the components join them. */
-function reads(mark: { accent: string; rest: string }): string {
-  return [mark.accent, mark.rest].filter(Boolean).join(" ");
+function reads(mark: { accent: string; rest: string; joined?: true }): string {
+  return [mark.accent, mark.rest].filter(Boolean).join(mark.joined ? "" : " ");
 }
 
 function occurrences(text: string, word: string): number {
@@ -93,6 +93,26 @@ describe("a short name that abbreviates the product name", () => {
   });
 });
 
+describe("a short name that starts a one-word product name", () => {
+  it("splits the compound where the short name ends, and marks it joined", () => {
+    expect(wordmark("Prontofolio", "Pronto")).toEqual({ accent: "Pronto", rest: "folio", joined: true });
+  });
+
+  it("ignores case, and keeps the product name's own casing", () => {
+    expect(wordmark("Prontofolio", "PRONTO")).toEqual({ accent: "Pronto", rest: "folio", joined: true });
+  });
+
+  it("needs three letters on each side, and never takes an abbreviation", () => {
+    expect(wordmark("Prontofolio", "Pr")).toEqual({ accent: "Prontofolio", rest: "" });
+    expect(wordmark("Prontofolio", "Prontofol")).toEqual({ accent: "Prontofolio", rest: "" });
+    expect(wordmark("Prontofolio", "Pronto.")).toEqual({ accent: "Prontofolio", rest: "" });
+  });
+
+  it("leaves multi-word names to the word rules", () => {
+    expect(wordmark("Prontofolio Lab", "Pronto")).toEqual({ accent: "Prontofolio Lab", rest: "" });
+  });
+});
+
 describe("no usable short name", () => {
   it.each([
     ["empty", ""],
@@ -128,6 +148,7 @@ describe("the name appears once", () => {
     ["Acme Portfolio Lab", "", "Acme"],
     ["Acme", "Acme", "Acme"],
     ["Acme Portfolio Lab", "ACME", "Acme"],
+    ["Prontofolio", "Pronto", "Prontofolio"],
   ])("%j with short name %j shows %j once", (productName, shortName, word) => {
     expect(occurrences(reads(wordmark(productName, shortName)), word)).toBe(1);
   });
