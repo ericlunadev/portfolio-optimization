@@ -8,10 +8,15 @@ import { wordmark } from "@/lib/wordmark";
 /**
  * The product name as the sidebar and the phone header show it.
  *
- * Our own tenant gets the Prontofolio mark beside the name, set in ink the way
- * the brand sheet sets it: the mark carries the colour. A tenant has no mark
- * here, so its wordmark keeps the two-tone treatment from `lib/wordmark.ts`,
- * with the accented part in the tenant's `--primary`.
+ * A compound name split by its short name (`lib/wordmark.ts` rule 3 — our own
+ * "Prontofolio" + "Pronto") is the logo on its own: a light lead and a bold
+ * tail in `--primary`, lowercase, with no mark beside it. It is one short
+ * word, so the phone header shows all of it too.
+ *
+ * Otherwise our own tenant gets the Prontofolio mark beside the name, set in
+ * ink — the fallback when the short name is missing. A tenant has no mark
+ * here, so its wordmark keeps the two-tone treatment, with the accented part
+ * in the tenant's `--primary`.
  *
  * `compact` is the phone header: at 390px the controls beside it leave room for
  * a short mark, not a product name: our tenant shows the isotype alone, and a
@@ -27,6 +32,25 @@ export function BrandLockup({
 }) {
   const { brand, isDefault } = useTenant();
   const mark = wordmark(brand.productName, brand.shortName);
+
+  if (mark.joined) {
+    return (
+      <h1
+        className={cn(
+          "min-w-0 truncate font-display lowercase leading-none tracking-tight",
+          compact ? "text-lg" : "text-[1.7rem]",
+          className
+        )}
+        aria-label={brand.productName}
+        title={brand.productName}
+      >
+        <span aria-hidden>
+          <span className="font-light text-foreground/70">{mark.accent}</span>
+          <span className="font-bold text-primary">{mark.rest}</span>
+        </span>
+      </h1>
+    );
+  }
 
   return (
     <h1

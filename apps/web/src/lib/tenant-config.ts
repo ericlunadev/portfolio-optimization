@@ -76,10 +76,10 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   tier: "cobranded",
   isDefault: true,
   brand: {
-    // One word, so there is no short name to place an accent inside it: the
-    // Prontofolio mark carries the colour and the name is set in ink.
+    // A compound: the short name splits it into the two-tone "pronto|folio"
+    // logo (`lib/wordmark.ts` rule 3, `BrandLockup`).
     productName: "Prontofolio",
-    shortName: "",
+    shortName: "Pronto",
     tagline: "Optimización de portafolio basada en la teoría de Markowitz",
     title: "Prontofolio",
     description: "Herramienta de optimización de portafolio Markowitz",

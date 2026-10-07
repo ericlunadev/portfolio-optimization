@@ -109,6 +109,7 @@ async function seedBranding(organizationId: string): Promise<void> {
   await db.insert(organizationBranding).values({
     organizationId,
     productName: ORG_NAME,
+    productShortName: "Pronto",
     tagline: "Optimización de portafolio basada en la teoría de Markowitz",
     accentHex: "#2563ff",
     fontKey: "space-grotesk",

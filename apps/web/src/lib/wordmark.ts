@@ -21,7 +21,12 @@
  *      from content, nothing is dropped. "Optim." + "Optimización de
  *      Portafolio" → **Optim.** Portafolio, the default tenant's wordmark as it
  *      was before whitelabel.
- *   3. **Anything else** — no short name, or one unrelated to the product name —
+ *   3. **It starts a one-word product name** — a compound like "Prontofolio"
+ *      with short name "Pronto": the word is split where the short name ends
+ *      and marked `joined`. Each half must be at least three letters, and an
+ *      abbreviation (ending in a period) never counts. It only applies where rule 4
+ *      would otherwise have accented the whole name.
+ *   4. **Anything else** — no short name, or one unrelated to the product name —
  *      makes the whole product name the accent. No split is invented: picking a
  *      word to highlight the tenant never chose would be the surprise.
  *
@@ -35,6 +40,12 @@ export interface Wordmark {
   accent: string;
   /** Rendered after it in the foreground colour. Often empty. */
   rest: string;
+  /**
+   * Rule 3: both halves are one word. The components then set it as a compound
+   * — no space, light lead, bold accented tail ("pronto**folio**") — instead of
+   * the accent-first pair.
+   */
+  joined?: true;
 }
 
 function wordsOf(value: string | null | undefined): string[] {
@@ -64,6 +75,18 @@ function abbreviates(short: string, word: string): boolean {
   );
 }
 
+/** Minimum length of either half of a rule-3 compound, so "Ac" + "me" is not a brand. */
+const MIN_COMPOUND_PART = 3;
+
+function compounds(short: string, word: string): boolean {
+  return (
+    !short.endsWith(".") &&
+    short.length >= MIN_COMPOUND_PART &&
+    word.length - short.length >= MIN_COMPOUND_PART &&
+    word.slice(0, short.length).localeCompare(short, undefined, { sensitivity: "accent" }) === 0
+  );
+}
+
 /** Drops the lowercase particles in front of the first capitalised word, if there is one. */
 function withoutLeadingParticles(words: string[]): string[] {
   const firstContent = words.findIndex((word) => !startsLowercase(word));
@@ -89,6 +112,13 @@ export function wordmark(
     return { accent: short[0], rest: withoutLeadingParticles(name.slice(1)).join(" ") };
   }
 
-  // Rule 3.
+  // Rule 3: a one-word name that starts with the short name is a compound,
+  // split where the short name ends.
+  if (short.length === 1 && name.length === 1 && compounds(short[0], name[0])) {
+    const lead = short[0].length;
+    return { accent: name[0].slice(0, lead), rest: name[0].slice(lead), joined: true };
+  }
+
+  // Rule 4.
   return { accent: name.join(" "), rest: "" };
 }
