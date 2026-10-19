@@ -3,6 +3,7 @@ import {
   PDF_COLORS,
   buildSimulationPdf,
   formatReportDate,
+  reportCorrelationMatrix,
   showsPoweredBy,
   simulationPdfFilename,
   type SimulationPdfInput,
@@ -104,6 +105,15 @@ const labels: SimulationPdfLabels = {
   compareReturnLabel: "Return",
   compareVolatilityLabel: "Volatility",
   compareDisclaimer: "* Approximated by a weighted average.",
+  correlationHeading: "Correlation Matrix",
+  correlationLegend: "Scale from -1 to 1.",
+  correlationNote: "* Pearson correlation between daily returns.",
+  averageCorrelation: "Average correlation, weighted by allocation",
+  diversification: {
+    high: "Well diversified",
+    moderate: "Moderately diversified",
+    low: "Poorly diversified",
+  },
   disclaimer: "Informational document.",
   poweredBy: "Powered by Portfolio Optimization",
   formatPage: (current, total) => `Page ${current} of ${total}`,
@@ -418,6 +428,84 @@ describe("the 'Powered by' line (D14)", () => {
     expect(showsPoweredBy({ tier: "whitelabel" })).toBe(false);
     expect(showsPoweredBy({ accentHex: "#2f6f4f" })).toBe(false);
     expect(showsPoweredBy(undefined)).toBe(false);
+  });
+});
+
+describe("the running header", () => {
+  const chart = {
+    title: "Risk vs Return",
+    dataUrl: TINY_PNG,
+    width: 880,
+    height: 400,
+  };
+
+  it("prints the product name on every page", async () => {
+    const doc = await buildSimulationPdf(
+      makeInput({
+        charts: [chart, chart, chart, chart, chart],
+        branding: { productName: "ProntoFolio" },
+      })
+    );
+    const internal = doc.internal as unknown as { pages: string[][] };
+
+    expect(doc.getNumberOfPages()).toBeGreaterThan(1);
+    const pagesWithName = internal.pages
+      .filter((page) => page.length > 0)
+      .filter((page) => page.join("\n").includes("(ProntoFolio)"));
+    expect(pagesWithName).toHaveLength(doc.getNumberOfPages());
+  });
+
+  it("is left out when there is no product name", async () => {
+    const doc = await buildSimulationPdf(makeInput({ branding: { productName: "  " } }));
+
+    expect(extractText(doc)).not.toContain("ProntoFolio");
+  });
+});
+
+describe("the correlation section", () => {
+  // Vols of 20%, 18% and 22%; correlations 0.8 (AAPL/MSFT), 0.1 and -0.3.
+  const covariance_matrix = [
+    [0.04, 0.2 * 0.18 * 0.8, 0.2 * 0.22 * 0.1],
+    [0.2 * 0.18 * 0.8, 0.0324, 0.18 * 0.22 * -0.3],
+    [0.2 * 0.22 * 0.1, 0.18 * 0.22 * -0.3, 0.0484],
+  ];
+  const withMatrix = { ...result, covariance_matrix };
+
+  it("draws the matrix and the diversification reading", async () => {
+    const doc = await buildSimulationPdf(makeInput({ result: withMatrix }));
+    const text = extractText(doc);
+
+    expect(text).toContain("CORRELATION MATRIX");
+    expect(text).toContain("(0.80)");
+    expect(text).toContain("(-0.30)");
+    // (0.15·0.8 + 0.10·0.1 + 0.06·-0.3) / 0.31 ≈ 0.36
+    expect(text).toContain("Average correlation, weighted by allocation: 0.36");
+    expect(text).toContain("Moderately diversified");
+  });
+
+  it("is skipped for a result saved without covariances", async () => {
+    const text = extractText(await buildSimulationPdf(makeInput()));
+
+    expect(text).not.toContain("CORRELATION MATRIX");
+  });
+
+  it("is skipped when the section is switched off", async () => {
+    const config = defaultReportConfig();
+    config.sections.correlation = false;
+
+    const text = extractText(
+      await buildSimulationPdf(makeInput({ result: withMatrix, config }))
+    );
+
+    expect(text).not.toContain("CORRELATION MATRIX");
+  });
+
+  it("is offered only for a matrix that lines up with the assets", () => {
+    expect(reportCorrelationMatrix(withMatrix)).not.toBeNull();
+    expect(reportCorrelationMatrix(result)).toBeNull();
+    expect(
+      reportCorrelationMatrix({ ...result, covariance_matrix: [[0.04]] })
+    ).toBeNull();
   });
 });
 

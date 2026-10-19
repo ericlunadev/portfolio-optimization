@@ -13,6 +13,7 @@ import {
 const availability: ReportAvailability = {
   comparison: true,
   assetLimits: true,
+  correlation: true,
   chartKeys: ["risk-return", "weights"],
 };
 
@@ -26,6 +27,7 @@ function emptyConfig() {
       parameters: false,
       allocation: false,
       risk: false,
+      correlation: false,
       comparison: false,
       charts: false,
     },
@@ -90,6 +92,26 @@ describe("hasReportContent", () => {
     expect(
       hasReportContent(config, { ...availability, comparison: false })
     ).toBe(false);
+  });
+
+  it("counts the correlation section only when the matrix exists", () => {
+    const config = {
+      ...emptyConfig(),
+      sections: { ...emptyConfig().sections, correlation: true },
+    };
+
+    expect(hasReportContent(config, availability)).toBe(true);
+    expect(
+      hasReportContent(config, { ...availability, correlation: false })
+    ).toBe(false);
+  });
+
+  it("switches the correlation section on for a config stored before it existed", () => {
+    const config = normalizeReportConfig({
+      sections: { metrics: true, charts: false },
+    });
+
+    expect(config.sections.correlation).toBe(true);
   });
 
   it("is false when the charts section is on but every chart is excluded", () => {

@@ -57,7 +57,7 @@ export interface EmailMessages {
 }
 
 const es: EmailMessages = {
-  brand: "Prontofolio",
+  brand: "ProntoFolio",
   investingDisclaimer:
     "Documento informativo generado automáticamente. No constituye asesoría de inversión. Los rendimientos pasados no garantizan resultados futuros.",
   verifySubject: "Confirma tu correo electrónico",
@@ -120,7 +120,7 @@ const es: EmailMessages = {
 };
 
 const en: EmailMessages = {
-  brand: "Prontofolio",
+  brand: "ProntoFolio",
   investingDisclaimer:
     "Automatically generated informational document. It does not constitute investment advice. Past performance does not guarantee future results.",
   verifySubject: "Confirm your email address",

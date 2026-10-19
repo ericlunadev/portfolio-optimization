@@ -13,6 +13,7 @@ export const REPORT_SECTION_KEYS = [
   "parameters",
   "allocation",
   "risk",
+  "correlation",
   "comparison",
   "charts",
 ] as const;
@@ -104,6 +105,11 @@ export interface ReportAvailability {
   comparison: boolean;
   /** The simulation ran with per-asset min/max weights. */
   assetLimits: boolean;
+  /**
+   * The result carries a covariance matrix to derive correlations from, with
+   * at least two assets. Simulations saved before the API returned it do not.
+   */
+  correlation: boolean;
   /** Chart keys available for this simulation, in report order. */
   chartKeys: string[];
 }
@@ -133,6 +139,7 @@ export function hasReportContent(
   ) {
     return true;
   }
+  if (sections.correlation && availability.correlation) return true;
   if (sections.comparison && availability.comparison) return true;
   if (
     sections.charts &&

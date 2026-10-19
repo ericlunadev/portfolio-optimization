@@ -294,6 +294,17 @@ export function ReportConfigDialog({
                       </FieldGrid>
                     </SectionBlock>
 
+                    {availability.correlation && (
+                      <SectionBlock
+                        label={t("sections.correlation")}
+                        hint={t("sections.correlationHint")}
+                        checked={draft.sections.correlation}
+                        onCheckedChange={(value) =>
+                          setSection("correlation", value)
+                        }
+                      />
+                    )}
+
                     {availability.comparison && (
                       <SectionBlock
                         label={t("sections.comparison")}
