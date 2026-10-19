@@ -104,6 +104,13 @@ export interface TenantPdfColors {
   accent: string;
   accentSoft: string;
   user: string;
+  /**
+   * The correlation heat scale's two ends, as on screen (`MatrixTable`):
+   * red for assets that move together, blue for ones that move apart. Semantic,
+   * so fixed rather than tenant-derived.
+   */
+  correlationPositive: string;
+  correlationNegative: string;
 }
 
 export interface TenantPalette {
@@ -402,6 +409,9 @@ function derivePdfColors(accent: Hsl): TenantPdfColors {
     accent: trio.stroke,
     accentSoft: trio.soft,
     user: "#fbbf24",
+    // hsl(0 65% 55%) and hsl(200 55% 55%), the screen scale's hues.
+    correlationPositive: "#d74242",
+    correlationNegative: "#4da1cb",
   };
 }
 

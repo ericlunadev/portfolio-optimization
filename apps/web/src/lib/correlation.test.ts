@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { correlationFromCovariance } from "./correlation";
+import { correlationFromCovariance, summarizeDiversification } from "./correlation";
 
 describe("correlationFromCovariance", () => {
   it("puts ones on the diagonal", () => {
@@ -70,5 +70,54 @@ describe("correlationFromCovariance", () => {
     expect(result[0][1]).toBeCloseTo(0.2, 10);
     expect(result[0][2]).toBeCloseTo(-0.2, 10);
     expect(result[1][2]).toBeCloseTo(0.6, 10);
+  });
+});
+
+describe("summarizeDiversification", () => {
+  const correlation = [
+    [1, 0.9, 0.1],
+    [0.9, 1, 0.2],
+    [0.1, 0.2, 1],
+  ];
+
+  it("weights each pair by the share of the portfolio it holds", () => {
+    // Pairs: (0,1) 0.25·0.25, (0,2) 0.25·0.5, (1,2) 0.25·0.5.
+    const summary = summarizeDiversification(correlation, [0.25, 0.25, 0.5]);
+    const expected =
+      (0.0625 * 0.9 + 0.125 * 0.1 + 0.125 * 0.2) / (0.0625 + 0.125 + 0.125);
+    expect(summary?.averageCorrelation).toBeCloseTo(expected, 10);
+  });
+
+  it("ignores a pair the portfolio does not hold", () => {
+    const summary = summarizeDiversification(correlation, [0.5, 0, 0.5]);
+    expect(summary?.averageCorrelation).toBeCloseTo(0.1, 10);
+    expect(summary?.level).toBe("high");
+  });
+
+  it("reads a tightly correlated pair as poorly diversified", () => {
+    const summary = summarizeDiversification(correlation, [0.5, 0.5, 0]);
+    expect(summary?.averageCorrelation).toBeCloseTo(0.9, 10);
+    expect(summary?.level).toBe("low");
+  });
+
+  it("calls the middle band moderate", () => {
+    const summary = summarizeDiversification(
+      [
+        [1, 0.45],
+        [0.45, 1],
+      ],
+      [0.5, 0.5]
+    );
+    expect(summary?.level).toBe("moderate");
+  });
+
+  it("counts a short leg as exposure, not as an offset", () => {
+    const summary = summarizeDiversification(correlation, [0.5, -0.5, 0]);
+    expect(summary?.averageCorrelation).toBeCloseTo(0.9, 10);
+  });
+
+  it("returns null when there is no pair to average", () => {
+    expect(summarizeDiversification([[1]], [1])).toBeNull();
+    expect(summarizeDiversification(correlation, [1, 0, 0])).toBeNull();
   });
 });

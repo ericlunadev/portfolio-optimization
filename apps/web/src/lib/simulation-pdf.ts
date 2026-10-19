@@ -4,6 +4,11 @@ import { strategyUsesParam } from "@/lib/api";
 import { formatNumber, formatPercent } from "@/lib/utils";
 import { formatWeightLimits } from "@/lib/asset-limits";
 import {
+  correlationFromCovariance,
+  summarizeDiversification,
+  type DiversificationLevel,
+} from "@/lib/correlation";
+import {
   REPORT_METRIC_KEYS,
   ReportConfig,
   defaultReportConfig,
@@ -38,6 +43,14 @@ const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
 const FOOTER_HEIGHT = 12;
 const PAGE_BOTTOM = PAGE_HEIGHT - MARGIN - FOOTER_HEIGHT;
 
+/**
+ * The running header — the product name, so a printed page says who made it —
+ * sits in the top margin, and page content starts just below its rule.
+ */
+const RUNNING_HEADER_Y = 7;
+const RUNNING_HEADER_RULE_Y = 11;
+const CONTENT_TOP = MARGIN + 3;
+
 /** How tall a tenant logo is drawn, and how wide it is allowed to get. */
 const LOGO_HEIGHT = 9;
 const LOGO_MAX_WIDTH = 55;
@@ -58,6 +71,11 @@ export interface SimulationPdfBranding {
   tier?: string | null;
   /** A data URI: `doc.addImage` cannot fetch a URL, and the report is offline by then. */
   logo?: { dataUrl: string; width: number; height: number } | null;
+  /**
+   * The tenant's product name ("Prontofolio" for our own D2C product), printed
+   * as the running header on every page. Tenant data, not a translation.
+   */
+  productName?: string | null;
 }
 
 export interface PdfChartImage {
@@ -116,6 +134,13 @@ export interface SimulationPdfLabels {
   compareReturnLabel: string;
   compareVolatilityLabel: string;
   compareDisclaimer: string;
+  correlationHeading: string;
+  /** How to read the heat scale: red moves together, blue moves apart. */
+  correlationLegend: string;
+  correlationNote: string;
+  /** "Weighted average correlation", followed by the value. */
+  averageCorrelation: string;
+  diversification: Record<DiversificationLevel, string>;
   disclaimer: string;
   /**
    * "Powered by <our product>", already composed. Optional because it is only
@@ -162,7 +187,7 @@ export async function buildSimulationPdf(
   const { sections } = config;
   const colors = deriveTenantPalette(input.branding?.accentHex).pdf;
 
-  const ctx: DrawContext = { doc, y: MARGIN, colors };
+  const ctx: DrawContext = { doc, y: CONTENT_TOP, colors };
   paintPageBackground(doc, colors);
 
   drawHeader(ctx, input);
@@ -170,8 +195,10 @@ export async function buildSimulationPdf(
   if (sections.parameters) drawParameters(ctx, input, config);
   if (sections.allocation) drawAllocationTable(ctx, input, config);
   if (sections.risk) drawRiskTable(ctx, input, config);
+  if (sections.correlation) drawCorrelation(ctx, input);
   if (sections.comparison && input.userPortfolio) drawComparison(ctx, input);
   if (sections.charts) drawCharts(ctx, input);
+  drawRunningHeaders(doc, input, colors);
   drawFooters(doc, input.labels, colors, showsPoweredBy(input.branding));
 
   return doc;
@@ -235,6 +262,22 @@ function setText(doc: jsPDF, hex: string): void {
   doc.setTextColor(r, g, b);
 }
 
+/**
+ * `color` laid over `base` at `alpha`, as one opaque hex. The screen scale is
+ * alpha-composited over the card; the PDF gets the same result precomputed.
+ */
+function mixHex(base: string, color: string, alpha: number): string {
+  const from = hexToRgb(base);
+  const to = hexToRgb(color);
+  return `#${from
+    .map((channel, index) =>
+      Math.round(channel + (to[index] - channel) * alpha)
+        .toString(16)
+        .padStart(2, "0")
+    )
+    .join("")}`;
+}
+
 function paintPageBackground(doc: jsPDF, colors: TenantPdfColors): void {
   setFill(doc, colors.background);
   doc.rect(0, 0, PAGE_WIDTH, PAGE_HEIGHT, "F");
@@ -243,7 +286,7 @@ function paintPageBackground(doc: jsPDF, colors: TenantPdfColors): void {
 function newPage(ctx: DrawContext): void {
   ctx.doc.addPage();
   paintPageBackground(ctx.doc, ctx.colors);
-  ctx.y = MARGIN;
+  ctx.y = CONTENT_TOP;
 }
 
 /** Starts a new page when `height` would overflow the printable area. */
@@ -736,6 +779,188 @@ function drawRiskTable(
   );
 }
 
+/**
+ * The correlation matrix a result can offer, or null. Simulations saved before
+ * the API returned covariances have none, a matrix that does not line up with
+ * the assets is not trusted, and a single asset has no pair to correlate.
+ */
+export function reportCorrelationMatrix(
+  result: OptimizationResultWithStrategy
+): number[][] | null {
+  const covariance = result.covariance_matrix;
+  const size = result.weights.length;
+  if (!covariance || size < 2 || covariance.length !== size) return null;
+  if (covariance.some((row) => row.length !== size)) return null;
+  return correlationFromCovariance(covariance);
+}
+
+/** Widest a matrix cell gets: a 2x2 stretched across the page reads as a banner. */
+const MATRIX_MAX_CELL_WIDTH = 22;
+const MATRIX_ROW_HEIGHT = 6.5;
+const MATRIX_CELL_GAP = 0.2;
+
+/**
+ * The correlation matrix as a heat-coloured table, then one line that answers
+ * the question it is there for — is the mix diversified? The colours follow the
+ * on-screen `MatrixTable`: red moves together, blue moves apart, the diagonal
+ * neutral. Cells shrink with the asset count so the matrix always fits the page
+ * width; past a dozen assets the font steps down with them.
+ */
+function drawCorrelation(ctx: DrawContext, input: SimulationPdfInput): void {
+  const matrix = reportCorrelationMatrix(input.result);
+  if (!matrix) return;
+
+  const { doc, colors } = ctx;
+  const { labels } = input;
+  const names = input.result.weights.map((weight) => weight.fund_name);
+  const size = names.length;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  const widestName = Math.max(...names.map((name) => doc.getTextWidth(name)));
+  const labelWidth = Math.min(Math.max(widestName + 6, 18), 34);
+  const cellWidth = Math.min(
+    (CONTENT_WIDTH - labelWidth) / size,
+    MATRIX_MAX_CELL_WIDTH
+  );
+  const fontSize = cellWidth >= 11 ? 8 : cellWidth >= 8 ? 6.5 : 5.5;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  const legendLines: string[] = doc.splitTextToSize(
+    labels.correlationLegend,
+    CONTENT_WIDTH
+  );
+
+  // Keep the heading with its matrix: the whole block moves to a new page when
+  // it fits on one, and a matrix too tall for any page takes at least a few
+  // rows along rather than leaving the heading stranded at the bottom.
+  const leadHeight = 14 + legendLines.length * lineHeight(7.5) + 3;
+  const matrixHeight = MATRIX_ROW_HEIGHT * (size + 1);
+  const fitsOnAPage = leadHeight + matrixHeight + 16 <= PAGE_BOTTOM - CONTENT_TOP;
+  ensureSpace(
+    ctx,
+    fitsOnAPage
+      ? leadHeight + matrixHeight + 16
+      : leadHeight + MATRIX_ROW_HEIGHT * 4
+  );
+
+  drawSectionHeading(ctx, labels.correlationHeading);
+
+  // The legend says how to read the colours before the reader meets them.
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  setText(doc, colors.muted);
+  legendLines.forEach((line) => {
+    doc.text(line, MARGIN, ctx.y, { baseline: "top" });
+    ctx.y += lineHeight(7.5);
+  });
+  ctx.y += 3;
+
+  const drawColumnHeaders = () => {
+    ensureSpace(ctx, MATRIX_ROW_HEIGHT * 2);
+    setFill(doc, colors.surface);
+    doc.rect(MARGIN, ctx.y, labelWidth + cellWidth * size, MATRIX_ROW_HEIGHT, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(fontSize);
+    setText(doc, colors.muted);
+    names.forEach((name, column) => {
+      const center = MARGIN + labelWidth + cellWidth * (column + 0.5);
+      doc.text(truncateToWidth(doc, name, cellWidth - 1.5), center, ctx.y + 2, {
+        baseline: "top",
+        align: "center",
+      });
+    });
+    ctx.y += MATRIX_ROW_HEIGHT;
+  };
+
+  drawColumnHeaders();
+
+  matrix.forEach((row, rowIndex) => {
+    if (ctx.y + MATRIX_ROW_HEIGHT > PAGE_BOTTOM) {
+      newPage(ctx);
+      drawColumnHeaders();
+    }
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(fontSize);
+    setText(doc, colors.text);
+    doc.text(
+      truncateToWidth(doc, names[rowIndex], labelWidth - 4),
+      MARGIN + 3,
+      ctx.y + 2,
+      { baseline: "top" }
+    );
+
+    row.forEach((value, column) => {
+      const x = MARGIN + labelWidth + cellWidth * column;
+      const isDiagonal = rowIndex === column;
+      setFill(doc, correlationCellColor(colors, value, isDiagonal));
+      // Inset a hair so neighbours with similar colours stay apart.
+      doc.rect(
+        x + MATRIX_CELL_GAP,
+        ctx.y + MATRIX_CELL_GAP,
+        cellWidth - MATRIX_CELL_GAP * 2,
+        MATRIX_ROW_HEIGHT - MATRIX_CELL_GAP * 2,
+        "F"
+      );
+
+      doc.setFont("helvetica", isDiagonal ? "bold" : "normal");
+      setText(doc, colors.text);
+      doc.text(value.toFixed(2), x + cellWidth / 2, ctx.y + 2, {
+        baseline: "top",
+        align: "center",
+      });
+    });
+
+    ctx.y += MATRIX_ROW_HEIGHT;
+  });
+
+  ctx.y += 4;
+
+  const summary = summarizeDiversification(
+    matrix,
+    input.result.weights.map((weight) => weight.weight)
+  );
+  if (summary) {
+    ensureSpace(ctx, 10);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    setText(doc, colors.text);
+    const line = `${labels.averageCorrelation}: ${summary.averageCorrelation.toFixed(2)}  ·  ${labels.diversification[summary.level]}`;
+    doc.splitTextToSize(line, CONTENT_WIDTH).forEach((part: string) => {
+      doc.text(part, MARGIN, ctx.y, { baseline: "top" });
+      ctx.y += lineHeight(9);
+    });
+    ctx.y += 1.5;
+  }
+
+  ensureSpace(ctx, 6);
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(7.5);
+  setText(doc, colors.muted);
+  doc.splitTextToSize(labels.correlationNote, CONTENT_WIDTH).forEach(
+    (line: string) => {
+      doc.text(line, MARGIN, ctx.y, { baseline: "top" });
+      ctx.y += lineHeight(7.5);
+    }
+  );
+  ctx.y += 6;
+}
+
+/** Same scale as `MatrixTable`'s `correlationBackground`, over the PDF surface. */
+function correlationCellColor(
+  colors: TenantPdfColors,
+  value: number,
+  isDiagonal: boolean
+): string {
+  // The diagonal is always 1 and says nothing about diversification.
+  if (isDiagonal) return mixHex(colors.surface, colors.accent, 0.12);
+  const strength = Math.min(Math.abs(value), 1);
+  const hue = value >= 0 ? colors.correlationPositive : colors.correlationNegative;
+  return mixHex(colors.surface, hue, strength * 0.55 + 0.04);
+}
+
 function drawComparison(ctx: DrawContext, input: SimulationPdfInput): void {
   const { doc } = ctx;
   const { labels, result, userPortfolio } = input;
@@ -837,6 +1062,47 @@ function drawCharts(ctx: DrawContext, input: SimulationPdfInput): void {
     );
     ctx.y += imageHeight + 8;
   });
+}
+
+/**
+ * The product name on every page, top left in the accent, with the kind of
+ * document on the right — so a page that gets separated from the cover still
+ * says who produced it. Drawn last, like the footers, so it lands on pages the
+ * sections added. With no product name there is nothing to say, and the band
+ * stays empty.
+ */
+function drawRunningHeaders(
+  doc: jsPDF,
+  input: SimulationPdfInput,
+  colors: TenantPdfColors
+): void {
+  const productName = input.branding?.productName?.trim();
+  if (!productName) return;
+
+  const total = doc.getNumberOfPages();
+  for (let page = 1; page <= total; page++) {
+    doc.setPage(page);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    setText(doc, colors.accent);
+    doc.text(productName, MARGIN, RUNNING_HEADER_Y, { baseline: "top" });
+    const nameWidth = doc.getTextWidth(productName);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    setText(doc, colors.muted);
+    doc.text(
+      truncateToWidth(doc, input.labels.documentTitle, CONTENT_WIDTH - nameWidth - 8),
+      MARGIN + CONTENT_WIDTH,
+      RUNNING_HEADER_Y + 0.6,
+      { baseline: "top", align: "right" }
+    );
+
+    setStroke(doc, colors.border);
+    doc.setLineWidth(0.2);
+    doc.line(MARGIN, RUNNING_HEADER_RULE_Y, MARGIN + CONTENT_WIDTH, RUNNING_HEADER_RULE_Y);
+  }
 }
 
 /**

@@ -339,7 +339,12 @@
     "horizon2y": "2 Años",
     "exportPdf": "Exportar PDF",
     "exportPdfPreparing": "Generando PDF...",
-    "exportPdfError": "No se pudo generar el PDF. Inténtalo de nuevo."
+    "exportPdfError": "No se pudo generar el PDF. Inténtalo de nuevo.",
+    "averageCorrelation": "Correlación promedio ponderada por pesos",
+    "diversificationHigh": "Buena diversificación: los activos tienden a compensarse",
+    "diversificationModerate": "Diversificación moderada",
+    "diversificationLow": "Diversificación baja: los activos tienden a moverse juntos",
+    "diversificationHint": "Promedio de la correlación entre cada par de activos, ponderado por el peso de ambos en la cartera. Por debajo de 0,30 los activos se compensan; desde 0,60 se mueven casi como uno solo."
   },
   "Benchmarks": {
     "title": "Comparar contra un índice de referencia",
@@ -424,7 +429,8 @@
     "notAvailable": "N/D",
     "disclaimer": "Documento informativo. No constituye asesoría de inversión. Los rendimientos pasados no garantizan resultados futuros.",
     "page": "Página {current} de {total}",
-    "poweredBy": "Desarrollado por {product}"
+    "poweredBy": "Desarrollado por {product}",
+    "correlationLegend": "Escala de -1 a 1. Rojo = los activos se mueven juntos (diversifican poco). Azul = se mueven al revés (buena diversificación)."
   },
   "ReportConfig": {
     "title": "Configurar reporte",
@@ -442,7 +448,9 @@
       "comparison": "Comparación de portafolios",
       "comparisonHint": "El portafolio óptimo junto a tu propia asignación.",
       "charts": "Gráficos",
-      "chartsHint": "Los gráficos que se agregan al final del reporte."
+      "chartsHint": "Los gráficos que se agregan al final del reporte.",
+      "correlation": "Matriz de correlaciones",
+      "correlationHint": "Correlación entre los activos elegidos y qué tan diversificada está la cartera."
     },
     "metrics": {
       "confidenceInterval": "Intervalo de confianza del 95%"

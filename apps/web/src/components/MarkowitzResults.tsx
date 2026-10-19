@@ -12,7 +12,12 @@ import {
   SimulationParams,
 } from "@/lib/api";
 import { formatWeightLimits, toWeightBounds } from "@/lib/asset-limits";
-import { correlationFromCovariance } from "@/lib/correlation";
+import {
+  correlationFromCovariance,
+  summarizeDiversification,
+  type DiversificationLevel,
+} from "@/lib/correlation";
+import { useTenantBrand } from "@/components/tenant/TenantProvider";
 import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
 import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
@@ -35,6 +40,7 @@ import {
 } from "@/components/charts/chart-theme";
 import { PdfChartSpec } from "@/components/pdf/SimulationPdfCharts";
 import { useSimulationPdfExport } from "@/hooks/useSimulationPdfExport";
+import { reportCorrelationMatrix } from "@/lib/simulation-pdf";
 import { ReportConfigDialog } from "@/components/pdf/ReportConfigDialog";
 import {
   ReportAvailability,
@@ -117,6 +123,23 @@ export function MarkowitzResults({
     () => (covarianceMatrix ? correlationFromCovariance(covarianceMatrix) : null),
     [covarianceMatrix]
   );
+  const diversification = useMemo(
+    () =>
+      correlationMatrix
+        ? summarizeDiversification(
+            correlationMatrix,
+            result.weights.map((w) => w.weight)
+          )
+        : null,
+    [correlationMatrix, result.weights]
+  );
+  const diversificationLabels: Record<DiversificationLevel, string> = {
+    high: t("diversificationHigh"),
+    moderate: t("diversificationModerate"),
+    low: t("diversificationLow"),
+  };
+  // Printed as the PDF's running header, so the report says who produced it.
+  const { productName } = useTenantBrand();
   const currentStrategy = OPTIMIZATION_STRATEGIES.find(
     (s) => s.value === params.strategy
   );
@@ -614,9 +637,10 @@ export function MarkowitzResults({
     () => ({
       comparison: userPortfolioStats !== null,
       assetLimits: !!params.assetLimits,
+      correlation: reportCorrelationMatrix(result) !== null,
       chartKeys: pdfCharts.map((chart) => chart.key),
     }),
-    [params.assetLimits, pdfCharts, userPortfolioStats]
+    [params.assetLimits, pdfCharts, result, userPortfolioStats]
   );
 
   const pdfExport = useSimulationPdfExport({
@@ -671,9 +695,15 @@ export function MarkowitzResults({
       compareReturnLabel: t("compareReturnLabel"),
       compareVolatilityLabel: t("compareVolatilityLabel"),
       compareDisclaimer: t("compareDisclaimer"),
+      correlationHeading: t("correlationMatrixTitle"),
+      correlationLegend: tPdf("correlationLegend"),
+      correlationNote: t("correlationMatrixNote"),
+      averageCorrelation: t("averageCorrelation"),
+      diversification: diversificationLabels,
       disclaimer: tPdf("disclaimer"),
       formatPage: (current, total) => tPdf("page", { current, total }),
     },
+    branding: { productName },
   });
 
   return (
@@ -973,6 +1003,34 @@ export function MarkowitzResults({
                 colorScale
                 isCorrelation
               />
+              {diversification && (
+                <div className="mt-4 rounded-lg border border-border bg-background/40 p-3 dark:border-border/50 dark:bg-card/40">
+                  <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                    <span className="text-muted-foreground">
+                      {t("averageCorrelation")}
+                    </span>
+                    <span className="font-mono font-semibold">
+                      {diversification.averageCorrelation.toFixed(2)}
+                    </span>
+                    <span
+                      className={cn(
+                        "font-medium",
+                        diversification.level === "high" &&
+                          "text-emerald-600 dark:text-emerald-400",
+                        diversification.level === "moderate" &&
+                          "text-amber-600 dark:text-amber-400",
+                        diversification.level === "low" &&
+                          "text-rose-600 dark:text-rose-400"
+                      )}
+                    >
+                      {diversificationLabels[diversification.level]}
+                    </span>
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("diversificationHint")}
+                  </p>
+                </div>
+              )}
               <p className="mt-2 text-xs text-muted-foreground">
                 {t("correlationMatrixNote")}
               </p>

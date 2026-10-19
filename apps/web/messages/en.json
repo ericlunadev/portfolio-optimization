@@ -339,7 +339,12 @@
     "horizon2y": "2 Years",
     "exportPdf": "Export PDF",
     "exportPdfPreparing": "Generating PDF...",
-    "exportPdfError": "The PDF could not be generated. Please try again."
+    "exportPdfError": "The PDF could not be generated. Please try again.",
+    "averageCorrelation": "Average correlation, weighted by allocation",
+    "diversificationHigh": "Well diversified: the assets tend to offset each other",
+    "diversificationModerate": "Moderately diversified",
+    "diversificationLow": "Poorly diversified: the assets tend to move together",
+    "diversificationHint": "The average correlation between each pair of assets, weighted by how much of the portfolio both hold. Below 0.30 the assets offset each other; from 0.60 up they move almost as one."
   },
   "Benchmarks": {
     "title": "Compare with a benchmark",
@@ -424,7 +429,8 @@
     "notAvailable": "N/A",
     "disclaimer": "Informational document. This is not investment advice. Past performance does not guarantee future results.",
     "page": "Page {current} of {total}",
-    "poweredBy": "Powered by {product}"
+    "poweredBy": "Powered by {product}",
+    "correlationLegend": "Scale from -1 to 1. Red = the assets move together (poor diversification). Blue = they move opposite (good diversification)."
   },
   "ReportConfig": {
     "title": "Configure report",
@@ -442,7 +448,9 @@
       "comparison": "Portfolio comparison",
       "comparisonHint": "The optimal portfolio next to your own allocation.",
       "charts": "Charts",
-      "chartsHint": "The charts appended at the end of the report."
+      "chartsHint": "The charts appended at the end of the report.",
+      "correlation": "Correlation matrix",
+      "correlationHint": "Correlation between the chosen assets, and how diversified the portfolio is."
     },
     "metrics": {
       "confidenceInterval": "95% confidence interval"
