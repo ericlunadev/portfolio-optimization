@@ -32,7 +32,7 @@ import {
 // changing it there gives a migrated database two default tenants.
 const ORG_ID = "org-d2c";
 const ORG_SLUG = "d2c";
-const ORG_NAME = "Prontofolio";
+const ORG_NAME = "ProntoFolio";
 const DOMAIN_ID = "dom-d2c-localhost";
 // The dev Host header is `localhost:3000`, so Task 1.1's lookup has to strip the
 // port before matching this row.

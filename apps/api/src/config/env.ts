@@ -35,7 +35,7 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z
     .string()
-    .default("Prontofolio <onboarding@resend.dev>"),
+    .default("ProntoFolio <onboarding@resend.dev>"),
 
   // Billing (Stripe)
   STRIPE_SECRET_KEY: z.string().optional(),

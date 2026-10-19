@@ -97,6 +97,10 @@ describe("a short name that starts a one-word product name", () => {
     expect(wordmark("Prontofolio", "PRONTO")).toEqual({ accent: "Pronto", rest: "folio", joined: true });
   });
 
+  it("splits our own camel-cased name at the capital it already has", () => {
+    expect(wordmark("ProntoFolio", "Pronto")).toEqual({ accent: "Pronto", rest: "Folio", joined: true });
+  });
+
   it("needs three letters on each side, and never takes an abbreviation", () => {
     expect(wordmark("Prontofolio", "Pr")).toEqual({ accent: "Prontofolio", rest: "" });
     expect(wordmark("Prontofolio", "Prontofol")).toEqual({ accent: "Prontofolio", rest: "" });
@@ -150,9 +154,9 @@ describe("the name appears once", () => {
 });
 
 describe("the default brand", () => {
-  it("renders as the pronto|folio compound when the API is unreachable", () => {
+  it("renders as the Pronto|Folio compound when the API is unreachable", () => {
     const { productName, shortName } = DEFAULT_TENANT_CONFIG.brand;
 
-    expect(wordmark(productName, shortName)).toEqual({ accent: "Pronto", rest: "folio", joined: true });
+    expect(wordmark(productName, shortName)).toEqual({ accent: "Pronto", rest: "Folio", joined: true });
   });
 });

@@ -98,7 +98,7 @@ export async function provisionOrganizationForUser(newUser: {
     .insert(organizationBranding)
     .values({
       organizationId: org.id,
-      productName: "Prontofolio",
+      productName: "ProntoFolio",
       productShortName: "Pronto",
       tagline: "Optimización de portafolio basada en la teoría de Markowitz",
       accentHex: "#2563ff",

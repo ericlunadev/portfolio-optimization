@@ -78,10 +78,10 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   brand: {
     // A compound: the short name splits it into the two-tone "pronto|folio"
     // logo (`lib/wordmark.ts` rule 3, `BrandLockup`).
-    productName: "Prontofolio",
+    productName: "ProntoFolio",
     shortName: "Pronto",
     tagline: "Optimización de portafolio basada en la teoría de Markowitz",
-    title: "Prontofolio",
+    title: "ProntoFolio",
     description: "Herramienta de optimización de portafolio Markowitz",
   },
   accentHex: null,

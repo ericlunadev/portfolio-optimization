@@ -72,7 +72,7 @@ export interface SimulationPdfBranding {
   /** A data URI: `doc.addImage` cannot fetch a URL, and the report is offline by then. */
   logo?: { dataUrl: string; width: number; height: number } | null;
   /**
-   * The tenant's product name ("Prontofolio" for our own D2C product), printed
+   * The tenant's product name ("ProntoFolio" for our own D2C product), printed
    * as the running header on every page. Tenant data, not a translation.
    */
   productName?: string | null;

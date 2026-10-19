@@ -9,11 +9,12 @@ import { wordmark } from "@/lib/wordmark";
  * The product name as the sidebar and the phone header show it.
  *
  * A compound name split by its short name (`lib/wordmark.ts` rule 3 — our own
- * "Prontofolio" + "Pronto") is the logo on its own: a light lead and a bold
- * tail in `--primary`, lowercase, with no mark beside it. It is one short
- * word, so the phone header shows all of it too.
+ * "ProntoFolio" + "Pronto") is the logo on its own: a light lead and a bold
+ * tail in `--primary`, with no mark beside it. It keeps the product name's own
+ * casing — the capital P and F are part of the brand. It is one short word, so
+ * the phone header shows all of it too.
  *
- * Otherwise our own tenant gets the Prontofolio mark beside the name, set in
+ * Otherwise our own tenant gets the ProntoFolio mark beside the name, set in
  * ink — the fallback when the short name is missing. A tenant has no mark
  * here, so its wordmark keeps the two-tone treatment, with the accented part
  * in the tenant's `--primary`.
@@ -37,7 +38,7 @@ export function BrandLockup({
     return (
       <h1
         className={cn(
-          "min-w-0 truncate font-display lowercase leading-none tracking-tight",
+          "min-w-0 truncate font-display leading-none tracking-tight",
           compact ? "text-lg" : "text-[1.7rem]",
           className
         )}

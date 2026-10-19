@@ -443,7 +443,7 @@ describe("the running header", () => {
     const doc = await buildSimulationPdf(
       makeInput({
         charts: [chart, chart, chart, chart, chart],
-        branding: { productName: "Prontofolio" },
+        branding: { productName: "ProntoFolio" },
       })
     );
     const internal = doc.internal as unknown as { pages: string[][] };
@@ -451,14 +451,14 @@ describe("the running header", () => {
     expect(doc.getNumberOfPages()).toBeGreaterThan(1);
     const pagesWithName = internal.pages
       .filter((page) => page.length > 0)
-      .filter((page) => page.join("\n").includes("(Prontofolio)"));
+      .filter((page) => page.join("\n").includes("(ProntoFolio)"));
     expect(pagesWithName).toHaveLength(doc.getNumberOfPages());
   });
 
   it("is left out when there is no product name", async () => {
     const doc = await buildSimulationPdf(makeInput({ branding: { productName: "  " } }));
 
-    expect(extractText(doc)).not.toContain("Prontofolio");
+    expect(extractText(doc)).not.toContain("ProntoFolio");
   });
 });
 
