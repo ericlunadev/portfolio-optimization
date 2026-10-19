@@ -5,7 +5,7 @@ import { OPTIMIZATION_STRATEGIES, type OptimizationStrategy } from "../../lib/ma
 import { buildCovarianceMatrix } from "../../lib/math/matrix.js";
 import { correlationMatrix, normalCDF, stdDev, mean } from "../../lib/math/stats.js";
 import { defaultLookbackPeriod } from "../../lib/dates.js";
-import { fetchTickerPrices } from "../../lib/yahoo.js";
+import { fetchTickerPrices } from "../../lib/market-data.js";
 
 /**
  * The optimization itself, free of HTTP.
@@ -178,7 +178,7 @@ export async function runOptimization(params: OptimizeParams): Promise<OptimizeR
   };
 }
 
-// Helper function to get assumptions for tickers from Yahoo Finance
+// Helper function to get assumptions for tickers from the market data provider
 export async function getTickerAssumptions(tickers: string[], startDate?: string, endDate?: string): Promise<{
   expectedReturns: number[];
   volatilities: number[];

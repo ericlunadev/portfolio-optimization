@@ -13,7 +13,7 @@ import {
   type BenchmarkComponent,
 } from "../../lib/benchmarks.js";
 import { defaultLookbackPeriod } from "../../lib/dates.js";
-import { fetchTickerPrices } from "../../lib/yahoo.js";
+import { fetchTickerPrices } from "../../lib/market-data.js";
 
 /**
  * CRUD for user-authored benchmarks. Mounted under the optimization routes, so
@@ -58,7 +58,7 @@ function normalizeComponents(components: Body["components"]): BenchmarkComponent
 }
 
 /**
- * Symbols Yahoo cannot price over the default window. Checked up front because
+ * Symbols the market data provider cannot price over the default window. Checked up front because
  * a benchmark that can never be drawn is worth catching while the user still
  * has the form open, rather than as an "unavailable" note on every later
  * comparison.
@@ -71,7 +71,7 @@ async function unpricedTickers(components: BenchmarkComponent[]): Promise<string
   try {
     pricesByTicker = await fetchTickerPrices(tickers, period1, period2);
   } catch {
-    // Yahoo being down is not the user's mistake — let the benchmark be saved
+    // The provider being down is not the user's mistake — let the benchmark be saved
     // and let the comparison endpoint report what it cannot price.
     return [];
   }

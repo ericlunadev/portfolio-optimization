@@ -51,6 +51,11 @@ const envSchema = z.object({
   // the superRefine below refuses to boot at all.
   INTERNAL_API_SECRET: z.string().min(32).optional(),
 
+  // Historical prices (lib/market-data.ts). `eodhd` needs a token from
+  // https://eodhd.com; ticker search and risk-free presets stay on Yahoo.
+  MARKET_DATA_PROVIDER: z.enum(["yahoo", "eodhd"]).default("yahoo"),
+  EODHD_API_TOKEN: z.string().optional(),
+
   // Financial advisor booking.
   //
   // Neither of these decides what a request sees any more: the mode, the
@@ -76,6 +81,14 @@ export const env = envSchema
         code: z.ZodIssueCode.custom,
         path: ["INTERNAL_API_SECRET"],
         message: "INTERNAL_API_SECRET is required in production",
+      });
+    }
+    // Fail at boot rather than on the first optimization.
+    if (value.MARKET_DATA_PROVIDER === "eodhd" && !value.EODHD_API_TOKEN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["EODHD_API_TOKEN"],
+        message: "EODHD_API_TOKEN is required when MARKET_DATA_PROVIDER is eodhd",
       });
     }
   })

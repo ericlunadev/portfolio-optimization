@@ -44,6 +44,11 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      # "yahoo" (default) or "eodhd"; eodhd refuses to boot without EODHD_API_TOKEN.
+      - key: MARKET_DATA_PROVIDER
+        sync: false
+      - key: EODHD_API_TOKEN
+        sync: false
       # Must match INTERNAL_API_SECRET on Vercel; the API refuses to start without it.
       - key: INTERNAL_API_SECRET
         sync: false

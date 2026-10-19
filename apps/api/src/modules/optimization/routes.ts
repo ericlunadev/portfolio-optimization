@@ -14,7 +14,7 @@ import { meterRequest, clientIdempotencyKey, reverseSpendOnError } from "../../l
 import { HTTPException } from "hono/http-exception";
 import { refusedTickers } from "../../lib/tenant-settings.js";
 import { defaultLookbackPeriod } from "../../lib/dates.js";
-import { fetchTickerPrices } from "../../lib/yahoo.js";
+import { fetchTickerPrices } from "../../lib/market-data.js";
 import {
   BENCHMARKS,
   benchmarkTickers,
