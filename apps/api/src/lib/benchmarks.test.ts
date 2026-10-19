@@ -10,7 +10,7 @@ import {
   parseCustomBenchmarkId,
   resolveBenchmarkComponents,
 } from "./benchmarks.js";
-import type { PricePoint } from "./yahoo.js";
+import type { PricePoint } from "./market-data.js";
 
 function prices(entries: [string, number][]): PricePoint[] {
   return entries.map(([date, close]) => ({ date, close }));

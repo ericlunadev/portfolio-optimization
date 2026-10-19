@@ -1,9 +1,7 @@
-import YahooFinance from "yahoo-finance2";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { prices, backgroundTasks } from "../../db/schema.js";
-
-const yahooFinance = new YahooFinance();
+import { fetchAdjustedCloses } from "../../lib/market-data.js";
 
 type ProgressCallback = (progress: number, message: string) => void;
 
@@ -82,33 +80,27 @@ export async function startYahooUpdate(task: TaskRef, onProgress: ProgressCallba
           continue;
         }
 
-        // Fetch historical data from Yahoo Finance
-        const historical = await yahooFinance.historical(ticker, {
-          period1: startDate,
-          period2: endDate,
-        });
+        // Fetch historical data from the market data provider. The column is
+        // still called `yahoo_ticker`, but the symbol in it is only Yahoo-style:
+        // the EODHD client translates it.
+        const historical = await fetchAdjustedCloses(ticker, startDate, endDate);
 
         // Insert new prices. The price table is platform-wide reference data shared
         // by every tenant (D1), so it stays unscoped — only the bookkeeping row above
         // belongs to an organization.
         for (const quote of historical) {
-          const dateStr = quote.date.toISOString().split("T")[0];
-          const price = quote.adjClose ?? quote.close;
-
-          if (price != null) {
-            try {
-              await db
-                .insert(prices)
-                .values({
-                  fundId: fund.id,
-                  date: dateStr,
-                  price,
-                })
-                .onConflictDoNothing();
-              updated++;
-            } catch {
-              // Ignore duplicate errors
-            }
+          try {
+            await db
+              .insert(prices)
+              .values({
+                fundId: fund.id,
+                date: quote.date,
+                price: quote.close,
+              })
+              .onConflictDoNothing();
+            updated++;
+          } catch {
+            // Ignore duplicate errors
           }
         }
 

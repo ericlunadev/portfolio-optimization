@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PricePoint } from "../../lib/yahoo.js";
+import type { PricePoint } from "../../lib/market-data.js";
 import { OPTIMIZATION_STRATEGIES } from "../../lib/math/strategies.js";
 
 /**
@@ -17,7 +17,7 @@ const { fetchTickerPrices, meterRequest, reverseSpendOnError } = vi.hoisted(() =
   reverseSpendOnError: vi.fn(),
 }));
 
-vi.mock("../../lib/yahoo.js", () => ({ fetchTickerPrices }));
+vi.mock("../../lib/market-data.js", () => ({ fetchTickerPrices }));
 vi.mock("../../db/index.js", () => ({ db: {} }));
 vi.mock("../../middleware/auth.js", () => ({
   authMiddleware: async (c: { set: (k: string, v: unknown) => void }, next: () => Promise<void>) => {

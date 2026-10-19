@@ -7,7 +7,7 @@
 // that creating it had. The fix reads the frontier through the saved row
 // (`POST /api/optimization/simulations/:id/frontier`, saved-frontier.ts).
 //
-// Prices are mocked at `lib/yahoo.ts`, and every call is recorded, so a test can
+// Prices are mocked at `lib/market-data.ts`, and every call is recorded, so a test can
 // say not only what was charged but what was actually computed.
 
 import { randomUUID } from "node:crypto";
@@ -19,7 +19,7 @@ const market = vi.hoisted(() => ({
   failuresLeft: 0,
 }));
 
-vi.mock("../../lib/yahoo.js", () => ({
+vi.mock("../../lib/market-data.js", () => ({
   fetchTickerPrices: async (tickers: string[], period1: string, period2: string) => {
     market.calls.push({ tickers: [...tickers], period1, period2 });
     if (market.failuresLeft > 0) {

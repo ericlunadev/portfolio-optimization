@@ -1,4 +1,4 @@
-import type { PricePoint } from "./yahoo.js";
+import type { PricePoint } from "./market-data.js";
 import { mean, stdDev } from "./math/stats.js";
 
 /** Trading days in a year, matching the annualization used by the optimizer. */
