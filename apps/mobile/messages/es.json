@@ -1,6 +1,6 @@
 {
   "common": {
-    "appName": "Optimización de Portafolio",
+    "appName": "ProntoFolio",
     "retry": "Reintentar",
     "loading": "Cargando…"
   },
@@ -17,7 +17,7 @@
     "academia": "Academia"
   },
   "home": {
-    "title": "Optimización de Portafolio",
+    "title": "ProntoFolio",
     "subtitle": "Optimización de portafolios de Markowitz en tu bolsillo.",
     "apiStatusLabel": "Estado de la API",
     "apiOnline": "En línea",
