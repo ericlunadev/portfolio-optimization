@@ -19,7 +19,10 @@ import {
 } from "@/lib/correlation";
 import { useTenantBrand } from "@/components/tenant/TenantProvider";
 import { SimulationParamsSummary } from "@/components/SimulationParamsSummary";
-import { RiskReturnScatterChart } from "@/components/charts/ScatterChart";
+import {
+  EfficientFrontierChart,
+  RiskReturnPointsChart,
+} from "@/components/charts/ScatterChart";
 import { PortfolioWeightsChart } from "@/components/charts/PortfolioWeightsChart";
 import { CumulativeReturnsChart } from "@/components/charts/CumulativeReturnsChart";
 import { AssetVolatilityChart } from "@/components/charts/AssetVolatilityChart";
@@ -478,33 +481,51 @@ export function MarkowitzResults({
   const pdfCharts = useMemo<PdfChartSpec[]>(() => {
     const specs: PdfChartSpec[] = [];
 
-    const scatterLegend = [
-      ...(frontierPoints.length > 0
-        ? [{ label: tScatter("legendFrontier"), color: chartColors.frontier }]
-        : []),
-      { label: tScatter("legendAssets"), color: chartColors.asset },
-      { label: strategyLabel, color: chartColors.optimal },
-      ...(userPortfolioPoint
-        ? [{ label: userPortfolioLabel, color: chartColors.user }]
-        : []),
-      ...benchmarkPoints.map((point) => ({
-        label: point.name,
-        color: point.color,
-      })),
-    ];
+    // Keyed "risk-return" because this chart used to carry every point too; a
+    // stored report config that turned it off keeps it off.
+    if (frontierPoints.length > 0) {
+      specs.push({
+        key: "risk-return",
+        title: t("frontierTitle"),
+        subtitle: t("frontierSubtitle"),
+        legend: [
+          { label: tScatter("legendFrontier"), color: chartColors.frontier },
+          { label: strategyLabel, color: chartColors.optimal },
+        ],
+        tall: true,
+        node: (
+          <EfficientFrontierChart
+            frontier={frontierPoints}
+            frontierTickers={frontierData?.tickers}
+            optimizedPortfolio={optimizedPortfolioPoint}
+            optimizedLabel={strategyLabel}
+            animate={false}
+          />
+        ),
+      });
+    }
 
     specs.push({
-      key: "risk-return",
+      key: "risk-return-points",
       title: t("riskReturnTitle"),
       subtitle: t("riskReturnSubtitle"),
-      legend: scatterLegend,
+      legend: [
+        { label: tScatter("legendAssets"), color: chartColors.asset },
+        { label: strategyLabel, color: chartColors.optimal },
+        ...(userPortfolioPoint
+          ? [{ label: userPortfolioLabel, color: chartColors.user }]
+          : []),
+        ...benchmarkPoints.map((point) => ({
+          label: point.name,
+          color: point.color,
+        })),
+      ],
       tall: true,
       node: (
-        <RiskReturnScatterChart
+        <RiskReturnPointsChart
           data={scatterData}
-          frontier={frontierPoints}
-          frontierTickers={frontierData?.tickers}
           optimizedPortfolio={optimizedPortfolioPoint}
+          optimizedLabel={strategyLabel}
           userPortfolio={userPortfolioPoint}
           benchmarks={benchmarkPoints}
           animate={false}
@@ -816,9 +837,9 @@ export function MarkowitzResults({
           <div className="glass-card overflow-hidden p-4 md:p-5">
             <div className="mb-4 flex items-center justify-between gap-4">
               <div>
-                <h3 className="font-display text-lg">{t("riskReturnTitle")}</h3>
+                <h3 className="font-display text-lg">{t("frontierTitle")}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {t("riskReturnSubtitle")}
+                  {t("frontierSubtitle")}
                 </p>
               </div>
               <label className="flex shrink-0 items-center gap-2 rounded-lg border border-border/50 bg-accent/40 px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground">
@@ -831,15 +852,31 @@ export function MarkowitzResults({
                 {t("debug")}
               </label>
             </div>
-            <ChartReveal placeholderClassName="h-[280px] sm:h-[360px] md:h-[400px]">
-              <RiskReturnScatterChart
-                data={scatterData}
+            <ChartReveal placeholderClassName="h-[320px] sm:h-[420px] md:h-[480px]">
+              <EfficientFrontierChart
                 frontier={frontierPoints}
                 frontierTickers={frontierData?.tickers}
                 optimizedPortfolio={optimizedPortfolioPoint}
+                optimizedLabel={strategyLabel}
+                showTangentSlope={debugTangentSlope}
+              />
+            </ChartReveal>
+          </div>
+
+          <div className="glass-card overflow-hidden p-4 md:p-5">
+            <div className="mb-4">
+              <h3 className="font-display text-lg">{t("riskReturnTitle")}</h3>
+              <p className="text-xs text-muted-foreground">
+                {t("riskReturnSubtitle")}
+              </p>
+            </div>
+            <ChartReveal placeholderClassName="h-[320px] sm:h-[420px] md:h-[480px]">
+              <RiskReturnPointsChart
+                data={scatterData}
+                optimizedPortfolio={optimizedPortfolioPoint}
+                optimizedLabel={strategyLabel}
                 userPortfolio={userPortfolioPoint}
                 benchmarks={benchmarkPoints}
-                showTangentSlope={debugTangentSlope}
               />
             </ChartReveal>
           </div>

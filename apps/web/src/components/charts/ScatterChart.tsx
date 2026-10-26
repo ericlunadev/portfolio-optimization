@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { ReactNode, useState } from "react";
 import {
   Scatter,
   ScatterChart,
@@ -8,6 +8,8 @@ import {
   YAxis,
   ZAxis,
   CartesianGrid,
+  LabelList,
+  ReferenceLine,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
@@ -45,21 +47,36 @@ interface BenchmarkPoint extends PortfolioPoint {
   color: string;
 }
 
-interface ScatterChartProps {
-  data: DataPoint[];
-  frontier?: FrontierPoint[];
+type LegendItem = {
+  label: string;
+  color: string;
+  variant?: "line" | "dot" | "dashed" | "star" | "diamond" | "triangle";
+};
+
+interface EfficientFrontierChartProps {
+  frontier: FrontierPoint[];
   frontierTickers?: string[];
   optimizedPortfolio?: PortfolioPoint | null;
-  userPortfolio?: PortfolioPoint | null;
-  benchmarks?: BenchmarkPoint[];
-  onPointClick?: (name: string) => void;
-  showLabels?: boolean;
+  /** Legend label for the star; defaults to the generic "optimal portfolio". */
+  optimizedLabel?: string;
   showTangentSlope?: boolean;
   /**
    * Mount animations rely on requestAnimationFrame, which is suspended in
    * background tabs. Turn them off when the chart is rendered to be captured
    * (PDF export), so it paints its final geometry immediately.
    */
+  animate?: boolean;
+}
+
+interface RiskReturnPointsChartProps {
+  data: DataPoint[];
+  optimizedPortfolio?: PortfolioPoint | null;
+  /** Legend label for the star; defaults to the generic "optimal portfolio". */
+  optimizedLabel?: string;
+  userPortfolio?: PortfolioPoint | null;
+  benchmarks?: BenchmarkPoint[];
+  onPointClick?: (name: string) => void;
+  /** See `EfficientFrontierChartProps.animate`. */
   animate?: boolean;
 }
 
@@ -85,6 +102,21 @@ function computeTangentSlope(
   const pPrev = sortedFrontier[idx - 1];
   const pNext = sortedFrontier[idx + 1];
   return (pNext.ret - pPrev.ret) / (pNext.vol - pPrev.vol);
+}
+
+/**
+ * Both axes are anchored at zero so the eye reads absolute risk and return, not
+ * a zoomed-in slice. Return only drops below zero when some point does; the
+ * upper ends are left to Recharts, which rounds them to clean ticks.
+ */
+function returnDomain(points: { ret: number }[]): [number | "auto", "auto"] {
+  return [points.some((p) => p.ret < 0) ? "auto" : 0, "auto"];
+}
+
+/** Whole percentages print without a decimal; finer ticks keep one. */
+function formatAxisPercent(value: number) {
+  const pct = value * 100;
+  return formatPercent(value, Math.abs(pct - Math.round(pct)) < 1e-6 ? 0 : 1);
 }
 
 /** Recharts clones these shapes and injects `cx`/`cy`/`index`. */
@@ -231,17 +263,124 @@ function BenchmarkTriangle(props: ShapeProps & { color?: string }) {
   );
 }
 
-export function RiskReturnScatterChart({
-  data,
+/**
+ * Called as a function like `renderRiskReturnAxes`: Recharts only keeps chart
+ * children it recognises, so a `<ScatterDefs>` component would be dropped and
+ * the gradient and glow would resolve to nothing.
+ */
+function renderScatterDefs(colors: ChartColors) {
+  return (
+    <defs>
+      <linearGradient id="frontier-stroke" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stopColor={colors.frontierFrom} />
+        <stop offset="50%" stopColor={colors.frontier} />
+        <stop offset="100%" stopColor={colors.frontierTo} />
+      </linearGradient>
+      <filter id="scatter-glow" x="-100%" y="-100%" width="300%" height="300%">
+        <feGaussianBlur stdDeviation="3" result="blur" />
+        <feMerge>
+          <feMergeNode in="blur" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+      </filter>
+    </defs>
+  );
+}
+
+/** Volatility and return of the hovered point, plus whatever a chart adds. */
+function PointTooltipCard({
+  point,
+  children,
+}: {
+  point: { name?: string; vol: number; ret: number };
+  children?: ReactNode;
+}) {
+  const t = useTranslations("ScatterChart");
+  return (
+    <div className="min-w-[200px] max-w-xs rounded-xl border border-border/60 bg-popover/90 px-3 py-2.5 shadow-2xl shadow-black/10 backdrop-blur-md dark:shadow-black/60">
+      {point.name && (
+        <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+          {point.name}
+        </div>
+      )}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-6 text-xs">
+          <span className="text-foreground/70">{t("tooltipVolatility")}</span>
+          <span className="font-mono font-medium tabular-nums">
+            {formatPercent(point.vol)}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-6 text-xs">
+          <span className="text-foreground/70">{t("tooltipReturn")}</span>
+          <span className="font-mono font-medium tabular-nums">
+            {formatPercent(point.ret)}
+          </span>
+        </div>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Shared axes. A plain function rather than a component: Recharts finds its
+ * axes by element type among the chart's children (fragments are flattened),
+ * so a wrapper component would hide them.
+ */
+function renderRiskReturnAxes(
+  t: ReturnType<typeof useTranslations<"ScatterChart">>,
+  domainPoints: { ret: number }[]
+) {
+  return (
+    <>
+      <CartesianGrid strokeDasharray="2 4" vertical={false} />
+      <XAxis
+        type="number"
+        dataKey="vol"
+        domain={[0, "auto"]}
+        tickFormatter={formatAxisPercent}
+        name={t("axisVolatility")}
+        label={{
+          value: t("axisVolatility"),
+          position: "insideBottom",
+          offset: -10,
+          fontSize: 11,
+        }}
+        {...axisProps}
+      />
+      <YAxis
+        type="number"
+        dataKey="ret"
+        domain={returnDomain(domainPoints)}
+        tickFormatter={formatAxisPercent}
+        name={t("axisReturn")}
+        label={{
+          value: t("axisReturn"),
+          angle: -90,
+          position: "insideLeft",
+          offset: 14,
+          fontSize: 11,
+        }}
+        {...axisProps}
+      />
+      <ZAxis range={[60, 60]} />
+    </>
+  );
+}
+
+/**
+ * The efficient frontier on its own, with the chosen portfolio on it. Kept
+ * apart from the individual assets: those sit far out on both axes and, drawn
+ * together, squeeze the curve into a corner.
+ */
+export function EfficientFrontierChart({
   frontier,
   frontierTickers,
   optimizedPortfolio,
-  userPortfolio,
-  benchmarks,
-  onPointClick,
+  optimizedLabel,
   showTangentSlope = false,
   animate = true,
-}: ScatterChartProps) {
+}: EfficientFrontierChartProps) {
   const t = useTranslations("ScatterChart");
   const colors = useChartColors();
   const isDark = useResolvedTheme() === "dark";
@@ -249,130 +388,47 @@ export function RiskReturnScatterChart({
     number | null
   >(null);
 
-  const sortedFrontier = frontier
-    ? [...frontier].sort((a, b) => a.vol - b.vol)
-    : [];
+  const sortedFrontier = [...frontier].sort((a, b) => a.vol - b.vol);
 
   const selectedPoint =
     selectedFrontierIndex != null
       ? sortedFrontier[selectedFrontierIndex]
       : null;
 
-  const benchmarkPoints = benchmarks ?? [];
-  const portfolioPoints = [
+  const domainPoints = [
+    ...sortedFrontier,
     ...(optimizedPortfolio ? [optimizedPortfolio] : []),
-    ...(userPortfolio ? [userPortfolio] : []),
-    ...benchmarkPoints,
   ];
-  const allPoints = [...data, ...sortedFrontier, ...portfolioPoints];
-  const minVol = Math.min(...allPoints.map((p) => p.vol)) * 0.9;
-  const maxVol = Math.max(...allPoints.map((p) => p.vol)) * 1.1;
-  const minRet = Math.min(...allPoints.map((p) => p.ret)) * 0.9;
-  const maxRet = Math.max(...allPoints.map((p) => p.ret)) * 1.1;
 
   const handleFrontierClick = (_: unknown, index: number) => {
     setSelectedFrontierIndex((prev) => (prev === index ? null : index));
   };
 
-  const legendItems: {
-    label: string;
-    color: string;
-    variant?: "line" | "dot" | "dashed" | "star" | "diamond" | "triangle";
-  }[] = [];
-  if (sortedFrontier.length > 0) {
-    legendItems.push({
-      label: t("legendFrontier"),
-      color: colors.frontier,
-      variant: "line",
-    });
-  }
-  legendItems.push({ label: t("legendAssets"), color: colors.asset, variant: "dot" });
+  const legendItems: LegendItem[] = [
+    { label: t("legendFrontier"), color: colors.frontier, variant: "line" },
+  ];
   if (optimizedPortfolio) {
     legendItems.push({
-      label: t("legendOptimal"),
+      label: optimizedLabel ?? t("legendOptimal"),
       color: colors.optimal,
       variant: "star",
-    });
-  }
-  if (userPortfolio) {
-    legendItems.push({
-      label: t("legendUser"),
-      color: colors.user,
-      variant: "diamond",
-    });
-  }
-  for (const benchmark of benchmarkPoints) {
-    legendItems.push({
-      label: benchmark.name,
-      color: benchmark.color,
-      variant: "triangle",
     });
   }
 
   return (
     <div>
       <ChartLegend items={legendItems} className="mb-3" />
-      <div className="h-[280px] sm:h-[360px] md:h-[400px]">
+      <div className="h-[320px] sm:h-[420px] md:h-[480px]">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 12, right: 16, bottom: 24, left: 8 }}>
-            <defs>
-              <linearGradient id="frontier-stroke" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor={colors.frontierFrom} />
-                <stop offset="50%" stopColor={colors.frontier} />
-                <stop offset="100%" stopColor={colors.frontierTo} />
-              </linearGradient>
-              <filter
-                id="scatter-glow"
-                x="-100%"
-                y="-100%"
-                width="300%"
-                height="300%"
-              >
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                  <feMergeNode in="blur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </defs>
-            <CartesianGrid strokeDasharray="2 4" vertical={false} />
-            <XAxis
-              type="number"
-              dataKey="vol"
-              domain={[minVol, maxVol]}
-              tickFormatter={(v) => formatPercent(v, 1)}
-              name={t("axisVolatility")}
-              label={{
-                value: t("axisVolatility"),
-                position: "insideBottom",
-                offset: -10,
-                fontSize: 11,
-              }}
-              {...axisProps}
-            />
-            <YAxis
-              type="number"
-              dataKey="ret"
-              domain={[minRet, maxRet]}
-              tickFormatter={(v) => formatPercent(v, 1)}
-              name={t("axisReturn")}
-              label={{
-                value: t("axisReturn"),
-                angle: -90,
-                position: "insideLeft",
-                offset: 14,
-                fontSize: 11,
-              }}
-              {...axisProps}
-            />
-            <ZAxis range={[60, 60]} />
+            {renderScatterDefs(colors)}
+            {renderRiskReturnAxes(t, domainPoints)}
             <Tooltip
               cursor={{ stroke: colors.cursor, strokeDasharray: "3 3" }}
               content={({ active, payload }) => {
                 if (!active || !payload?.length) return null;
                 const point = payload[0].payload as FrontierPoint &
-                  DataPoint &
-                  PortfolioPoint;
+                  Partial<PortfolioPoint>;
                 const slope = showTangentSlope
                   ? computeTangentSlope(point, sortedFrontier)
                   : null;
@@ -382,34 +438,15 @@ export function RiskReturnScatterChart({
                   frontierTickers &&
                   frontierTickers.length > 0;
                 return (
-                  <div className="min-w-[200px] max-w-xs rounded-xl border border-border/60 bg-popover/90 px-3 py-2.5 shadow-2xl shadow-black/10 backdrop-blur-md dark:shadow-black/60">
-                    {point.name && (
-                      <div className="mb-1.5 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
-                        {point.name}
+                  <PointTooltipCard point={point}>
+                    {slope !== null && (
+                      <div className="mt-1 flex items-center justify-between gap-6 text-xs">
+                        <span className="text-primary/80">{t("tooltipSlope")}</span>
+                        <span className="font-mono font-medium tabular-nums text-primary">
+                          {slope.toFixed(4)}
+                        </span>
                       </div>
                     )}
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between gap-6 text-xs">
-                        <span className="text-foreground/70">{t("tooltipVolatility")}</span>
-                        <span className="font-mono font-medium tabular-nums">
-                          {formatPercent(point.vol)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between gap-6 text-xs">
-                        <span className="text-foreground/70">{t("tooltipReturn")}</span>
-                        <span className="font-mono font-medium tabular-nums">
-                          {formatPercent(point.ret)}
-                        </span>
-                      </div>
-                      {slope !== null && (
-                        <div className="flex items-center justify-between gap-6 text-xs">
-                          <span className="text-primary/80">{t("tooltipSlope")}</span>
-                          <span className="font-mono font-medium tabular-nums text-primary">
-                            {slope.toFixed(4)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
                     {hasWeights && (
                       <div className="mt-2 border-t border-border/50 pt-2">
                         <div className="mb-1 text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
@@ -434,7 +471,7 @@ export function RiskReturnScatterChart({
                         </div>
                       </div>
                     )}
-                  </div>
+                  </PointTooltipCard>
                 );
               }}
             />
@@ -460,56 +497,16 @@ export function RiskReturnScatterChart({
               />
             )}
 
-            <Scatter
-              data={data}
-              fill={colors.asset}
-              onClick={(entry) => onPointClick?.(entry.name)}
-              cursor={onPointClick ? "pointer" : "default"}
-              name={t("legendAssets")}
-              shape={<AssetDot colors={colors} isDark={isDark} />}
-              isAnimationActive={animate}
-              animationDuration={700}
-            />
-
             {optimizedPortfolio && (
               <Scatter
                 data={[optimizedPortfolio]}
                 fill={colors.optimal}
                 shape={<OptimalStar colors={colors} isDark={isDark} />}
-                name={t("legendOptimal")}
+                name={optimizedLabel ?? t("legendOptimal")}
                 isAnimationActive={animate}
                 animationDuration={900}
               />
             )}
-
-            {userPortfolio && (
-              <Scatter
-                data={[userPortfolio]}
-                fill={colors.user}
-                shape={<UserDiamond colors={colors} isDark={isDark} />}
-                name={t("legendUser")}
-                isAnimationActive={animate}
-                animationDuration={900}
-              />
-            )}
-
-            {benchmarkPoints.map((benchmark) => (
-              <Scatter
-                key={`benchmark-${benchmark.name}`}
-                data={[benchmark]}
-                fill={benchmark.color}
-                shape={
-                  <BenchmarkTriangle
-                    color={benchmark.color}
-                    colors={colors}
-                    isDark={isDark}
-                  />
-                }
-                name={benchmark.name}
-                isAnimationActive={animate}
-                animationDuration={900}
-              />
-            ))}
           </ScatterChart>
         </ResponsiveContainer>
       </div>
@@ -576,6 +573,138 @@ export function RiskReturnScatterChart({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Every asset, the simulated portfolio, the user's allocation and the selected
+ * benchmarks as standalone points. Assets carry their ticker beside the marker;
+ * the portfolios are told apart by shape and named in the legend.
+ */
+export function RiskReturnPointsChart({
+  data,
+  optimizedPortfolio,
+  optimizedLabel,
+  userPortfolio,
+  benchmarks,
+  onPointClick,
+  animate = true,
+}: RiskReturnPointsChartProps) {
+  const t = useTranslations("ScatterChart");
+  const colors = useChartColors();
+  const isDark = useResolvedTheme() === "dark";
+
+  const benchmarkPoints = benchmarks ?? [];
+  const domainPoints = [
+    ...data,
+    ...(optimizedPortfolio ? [optimizedPortfolio] : []),
+    ...(userPortfolio ? [userPortfolio] : []),
+    ...benchmarkPoints,
+  ];
+  const hasNegativeReturn = domainPoints.some((p) => p.ret < 0);
+
+  const legendItems: LegendItem[] = [
+    { label: t("legendAssets"), color: colors.asset, variant: "dot" },
+  ];
+  if (optimizedPortfolio) {
+    legendItems.push({
+      label: optimizedLabel ?? t("legendOptimal"),
+      color: colors.optimal,
+      variant: "star",
+    });
+  }
+  if (userPortfolio) {
+    legendItems.push({
+      label: t("legendUser"),
+      color: colors.user,
+      variant: "diamond",
+    });
+  }
+  for (const benchmark of benchmarkPoints) {
+    legendItems.push({
+      label: benchmark.name,
+      color: benchmark.color,
+      variant: "triangle",
+    });
+  }
+
+  return (
+    <div>
+      <ChartLegend items={legendItems} className="mb-3" />
+      <div className="h-[320px] sm:h-[420px] md:h-[480px]">
+        <ResponsiveContainer width="100%" height="100%">
+          {/* The right margin leaves room for the ticker of the riskiest asset. */}
+          <ScatterChart margin={{ top: 12, right: 48, bottom: 24, left: 8 }}>
+            {renderScatterDefs(colors)}
+            {renderRiskReturnAxes(t, domainPoints)}
+            {hasNegativeReturn && (
+              <ReferenceLine y={0} stroke={colors.cursor} strokeDasharray="3 3" />
+            )}
+            <Tooltip
+              cursor={{ stroke: colors.cursor, strokeDasharray: "3 3" }}
+              content={({ active, payload }) => {
+                if (!active || !payload?.length) return null;
+                const point = payload[0].payload as PortfolioPoint;
+                return <PointTooltipCard point={point} />;
+              }}
+            />
+
+            <Scatter
+              data={data}
+              fill={colors.asset}
+              onClick={(entry) => onPointClick?.(entry.name)}
+              cursor={onPointClick ? "pointer" : "default"}
+              name={t("legendAssets")}
+              shape={<AssetDot colors={colors} isDark={isDark} />}
+              isAnimationActive={animate}
+              animationDuration={700}
+            >
+              <LabelList dataKey="name" position="right" offset={10} />
+            </Scatter>
+
+            {optimizedPortfolio && (
+              <Scatter
+                data={[optimizedPortfolio]}
+                fill={colors.optimal}
+                shape={<OptimalStar colors={colors} isDark={isDark} />}
+                name={optimizedLabel ?? t("legendOptimal")}
+                isAnimationActive={animate}
+                animationDuration={900}
+              />
+            )}
+
+            {userPortfolio && (
+              <Scatter
+                data={[userPortfolio]}
+                fill={colors.user}
+                shape={<UserDiamond colors={colors} isDark={isDark} />}
+                name={t("legendUser")}
+                isAnimationActive={animate}
+                animationDuration={900}
+              />
+            )}
+
+            {benchmarkPoints.map((benchmark) => (
+              <Scatter
+                key={`benchmark-${benchmark.name}`}
+                data={[benchmark]}
+                fill={benchmark.color}
+                shape={
+                  <BenchmarkTriangle
+                    color={benchmark.color}
+                    colors={colors}
+                    isDark={isDark}
+                  />
+                }
+                name={benchmark.name}
+                isAnimationActive={animate}
+                animationDuration={900}
+              />
+            ))}
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
