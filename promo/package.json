@@ -1,0 +1,24 @@
+{
+  "name": "prontofolio-promo",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "voice": "node scripts/generate-voice.mjs",
+    "transcribe": "node scripts/transcribe-voice.mjs",
+    "studio": "remotion studio src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "render": "remotion render src/index.ts Promo out/raw.mp4 --timeout=120000 --concurrency=4 && npm run master",
+    "master": "ffmpeg -v error -y -i out/raw.mp4 -c:v copy -af loudnorm=I=-14:TP=-1.5:LRA=7 -c:a aac -b:a 192k -ar 48000 out/prontofolio-promo.mp4"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.290",
+    "@remotion/fonts": "4.0.290",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.290"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.6.3"
+  }
+}

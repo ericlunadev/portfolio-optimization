@@ -1,0 +1,44 @@
+[
+  {
+    "id": "hook",
+    "text": "¿Seguís armando tu cartera a ojo?",
+    "file": "audio/hook.mp3",
+    "frames": 65
+  },
+  {
+    "id": "frontier",
+    "text": "Con ProntoFolio cargás tus activos, y en segundos tenés la combinación óptima, sobre la frontera eficiente.",
+    "file": "audio/frontier.mp3",
+    "frames": 216
+  },
+  {
+    "id": "strategies",
+    "text": "Una docena de estrategias: máximo Sharpe, mínimo riesgo, paridad de riesgo... Vos elegís.",
+    "file": "audio/strategies.mp3",
+    "frames": 211
+  },
+  {
+    "id": "risk",
+    "text": "Y medís el riesgo en serio: volatilidad, caída máxima y probabilidad de perder.",
+    "file": "audio/risk.mp3",
+    "frames": 170
+  },
+  {
+    "id": "benchmark",
+    "text": "Te comparás con el S&P 500 o con tus propios índices, y usás el plazo fijo o la caución como tasa libre de riesgo.",
+    "file": "audio/benchmark.mp3",
+    "frames": 255
+  },
+  {
+    "id": "delivery",
+    "text": "Bajás el reporte en PDF, o programás que se actualice solo y te llegue al mail.",
+    "file": "audio/delivery.mp3",
+    "frames": 161
+  },
+  {
+    "id": "outro",
+    "text": "ProntoFolio. Tu portafolio, optimizado.",
+    "file": "audio/outro.mp3",
+    "frames": 99
+  }
+]

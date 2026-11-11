@@ -1,0 +1,35 @@
+{
+  "voice_id": "jbWMqMKDKL7X0v1DXTHH",
+  "voice_name": "Franco - Confident Publicity, Argentina",
+  "model_id": "eleven_multilingual_v2",
+  "cues": [
+    {
+      "id": "hook",
+      "text": "¿Seguís armando tu cartera a ojo?"
+    },
+    {
+      "id": "frontier",
+      "text": "Con ProntoFolio cargás tus activos, y en segundos tenés la combinación óptima, sobre la frontera eficiente."
+    },
+    {
+      "id": "strategies",
+      "text": "Una docena de estrategias: máximo Sharpe, mínimo riesgo, paridad de riesgo... Vos elegís."
+    },
+    {
+      "id": "risk",
+      "text": "Y medís el riesgo en serio: volatilidad, caída máxima y probabilidad de perder."
+    },
+    {
+      "id": "benchmark",
+      "text": "Te comparás con el S&P 500 o con tus propios índices, y usás el plazo fijo o la caución como tasa libre de riesgo."
+    },
+    {
+      "id": "delivery",
+      "text": "Bajás el reporte en PDF, o programás que se actualice solo y te llegue al mail."
+    },
+    {
+      "id": "outro",
+      "text": "ProntoFolio. Tu portafolio, optimizado."
+    }
+  ]
+}
