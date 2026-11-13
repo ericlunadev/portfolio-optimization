@@ -22,6 +22,7 @@ import {
   axisProps,
   useChartColors,
 } from "./chart-theme";
+import { fitDomain } from "./axis-domain";
 
 interface DataPoint {
   name: string;
@@ -105,7 +106,7 @@ function computeTangentSlope(
 }
 
 /**
- * Both axes are anchored at zero so the eye reads absolute risk and return, not
+ * In the points chart both axes are anchored at zero so the eye reads absolute risk and return, not
  * a zoomed-in slice. Return only drops below zero when some point does; the
  * upper ends are left to Recharts, which rounds them to clean ticks.
  */
@@ -329,15 +330,23 @@ function PointTooltipCard({
  */
 function renderRiskReturnAxes(
   t: ReturnType<typeof useTranslations<"ScatterChart">>,
-  domainPoints: { ret: number }[]
+  domainPoints: { vol: number; ret: number }[],
+  /**
+   * Frame the points instead of anchoring at zero. Used by the frontier,
+   * whose curvature only shows when the axes hug it.
+   */
+  fit = false
 ) {
+  const xFit = fit ? fitDomain(domainPoints.map((p) => p.vol)) : null;
+  const yFit = fit ? fitDomain(domainPoints.map((p) => p.ret)) : null;
   return (
     <>
       <CartesianGrid strokeDasharray="2 4" vertical={false} />
       <XAxis
         type="number"
         dataKey="vol"
-        domain={[0, "auto"]}
+        domain={xFit?.domain ?? [0, "auto"]}
+        ticks={xFit?.ticks}
         tickFormatter={formatAxisPercent}
         name={t("axisVolatility")}
         label={{
@@ -351,7 +360,8 @@ function renderRiskReturnAxes(
       <YAxis
         type="number"
         dataKey="ret"
-        domain={returnDomain(domainPoints)}
+        domain={yFit?.domain ?? returnDomain(domainPoints)}
+        ticks={yFit?.ticks}
         tickFormatter={formatAxisPercent}
         name={t("axisReturn")}
         label={{
@@ -422,7 +432,7 @@ export function EfficientFrontierChart({
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 12, right: 16, bottom: 24, left: 8 }}>
             {renderScatterDefs(colors)}
-            {renderRiskReturnAxes(t, domainPoints)}
+            {renderRiskReturnAxes(t, domainPoints, true)}
             <Tooltip
               cursor={{ stroke: colors.cursor, strokeDasharray: "3 3" }}
               content={({ active, payload }) => {
