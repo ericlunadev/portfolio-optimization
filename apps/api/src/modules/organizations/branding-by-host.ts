@@ -127,6 +127,7 @@ app.get("/by-host", async (c) => {
       accentHex: branding?.accentHex ?? null,
       fontKey: branding?.fontKey ?? null,
       logoUrl: branding?.logoUrl ?? null,
+      logoDarkUrl: branding?.logoDarkUrl ?? null,
       faviconUrl: branding?.faviconUrl ?? null,
     },
   });
