@@ -58,7 +58,10 @@ export interface TenantConfig {
   /** The single colour input a tenant gets (D9). `null` keeps the stock palette. */
   accentHex: string | null;
   fontKey: string | null;
+  /** The tenant's logo. Replaces the wordmark in the sidebar and phone header when set. */
   logoUrl: string | null;
+  /** The logo for the dark theme, when `logoUrl` is drawn for light surfaces only. */
+  logoDarkUrl: string | null;
   faviconUrl: string | null;
 }
 
@@ -87,6 +90,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   accentHex: null,
   fontKey: null,
   logoUrl: null,
+  logoDarkUrl: null,
   faviconUrl: null,
 };
 
@@ -173,6 +177,7 @@ export function tenantConfigFromResponse(payload: unknown): TenantConfig {
     accentHex: readString(branding, "accentHex"),
     fontKey: readString(branding, "fontKey"),
     logoUrl: readString(branding, "logoUrl"),
+    logoDarkUrl: readString(branding, "logoDarkUrl"),
     faviconUrl: readString(branding, "faviconUrl"),
   };
 }

@@ -1,10 +1,10 @@
 ---
 name: run-portfolio-optimization
-description: Run, start, and drive the portfolio-optimization web app + API locally with three whitelabel tenants on separate hostnames. Use when asked to run the app, start the dev stack, log in as a tenant, take screenshots of the UI or a tenant's branding, run an optimization end to end, or check what a change looks like in the running app. Covers apps/web and apps/api together; not apps/mobile.
+description: Run, start, and drive the portfolio-optimization web app + API locally with four whitelabel tenants on separate hostnames. Use when asked to run the app, start the dev stack, log in as a tenant, take screenshots of the UI or a tenant's branding, run an optimization end to end, or check what a change looks like in the running app. Covers apps/web and apps/api together; not apps/mobile.
 ---
 
 Launches the Next.js web app (`apps/web`, :3000) and the Hono API (`apps/api`, :8001) against a
-throwaway SQLite database seeded with three tenants, then drives the browser with
+throwaway SQLite database seeded with four tenants, then drives the browser with
 **`agent-browser`**. The one driver is `.claude/skills/run-portfolio-optimization/run.sh`; it
 does the dozen setup steps a fresh checkout needs and never touches a real database.
 
@@ -15,8 +15,18 @@ All paths are relative to the repo root. Verified on macOS (Darwin, Apple Silico
 | `d2c` | http://localhost:3000 | co-branded, default | gold `#d7a042` | `analista@d2c.example` | Martín Gómez |
 | `acme` | http://acme.localhost:3000 | whitelabel | teal `#0f766e` | `analyst@acme.example` | Lucía Fernández |
 | `borealis` | http://borealis.localhost:3000 | co-branded | indigo `#4338ca` | `analyst@borealis.example` | Noah Lindqvist |
+| `brio` | http://brio.localhost:3000 | whitelabel, own logo | orange `#ef5915` | `analista@brio.example` (owner) | Valentina Ríos |
+| `brio-advisor` | http://brio.localhost:3000 | (same tenant) | | `asesor@brio.example` (member) | Tomás Acosta |
 
 Each analyst owns their tenant, has finished onboarding, and has 250 credits.
+
+`brio` is a demo of a real prospect, Brio Valores ALyC (briovalores.com): their logo
+(`apps/web/public/tenants/brio/`, a navy-ink copy for light mode and their white original for
+dark), favicon, orange and tagline. It starts with 500 credits, two members, and mock data that
+`seed-brio.mjs` creates through the real API during `up`: six saved simulations on Argentine ADRs
+and the US names behind popular CEDEARs (one pinned, two shared with the org, two by the advisor),
+each with its frontier computed, and a monthly schedule. That step calls Yahoo Finance; offline,
+`up` still finishes and says which simulations are missing.
 
 ## Prerequisites
 
@@ -45,7 +55,7 @@ bash .claude/skills/run-portfolio-optimization/run.sh status
 
 Prints API health, which organization each hostname resolves to, and the web app's HTTP status.
 
-**Sign in through the form** — works on all three hostnames. **Set a tall viewport first and run
+**Sign in through the form** — works on all four hostnames. **Set a tall viewport first and run
 one command at a time** (see Gotchas):
 
 ```bash
@@ -57,7 +67,7 @@ agent-browser --session acme snapshot -i -c
 
 The modal has its own "Iniciar Sesión" button besides the header's, so take the refs from the
 snapshot: fill the "Correo electrónico" and "Contraseña" textboxes, then click the modal's button.
-The refs below are the ones the modal had on all three hostnames; re-snapshot if they don't match.
+The refs below are the ones the modal had on all four hostnames; re-snapshot if they don't match.
 
 ```bash
 agent-browser --session acme fill @e22 "analyst@acme.example"
@@ -116,7 +126,7 @@ bash .claude/skills/run-portfolio-optimization/run.sh stop
 
 ## Run (human path)
 
-After `run.sh up`, open the three URLs above in any Chromium-based browser and sign in through
+After `run.sh up`, open the four URLs above in any Chromium-based browser and sign in through
 the header's "Iniciar Sesión" button with the analyst for that hostname.
 
 ## Test

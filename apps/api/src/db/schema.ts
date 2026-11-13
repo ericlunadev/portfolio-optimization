@@ -99,6 +99,10 @@ export const organizationBranding = sqliteTable("organization_branding", {
   accentHex: text("accent_hex"), // the only colour input a tenant gets
   fontKey: text("font_key").default("instrument-sans"),
   logoUrl: text("logo_url"),
+  // The logo for dark surfaces. Most marks are drawn for one background: a
+  // white-ink logo vanishes on the light theme, a navy-ink one on the dark.
+  // Null means `logoUrl` works on both.
+  logoDarkUrl: text("logo_dark_url"),
   faviconUrl: text("favicon_url"),
   // Nullable for the first release: no support address, privacy policy or terms
   // exist anywhere in the repo yet, so `.notNull()` would make the backfill

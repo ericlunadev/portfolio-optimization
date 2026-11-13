@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local driver for the web app + API, with three tenants on three hostnames.
+# Local driver for the web app + API, with four tenants on four hostnames.
 #
 #   run.sh up              fresh scratch DB, tenants, analysts, both servers
 #   run.sh login <tenant>  sign <tenant>'s analyst in and hand agent-browser the cookie
@@ -9,7 +9,8 @@
 #   run.sh stop            kill whatever listens on :3000 and :8001
 #
 # Tenants: d2c -> http://localhost:3000, acme -> http://acme.localhost:3000,
-#          borealis -> http://borealis.localhost:3000
+#          borealis -> http://borealis.localhost:3000, brio -> http://brio.localhost:3000
+#          (brio also gets a second member and mock simulations: seed-brio.mjs)
 #
 # Everything lives in $DEMO_DIR (a throwaway SQLite file plus logs). Nothing
 # touches apps/api/portfolio.db or any real database.
@@ -29,7 +30,8 @@ origin_for() {
     d2c) echo "http://localhost:3000" ;;
     acme) echo "http://acme.localhost:3000" ;;
     borealis) echo "http://borealis.localhost:3000" ;;
-    *) echo "unknown tenant '$1' (d2c | acme | borealis)" >&2; exit 2 ;;
+    brio|brio-advisor) echo "http://brio.localhost:3000" ;;
+    *) echo "unknown tenant '$1' (d2c | acme | borealis | brio | brio-advisor)" >&2; exit 2 ;;
   esac
 }
 
@@ -38,6 +40,8 @@ email_for() {
     d2c) echo "analista@d2c.example" ;;
     acme) echo "analyst@acme.example" ;;
     borealis) echo "analyst@borealis.example" ;;
+    brio) echo "analista@brio.example" ;;
+    brio-advisor) echo "asesor@brio.example" ;;
   esac
 }
 
@@ -78,15 +82,16 @@ sign_up() {
 }
 
 # Onboards and funds an analyst. With a slug, first moves their membership into
-# that tenant as owner (D3: one user, one org) — the step provision:tenant
-# cannot do yet (PLAN Task 0.9). Without one, they stay in the personal org the
-# signup hook created.
+# that tenant (D3: one user, one org) — the step provision:tenant cannot do yet
+# (PLAN Task 0.9). Without one, they stay in the personal org the signup hook
+# created. Role defaults to owner; a 'member' joins an org someone already
+# funded, so it gets no grant of its own (credits are per organization).
 place_user() {
-  local email="$1" slug="$2"
+  local email="$1" slug="$2" role="${3:-owner}" credits="${4:-250}"
   sqlite3 "$DB_FILE" <<SQL
 $( [ -n "$slug" ] && cat <<MOVE
 UPDATE organization_member
-SET organization_id = (SELECT id FROM organization WHERE slug = '$slug'), role = 'owner'
+SET organization_id = (SELECT id FROM organization WHERE slug = '$slug'), role = '$role'
 WHERE user_id = (SELECT id FROM user WHERE email = '$email');
 MOVE
 )
@@ -102,18 +107,21 @@ SELECT u.id, m.organization_id, 'AR', 'USD', 'intermediate', 'long', 'hold', 'me
 FROM user u JOIN organization_member m ON m.user_id = u.id
 WHERE u.email = '$email';
 
+$( [ "$role" = owner ] && cat <<FUND
 -- Fund through the ledger so wallet == SUM(ledger) still holds.
 INSERT INTO credit_ledger (id, user_id, organization_id, delta, reason, idempotency_key, balance_after, created_at)
-SELECT 'demo-grant-' || m.organization_id, NULL, m.organization_id, 250, 'grant',
-       'demo:grant:' || m.organization_id, 250, unixepoch()
+SELECT 'demo-grant-' || m.organization_id, NULL, m.organization_id, $credits, 'grant',
+       'demo:grant:' || m.organization_id, $credits, unixepoch()
 FROM user u JOIN organization_member m ON m.user_id = u.id
 WHERE u.email = '$email';
 
 INSERT INTO wallet_balance (organization_id, credits, updated_at)
-SELECT m.organization_id, 250, unixepoch()
+SELECT m.organization_id, $credits, unixepoch()
 FROM user u JOIN organization_member m ON m.user_id = u.id
 WHERE u.email = '$email'
-ON CONFLICT (organization_id) DO UPDATE SET credits = 250;
+ON CONFLICT (organization_id) DO UPDATE SET credits = $credits;
+FUND
+)
 SQL
 }
 
@@ -142,8 +150,19 @@ cmd_up() {
     --terms-url https://borealis.example/terms --accent "#4338ca" \
     --product-name "Borealis Allocator" --short-name "Borealis" \
     --tagline "Portfolio design for Borealis clients"
+  # Brio Valores ALyC (Rosario, CNV Mat. 512), from briovalores.com: orange
+  # #ef5915 is their button colour; the logo is white-on-navy, so the light theme
+  # gets a navy-ink copy (apps/web/public/tenants/brio/). They publish no privacy
+  # policy yet ("a publicar" in their terms), so the demo points both at the terms.
+  provision --slug brio --name "Brio Valores ALyC S.A." --hostname brio.optim.app --tier whitelabel \
+    --support-email info@briovalores.com --privacy-url https://briovalores.com/terminos-y-condiciones \
+    --terms-url https://briovalores.com/terminos-y-condiciones --accent "#ef5915" \
+    --product-name "Brio Valores" --short-name "Brio" \
+    --tagline "Tu acceso profesional al mercado de capitales" --font-key manrope \
+    --logo-url /tenants/brio/logo.svg --logo-dark-url /tenants/brio/logo-dark.svg \
+    --favicon-url /tenants/brio/favicon.svg
   sqlite3 "$DB_FILE" "UPDATE organization_domain SET hostname = replace(hostname, '.optim.app', '.localhost') WHERE hostname LIKE '%.optim.app';"
-  echo "✓ tenants acme (whitelabel, teal) and borealis (co-branded, indigo)"
+  echo "✓ tenants acme (whitelabel, teal), borealis (co-branded, indigo), brio (whitelabel, orange)"
 
   # No .env exists in a fresh checkout, and `pnpm dev` in apps/api passes
   # --env-file=.env; run tsx directly with the environment inline instead.
@@ -154,10 +173,18 @@ cmd_up() {
   sign_up "$(email_for d2c)" "Martín Gómez"
   sign_up "$(email_for acme)" "Lucía Fernández"
   sign_up "$(email_for borealis)" "Noah Lindqvist"
+  sign_up "$(email_for brio)" "Valentina Ríos"
+  sign_up "$(email_for brio-advisor)" "Tomás Acosta"
   place_user "$(email_for d2c)" ""
   place_user "$(email_for acme)" acme
   place_user "$(email_for borealis)" borealis
-  echo "✓ one onboarded, funded (250 credits) analyst per tenant"
+  place_user "$(email_for brio)" brio owner 500
+  place_user "$(email_for brio-advisor)" brio member
+  echo "✓ one onboarded, funded (250 credits) analyst per tenant; brio has 500 and a second member"
+
+  node "$ROOT/.claude/skills/run-portfolio-optimization/seed-brio.mjs" "$API" "$(origin_for brio)" \
+    "$PASSWORD" "$(email_for brio)" "$(email_for brio-advisor)" \
+    || echo "  (brio mock data incomplete — the tenant still works; see above)"
 
   (cd "$ROOT/apps/web" && API_URL="$API" nohup ./node_modules/.bin/next dev -p 3000 \
     >"$DEMO_DIR/web.log" 2>&1 </dev/null &)
@@ -165,7 +192,7 @@ cmd_up() {
 
   echo
   echo "DEMO_DIR=$DEMO_DIR"
-  echo "Next: run.sh login <d2c|acme|borealis>, then drive agent-browser --session <tenant>"
+  echo "Next: run.sh login <d2c|acme|borealis|brio|brio-advisor>, then drive agent-browser --session <tenant>"
 }
 
 cmd_login() {
@@ -190,7 +217,7 @@ cmd_login() {
 
 cmd_status() {
   curl -s "$API/api/health"; echo
-  for host in localhost acme.localhost borealis.localhost; do
+  for host in localhost acme.localhost borealis.localhost brio.localhost; do
     printf '%-20s -> ' "$host"
     # The JSON body has no trailing newline, so sed's output needs one added.
     curl -s "$API/api/tenants/by-host?host=$host" | sed -n 's/.*"slug":"\([^"]*\)".*"tier":"\([^"]*\)".*/\1 (\2)/p'
