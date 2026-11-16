@@ -68,7 +68,7 @@ api_env() {
 }
 
 provision() {
-  # provision:tenant only accepts *.optim.app (decision D6); `up` remaps the
+  # provision:tenant only accepts *.prontofolio.com (decision D6); `up` remaps the
   # domain rows to *.localhost afterwards so a local browser can reach them.
   DATABASE_URL="file:$DB_FILE" pnpm --filter api --silent provision:tenant -- "$@" >/dev/null
 }
@@ -140,12 +140,12 @@ cmd_up() {
   DATABASE_URL="file:$DB_FILE" pnpm --filter api --silent seed:dev-org >/dev/null
   echo "✓ default (D2C) tenant on localhost"
 
-  provision --slug acme --name "Acme Capital" --hostname acme.optim.app --tier whitelabel \
+  provision --slug acme --name "Acme Capital" --hostname acme.prontofolio.com --tier whitelabel \
     --support-email soporte@acme.example --privacy-url https://acme.example/privacidad \
     --terms-url https://acme.example/terminos --accent "#0f766e" \
     --product-name "Acme Portfolio Lab" --short-name "Acme" \
     --tagline "Construcción de carteras para asesores Acme"
-  provision --slug borealis --name "Borealis Advisors" --hostname borealis.optim.app --tier cobranded \
+  provision --slug borealis --name "Borealis Advisors" --hostname borealis.prontofolio.com --tier cobranded \
     --support-email help@borealis.example --privacy-url https://borealis.example/privacy \
     --terms-url https://borealis.example/terms --accent "#4338ca" \
     --product-name "Borealis Allocator" --short-name "Borealis" \
@@ -154,14 +154,14 @@ cmd_up() {
   # #ef5915 is their button colour; the logo is white-on-navy, so the light theme
   # gets a navy-ink copy (apps/web/public/tenants/brio/). They publish no privacy
   # policy yet ("a publicar" in their terms), so the demo points both at the terms.
-  provision --slug brio --name "Brio Valores ALyC S.A." --hostname brio.optim.app --tier whitelabel \
+  provision --slug brio --name "Brio Valores ALyC S.A." --hostname brio.prontofolio.com --tier whitelabel \
     --support-email info@briovalores.com --privacy-url https://briovalores.com/terminos-y-condiciones \
     --terms-url https://briovalores.com/terminos-y-condiciones --accent "#ef5915" \
     --product-name "Brio Valores" --short-name "Brio" \
     --tagline "Tu acceso profesional al mercado de capitales" --font-key manrope \
     --logo-url /tenants/brio/logo.svg --logo-dark-url /tenants/brio/logo-dark.svg \
     --favicon-url /tenants/brio/favicon.svg
-  sqlite3 "$DB_FILE" "UPDATE organization_domain SET hostname = replace(hostname, '.optim.app', '.localhost') WHERE hostname LIKE '%.optim.app';"
+  sqlite3 "$DB_FILE" "UPDATE organization_domain SET hostname = replace(hostname, '.prontofolio.com', '.localhost') WHERE hostname LIKE '%.prontofolio.com';"
   echo "✓ tenants acme (whitelabel, teal), borealis (co-branded, indigo), brio (whitelabel, orange)"
 
   # No .env exists in a fresh checkout, and `pnpm dev` in apps/api passes

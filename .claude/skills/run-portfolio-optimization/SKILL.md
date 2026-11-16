@@ -166,8 +166,8 @@ At the time of writing: 453 API tests across 29 files and 407 web tests across 2
   resolves to without a browser: `curl -s "http://localhost:8001/api/tenants/by-host?host=acme.localhost"`.
   For server-rendered HTML per tenant, send the host header:
   `curl -s -H "Host: acme.localhost:3000" http://localhost:3000/`.
-- **`provision:tenant` only accepts `*.optim.app` hostnames** (decision D6), and it cannot add
-  members (PLAN.md Task 0.9). `run.sh` provisions with `*.optim.app` and then rewrites the
+- **`provision:tenant` only accepts `*.prontofolio.com` hostnames** (decision D6; optim.app was never ours), and it cannot add
+  members (PLAN.md Task 0.9). `run.sh` provisions with `*.prontofolio.com` and then rewrites the
   domain rows to `*.localhost`. It adds each analyst by moving the membership its signup
   created (one user, one org — decision D3).
 - **`pnpm --filter api dev` fails in a fresh checkout** with `node: .env: not found`: the

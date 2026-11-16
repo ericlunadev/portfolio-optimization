@@ -9,7 +9,7 @@
 //   pnpm provision:tenant -- \
 //     --slug acme \
 //     --name "Acme Capital" \
-//     --hostname acme.optim.app \
+//     --hostname acme.prontofolio.com \
 //     --tier whitelabel \
 //     --support-email soporte@acme.com \
 //     --privacy-url https://acme.com/privacidad \
@@ -41,10 +41,16 @@ import {
   organizationSettings,
 } from "../db/schema.js";
 
-// D6: a tenant lives on a subdomain of ours, served under the *.optim.app
-// wildcard certificate. A wildcard matches exactly ONE label, so `acme.optim.app`
-// is covered and `team.acme.optim.app` is not — hence the single-label rule.
-const PARENT_DOMAIN = "optim.app";
+// D6: a tenant lives on a subdomain of ours. The plan named optim.app, but that
+// domain was never ours (it is parked for sale), so tenants live under
+// prontofolio.com, the domain production already serves. Override with
+// TENANT_PARENT_DOMAIN if that ever moves.
+//
+// One label only (`acme.prontofolio.com`, never `team.acme.prontofolio.com`):
+// a wildcard certificate matches exactly one label, and until one exists each
+// tenant host is added to the Vercel project and given its own CNAME
+// (`<label> → cname.vercel-dns.com`, DNS-only in Cloudflare).
+const PARENT_DOMAIN = (process.env.TENANT_PARENT_DOMAIN ?? "prontofolio.com").trim().toLowerCase();
 // RFC 1123: 1-63 chars, alphanumeric at both ends, hyphens inside. No dots, which
 // is what keeps the host to one label under the parent domain.
 const DNS_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
