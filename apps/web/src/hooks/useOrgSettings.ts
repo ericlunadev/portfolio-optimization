@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE, API_CREDENTIALS } from "@/lib/api-base";
+
 import { useQuery } from "@tanstack/react-query";
 import {
   resolveOrgSettings,
@@ -13,20 +15,12 @@ import {
 // injects a tenant config from the root layout; these switches belong in that
 // config, where they are known before first paint instead of one fetch later.
 
-// Mirrors `lib/api.ts`: with NEXT_PUBLIC_API_URL set the browser calls the API
-// host directly and the session cookie has to be sent cross-origin. That module
-// keeps its fetch wrapper private, so the two lines are repeated rather than
-// reached into.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : "/api";
-const isExternal = !!process.env.NEXT_PUBLIC_API_URL;
 
 export const ORG_SETTINGS_QUERY_KEY = ["organization", "settings"] as const;
 
 export async function fetchOrgSettings(): Promise<OrgSettings> {
   const res = await fetch(`${API_BASE}/organizations/settings`, {
-    credentials: isExternal ? "include" : "same-origin",
+    credentials: API_CREDENTIALS,
   });
   if (!res.ok) {
     throw new Error(`Failed to load organization settings (${res.status})`);

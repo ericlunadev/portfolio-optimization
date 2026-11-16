@@ -1,5 +1,6 @@
 import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "",
+  // Empty: /api/auth on this host, so the session cookie is per tenant (lib/api-base.ts).
+  baseURL: "",
 });

@@ -1,18 +1,12 @@
 "use client";
 
+import { API_BASE, API_CREDENTIALS } from "@/lib/api-base";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { BrandingSettings } from "./form";
 
 // The two owner-only branding calls, kept beside the page that makes them.
 //
-// Mirrors `lib/api.ts`: with NEXT_PUBLIC_API_URL set the browser calls the API
-// host directly and the session cookie has to be sent cross-origin. That module
-// keeps its fetch wrapper private, so the two lines are repeated rather than
-// reached into — the same trade `(app)/billing/queries.ts` makes.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : "/api";
-const isExternal = !!process.env.NEXT_PUBLIC_API_URL;
 
 export const BRANDING_SETTINGS_QUERY_KEY = ["organization", "branding", "settings"];
 
@@ -44,7 +38,7 @@ export function useBrandingSettings() {
     queryKey: BRANDING_SETTINGS_QUERY_KEY,
     queryFn: async () => {
       const response = await fetch(`${API_BASE}/organizations/branding/settings`, {
-        credentials: isExternal ? "include" : "same-origin",
+        credentials: API_CREDENTIALS,
       });
       if (!response.ok) throw await readError(response);
       return response.json();
@@ -64,7 +58,7 @@ export function useSaveBranding() {
       const response = await fetch(`${API_BASE}/organizations/branding`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: isExternal ? "include" : "same-origin",
+        credentials: API_CREDENTIALS,
         body: JSON.stringify(body),
       });
       if (!response.ok) throw await readError(response);

@@ -18,12 +18,12 @@ import { NextRequest, NextResponse } from "next/server";
 //
 // **Fail closed.** When the upstream cannot be reached the answer is an empty
 // list — the same shape a Yahoo failure has always produced — never an
-// unfiltered Yahoo result. Today's D2C behaviour is unaffected: production
-// browsers do not take this path at all (NEXT_PUBLIC_API_URL sends them straight
-// to the API host) and local dev already requires the API on :8001.
+// unfiltered Yahoo result. Every browser takes this path: all `/api` calls are
+// same-origin (lib/api-base.ts), and this route wins over the generic proxy in
+// ../../[...path]/route.ts.
 
-// Same precedence as the `rewrites()` block in next.config.js, plus
-// NEXT_PUBLIC_API_URL for a deployment that only configures the public one.
+// Same precedence as the generic proxy, plus NEXT_PUBLIC_API_URL for a
+// deployment that only configures the public one.
 function apiBaseUrl(): string {
   return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 }
