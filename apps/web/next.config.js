@@ -5,15 +5,9 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  async rewrites() {
-    const apiUrl = process.env.API_URL || 'http://localhost:8001';
-    return [
-      {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`,
-      },
-    ];
-  },
+  // No `rewrites()` for /api: Vercel refuses to proxy a rewrite to Render
+  // (DNS_HOSTNAME_RESOLVED_PRIVATE). The catch-all route handler in
+  // src/app/api/[...path]/route.ts forwards to API_URL at request time instead.
 };
 
 module.exports = withNextIntl(nextConfig);

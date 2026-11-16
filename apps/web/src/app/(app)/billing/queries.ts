@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE, API_CREDENTIALS } from "@/lib/api-base";
+
 import { useQuery } from "@tanstack/react-query";
 import { resolveRails, type Rail } from "./rails";
 import type { Usage } from "./usage";
@@ -8,18 +10,10 @@ import type { Usage } from "./usage";
 // page that uses them: the rails this tenant may pay with (Task 2.7) and the
 // owner's usage view (Task 2.4).
 //
-// Mirrors `lib/api.ts`: with NEXT_PUBLIC_API_URL set the browser calls the API
-// host directly and the session cookie has to be sent cross-origin. That module
-// keeps its fetch wrapper private, so the two lines are repeated rather than
-// reached into — the same trade `hooks/useOrgSettings.ts` makes.
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : "/api";
-const isExternal = !!process.env.NEXT_PUBLIC_API_URL;
 
 async function getJson<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
-    credentials: isExternal ? "include" : "same-origin",
+    credentials: API_CREDENTIALS,
   });
   if (!res.ok) {
     throw new Error(`Request to ${path} failed (${res.status})`);

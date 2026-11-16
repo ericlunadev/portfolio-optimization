@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE, API_CREDENTIALS } from "@/lib/api-base";
+
 import { useState, useEffect, useRef } from "react";
 import { Search, X, Loader2, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -112,9 +114,8 @@ function AssetRowInput({
     setIsSearching(true);
     searchTimeout.current = setTimeout(async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
-        const res = await fetch(`${apiBase}/api/historical/search?q=${encodeURIComponent(search)}`, {
-          credentials: process.env.NEXT_PUBLIC_API_URL ? "include" : "same-origin",
+        const res = await fetch(`${API_BASE}/historical/search?q=${encodeURIComponent(search)}`, {
+          credentials: API_CREDENTIALS,
         });
         const data = await res.json();
         setResults(data);

@@ -1,13 +1,8 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL}/api`
-  : "/api";
-
-const isExternal = !!process.env.NEXT_PUBLIC_API_URL;
-
+import { API_BASE, API_CREDENTIALS } from "@/lib/api-base";
 function apiFetch(url: string, init?: RequestInit): Promise<Response> {
   return fetch(url, {
     ...init,
-    credentials: isExternal ? "include" : "same-origin",
+    credentials: API_CREDENTIALS,
   });
 }
 

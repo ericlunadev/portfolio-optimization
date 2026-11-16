@@ -2,11 +2,9 @@
  * Tenant identity, resolved from the `Host` header on the server (PLAN Tasks
  * 1.1, 1.3 and 1.4).
  *
- * **Why this exists at all.** `lib/api.ts` is browser-only in both branches — an
- * absolute URL with `credentials: include` when `NEXT_PUBLIC_API_URL` is set,
- * a relative `/api` otherwise — and a relative fetch from a server component
- * has no base URL to resolve against. `next.config.js`'s `rewrites()` do not
- * apply to server-side fetches either. So the server needs its own client, and
+ * **Why this exists at all.** `lib/api.ts` is browser-only — a relative `/api`
+ * on the tenant's own host (lib/api-base.ts) — and a relative fetch from a
+ * server component has no base URL to resolve against. So the server needs its own client, and
  * this is it: one unauthenticated GET, called from the middleware and from the
  * root layout.
  *

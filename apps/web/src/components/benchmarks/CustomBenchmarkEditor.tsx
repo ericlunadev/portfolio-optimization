@@ -1,5 +1,7 @@
 "use client";
 
+import { API_BASE, API_CREDENTIALS } from "@/lib/api-base";
+
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { Loader2, Plus, Search, X } from "lucide-react";
@@ -253,10 +255,9 @@ function TickerField({
     setIsSearching(true);
     const timeout = setTimeout(async () => {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "";
         const res = await fetch(
-          `${apiBase}/api/historical/search?q=${encodeURIComponent(query)}`,
-          { credentials: process.env.NEXT_PUBLIC_API_URL ? "include" : "same-origin" }
+          `${API_BASE}/historical/search?q=${encodeURIComponent(query)}`,
+          { credentials: API_CREDENTIALS }
         );
         setResults(await res.json());
       } catch {
