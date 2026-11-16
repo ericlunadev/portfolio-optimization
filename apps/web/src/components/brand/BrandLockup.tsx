@@ -19,6 +19,9 @@ import { wordmark } from "@/lib/wordmark";
  * here, so its wordmark keeps the two-tone treatment, with the accented part
  * in the tenant's `--primary`.
  *
+ * A tenant that configured a logo (`logoUrl`, plus `logoDarkUrl` when the mark
+ * is drawn for one background only) gets that image instead of the wordmark.
+ *
  * `compact` is the phone header: at 390px the controls beside it leave room for
  * a short mark, not a product name: our tenant shows the isotype alone, and a
  * tenant shows only the accented part of its wordmark, truncated rather than
@@ -31,8 +34,37 @@ export function BrandLockup({
   compact?: boolean;
   className?: string;
 }) {
-  const { brand, isDefault } = useTenant();
+  const { brand, isDefault, logoUrl, logoDarkUrl } = useTenant();
   const mark = wordmark(brand.productName, brand.shortName);
+
+  // A tenant's own logo replaces the wordmark outright: it already spells the
+  // name, in the tenant's type. Two <img>s rather than one swapped by state, so
+  // the server renders the right one before the theme is known on the client
+  // (the `dark` class decides, like everything else in globals.css).
+  if (logoUrl) {
+    const logoClass = cn("w-auto max-w-full object-contain object-left", compact ? "h-8" : "h-14");
+    return (
+      <h1
+        className={cn("flex min-w-0 items-center", className)}
+        aria-label={brand.productName}
+        title={brand.productName}
+      >
+        <img
+          src={logoUrl}
+          alt={brand.productName}
+          className={cn(logoClass, logoDarkUrl && "dark:hidden")}
+        />
+        {logoDarkUrl && (
+          <img
+            src={logoDarkUrl}
+            alt=""
+            aria-hidden
+            className={cn(logoClass, "hidden dark:block")}
+          />
+        )}
+      </h1>
+    );
+  }
 
   if (mark.joined) {
     return (

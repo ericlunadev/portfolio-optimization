@@ -9,7 +9,7 @@
 //   pnpm provision:tenant -- \
 //     --slug acme \
 //     --name "Acme Capital" \
-//     --hostname acme.optim.app \
+//     --hostname acme.prontofolio.com \
 //     --tier whitelabel \
 //     --support-email soporte@acme.com \
 //     --privacy-url https://acme.com/privacidad \
@@ -17,6 +17,12 @@
 //
 // Optional: --accent '#1f6feb'  --product-name 'Acme Portfolio'  --short-name Acme
 //           --tagline '...'  --font-key instrument-sans
+//           --logo-url /tenants/acme/logo.svg  --logo-dark-url /tenants/acme/logo-dark.svg
+//           --favicon-url /tenants/acme/favicon.png
+//
+// Logo and favicon are URLs, not uploads: there is no blob storage in this stack
+// (PLAN Task 1.5), so the interim answer is files committed under
+// apps/web/public/tenants/<slug>/ and referenced by their root-relative path.
 //
 // DATABASE_URL defaults to file:portfolio.db, so point it at the real database:
 //   DATABASE_URL=libsql://... DATABASE_AUTH_TOKEN=... pnpm provision:tenant -- ...
@@ -35,10 +41,16 @@ import {
   organizationSettings,
 } from "../db/schema.js";
 
-// D6: a tenant lives on a subdomain of ours, served under the *.optim.app
-// wildcard certificate. A wildcard matches exactly ONE label, so `acme.optim.app`
-// is covered and `team.acme.optim.app` is not — hence the single-label rule.
-const PARENT_DOMAIN = "optim.app";
+// D6: a tenant lives on a subdomain of ours. The plan named optim.app, but that
+// domain was never ours (it is parked for sale), so tenants live under
+// prontofolio.com, the domain production already serves. Override with
+// TENANT_PARENT_DOMAIN if that ever moves.
+//
+// One label only (`acme.prontofolio.com`, never `team.acme.prontofolio.com`):
+// a wildcard certificate matches exactly one label, and until one exists each
+// tenant host is added to the Vercel project and given its own CNAME
+// (`<label> → cname.vercel-dns.com`, DNS-only in Cloudflare).
+const PARENT_DOMAIN = (process.env.TENANT_PARENT_DOMAIN ?? "prontofolio.com").trim().toLowerCase();
 // RFC 1123: 1-63 chars, alphanumeric at both ends, hyphens inside. No dots, which
 // is what keeps the host to one label under the parent domain.
 const DNS_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
@@ -49,7 +61,8 @@ const USAGE = `Usage (from apps/api):
     --tier <cobranded|whitelabel> --support-email <email> \\
     --privacy-url <url> --terms-url <url>
   Optional: --accent '#1f6feb' --product-name <name> --short-name <name> \\
-            --tagline <text> --font-key <key>`;
+            --tagline <text> --font-key <key> --logo-url <url> \\
+            --logo-dark-url <url> --favicon-url <url>`;
 
 type Options = {
   slug: string;
@@ -64,6 +77,9 @@ type Options = {
   productShortName: string | null;
   tagline: string | null;
   fontKey: string;
+  logoUrl: string | null;
+  logoDarkUrl: string | null;
+  faviconUrl: string | null;
 };
 
 function isEmail(value: string): boolean {
@@ -77,6 +93,12 @@ function isHttpUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+// A root-relative path ("/tenants/acme/logo.svg") is served by the web app
+// itself, on whichever tenant host renders it; anything else must be absolute.
+function isAssetUrl(value: string): boolean {
+  return (value.startsWith("/") && !value.startsWith("//")) || isHttpUrl(value);
 }
 
 function validateHostname(hostname: string, errors: string[]): void {
@@ -117,6 +139,9 @@ function parseOptions(): Options {
       "short-name": { type: "string" },
       tagline: { type: "string" },
       "font-key": { type: "string", default: "instrument-sans" },
+      "logo-url": { type: "string" },
+      "logo-dark-url": { type: "string" },
+      "favicon-url": { type: "string" },
     },
   });
 
@@ -129,6 +154,9 @@ function parseOptions(): Options {
   const privacyUrl = (values["privacy-url"] ?? "").trim();
   const termsUrl = (values["terms-url"] ?? "").trim();
   const accentHex = (values.accent ?? "").trim().toLowerCase();
+  const logoUrl = (values["logo-url"] ?? "").trim();
+  const logoDarkUrl = (values["logo-dark-url"] ?? "").trim();
+  const faviconUrl = (values["favicon-url"] ?? "").trim();
 
   // The slug is an internal identifier, never the subdomain (§3.1), but it ends
   // up in logs and URLs, so hold it to the same shape.
@@ -160,6 +188,19 @@ function parseOptions(): Options {
     errors.push(`--accent must be a six-digit hex colour like '#1f6feb', got '${accentHex}'`);
   }
 
+  if (logoUrl && !isAssetUrl(logoUrl)) {
+    errors.push(`--logo-url must be a root-relative path or an http(s) URL, got '${logoUrl}'`);
+  }
+  if (logoDarkUrl && !isAssetUrl(logoDarkUrl)) {
+    errors.push(`--logo-dark-url must be a root-relative path or an http(s) URL, got '${logoDarkUrl}'`);
+  }
+  if (logoDarkUrl && !logoUrl) {
+    errors.push("--logo-dark-url needs --logo-url: it is the dark-theme variant of that logo");
+  }
+  if (faviconUrl && !isAssetUrl(faviconUrl)) {
+    errors.push(`--favicon-url must be a root-relative path or an http(s) URL, got '${faviconUrl}'`);
+  }
+
   if (errors.length > 0) {
     console.error("Refusing to provision:\n");
     for (const error of errors) console.error(`  ✗ ${error}`);
@@ -180,6 +221,9 @@ function parseOptions(): Options {
     productShortName: (values["short-name"] ?? "").trim() || null,
     tagline: (values.tagline ?? "").trim() || null,
     fontKey: (values["font-key"] ?? "instrument-sans").trim(),
+    logoUrl: logoUrl || null,
+    logoDarkUrl: logoDarkUrl || null,
+    faviconUrl: faviconUrl || null,
   };
 }
 
@@ -237,6 +281,9 @@ async function provision(options: Options): Promise<string> {
       tagline: options.tagline,
       accentHex: options.accentHex,
       fontKey: options.fontKey,
+      logoUrl: options.logoUrl,
+      logoDarkUrl: options.logoDarkUrl,
+      faviconUrl: options.faviconUrl,
       supportEmail: options.supportEmail,
       privacyPolicyUrl: options.privacyUrl,
       termsUrl: options.termsUrl,

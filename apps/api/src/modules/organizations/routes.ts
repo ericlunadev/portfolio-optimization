@@ -59,6 +59,7 @@ app.get("/branding", async (c) => {
     accentHex: row?.accentHex ?? null,
     fontKey: row?.fontKey ?? null,
     logoUrl: row?.logoUrl ?? null,
+    logoDarkUrl: row?.logoDarkUrl ?? null,
     faviconUrl: row?.faviconUrl ?? null,
     supportEmail: row?.supportEmail ?? null,
     privacyPolicyUrl: row?.privacyPolicyUrl ?? null,

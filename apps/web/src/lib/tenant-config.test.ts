@@ -232,6 +232,20 @@ describe("tenantConfigFromResponse", () => {
     expect(config.brand).toEqual(DEFAULT_TENANT_CONFIG.brand);
   });
 
+  it("carries both logo variants, and leaves the dark one empty when the tenant has one logo", () => {
+    const both = tenantConfigFromResponse(
+      tenantPayload({
+        branding: { logoUrl: "/tenants/brio/logo.svg", logoDarkUrl: "/tenants/brio/logo-dark.svg" },
+      })
+    );
+    expect(both.logoUrl).toBe("/tenants/brio/logo.svg");
+    expect(both.logoDarkUrl).toBe("/tenants/brio/logo-dark.svg");
+
+    const single = tenantConfigFromResponse(tenantPayload());
+    expect(single.logoUrl).toBe("/tenants/acme/logo.svg");
+    expect(single.logoDarkUrl).toBeNull();
+  });
+
   it("treats an unusable payload as no tenant at all", () => {
     expect(tenantConfigFromResponse(null)).toEqual(DEFAULT_TENANT_CONFIG);
     expect(tenantConfigFromResponse("acme")).toEqual(DEFAULT_TENANT_CONFIG);

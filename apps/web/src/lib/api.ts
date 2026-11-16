@@ -925,6 +925,7 @@ export interface OrganizationBranding {
   accentHex: string | null;
   fontKey: string | null;
   logoUrl: string | null;
+  logoDarkUrl: string | null;
   faviconUrl: string | null;
   supportEmail: string | null;
   privacyPolicyUrl: string | null;
