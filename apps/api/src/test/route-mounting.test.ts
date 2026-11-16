@@ -11,9 +11,14 @@
 // is the wiring, not the handler. Auth and validation are covered by each
 // router's own tests.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import app from "../app.js";
 import { asUser, seedUser } from "./factories.js";
+
+// The rates handler calls BCRA, FRED and BYMA live, each with a 10s timeout —
+// longer than this test's 5s budget, so one slow upstream (BYMA, 2026-11-16)
+// failed CI for every PR. Wiring is what this file pins, so the network stays out.
+vi.mock("../lib/risk-free-rates.js", () => ({ fetchRiskFreeRates: async () => [] }));
 
 const ORIGIN = "http://api.test";
 
