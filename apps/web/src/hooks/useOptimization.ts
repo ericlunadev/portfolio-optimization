@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { api, OptimizationStrategy } from "@/lib/api";
+import { api, ApiError, OptimizationStrategy } from "@/lib/api";
 
 export function useOptimization(
   tickers: string[],
@@ -43,6 +43,10 @@ export function useOptimization(
     ],
     queryFn: () => api.optimizePortfolio(tickers, strategy, options),
     enabled: tickers.length >= 2,
+    // A 4xx is a verdict on the request itself (bad params, no credits): the
+    // same request would fail the same way, so only retry server errors.
+    retry: (failureCount, error) =>
+      !(error instanceof ApiError && error.status < 500) && failureCount < 1,
   });
 }
 
