@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { env } from "./config/env.js";
 import { resolveTenantOrigin } from "./lib/trusted-origins.js";
-import { errorHandler } from "./middleware/error.js";
+import { logBadRequests, onError } from "./middleware/error.js";
 
 // Import routes
 import auth from "./modules/auth/routes.js";
@@ -29,7 +29,8 @@ const app = new Hono();
 
 // Middleware
 app.use("*", logger());
-app.use("*", errorHandler);
+app.use("*", logBadRequests);
+app.onError(onError);
 app.use(
   "*",
   cors({

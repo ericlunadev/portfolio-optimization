@@ -28,6 +28,7 @@ import { authClient } from "@/lib/auth-client";
 import { SignInPrompt } from "@/components/auth/SignInPrompt";
 import { decodeFormState, encodeFormState } from "@/lib/optimization-url";
 import { toWeightBounds, validateAssetLimits } from "@/lib/asset-limits";
+import { describeOptimizeError } from "@/lib/optimize-error";
 
 const currentYear = new Date().getFullYear();
 
@@ -347,8 +348,9 @@ function NewOptimizationForm() {
       );
     }
 
-    const errorMessage = optimizationError
-      ? t("errorOptimize")
+    const optimizeError = optimizationError ? describeOptimizeError(optimizationError) : null;
+    const errorMessage = optimizeError
+      ? t(optimizeError.key, optimizeError.values)
       : saveSimulation.isError
       ? t("errorSave")
       : null;
@@ -357,6 +359,11 @@ function NewOptimizationForm() {
       return (
         <div className="mx-auto max-w-md space-y-4 pt-16 text-center">
           <p className="text-destructive">{errorMessage}</p>
+          {optimizeError?.code && (
+            <p className="font-mono text-xs text-muted-foreground">
+              {t("errorCode", { code: optimizeError.code })}
+            </p>
+          )}
           <button
             onClick={() => {
               hasSavedRef.current = false;

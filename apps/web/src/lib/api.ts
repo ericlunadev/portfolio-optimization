@@ -26,12 +26,11 @@ export class ApiError extends Error {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new ApiError(
-      response.status,
-      error.detail || error.error || response.statusText,
-      error.error,
-      error
-    );
+    // `error` is usually a machine-readable code, but a zod validation failure
+    // puts the whole ZodError object there; only a string is a usable code.
+    const code = typeof error.error === "string" ? error.error : undefined;
+    const detail = typeof error.detail === "string" ? error.detail : undefined;
+    throw new ApiError(response.status, detail || code || response.statusText, code, error);
   }
   return response.json();
 }
